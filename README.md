@@ -53,7 +53,10 @@ skill を作った/直した直後に `empirical-prompt-tuning` をかけて、d
 
 ## 前提ツール
 
-- [fastcontext](https://github.com/microsoft/fastcontext) — 広域・意味的探索
+- [fastcontext](https://github.com/microsoft/fastcontext) — 広域・意味的探索。
+  OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` /
+  `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。鍵はコミットせず
+  各自設定する。未設定時は `fast-search` skill のフォールバック(Explore / Grep+Read)で代替。
 - [md2idx](https://github.com/oubakiou/md2idx) — Markdown を索引+節に変換(`npm i -g md2idx`)
 - [mq](https://mqlang.org/) — Markdown 構造クエリ(補助)
 

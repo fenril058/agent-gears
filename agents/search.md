@@ -12,6 +12,8 @@ model: sonnet
 
 - 与えられた問いに対し、関連する場所を特定して**結論だけ**を返す。
 - 広域・意味的な問いには `fastcontext -q "<質問>"`(出典だけなら `--citation`)を使う。
+  fastcontext は `API_KEY` / `MODEL` / `BASE_URL`(OpenAI 互換)が要る。未設定・実行不能
+  (`Missing credentials` 等)なら、Grep / Glob / Read の組み合わせで広域探索を代替する。
 - 既知ファイルや単純な文字列一致は Grep / Glob / Read で直接当たる。
 - ファイルを編集しない。提案はしてよいが、変更はメインに委ねる。
 
