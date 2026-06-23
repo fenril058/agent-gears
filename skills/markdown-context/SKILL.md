@@ -54,6 +54,9 @@ jq -r '.sections[5]' /tmp/doc.idx.json
 - コードブロックだけ集める: `mq -F text '.code' doc.md`
 - 入力形式の指定や変換が要る場合は `-I` / `-F`(`mq --help` 参照)
 
+`mq -F text` の出力は要素間に空行が混ざる。読みにくければ末尾に
+`| sed '/^[[:space:]]*$/d'` を足して空行を除く(例: `mq -F text '.h2' doc.md | sed '/^[[:space:]]*$/d'`)。
+
 ## やらないこと
 
 - 大きな Markdown を理由なく全文 Read しない。
