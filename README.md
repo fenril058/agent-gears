@@ -76,6 +76,51 @@ bash install.sh             # 実行
 - 外すときは `bash install.sh --uninstall`(このリポジトリを指す symlink だけ外す)。
 - **反映には Claude Code / Codex の再起動が必要。**
 
+## Nix / home-manager
+
+`install.sh` の宣言的な代替として home-manager モジュールを同梱する。
+`flake.nix` の `homeManagerModules.default` を imports に足すと、skills/meta/agents/
+常時ルールを各エージェントへ symlink 配布する。
+
+home-manager の flake に取り込む例:
+
+```nix
+{
+  inputs.context-engineering.url = "github:fenril058/context-engineering";
+
+  # home.nix 側
+  imports = [ inputs.context-engineering.homeManagerModules.default ];
+
+  programs.context-engineering = {
+    enable = true;
+    # 作業ツリーへの絶対パス。既存 skill の編集が再ビルドなしで即反映される
+    repoPath = "/home/ril/ghq/github.com/fenril058/context-engineering";
+  };
+}
+```
+
+オプション(既定値):
+
+| オプション | 既定 | 意味 |
+|---|---|---|
+| `repoPath` | `null` | 作業ツリーの絶対パス(`mutable = true` のとき必須) |
+| `mutable` | `true` | `true`=作業ツリーへの out-of-store symlink(編集即反映)。`false`=flake ソース(store)を直接配布(完全宣言的・反映には switch) |
+| `claude.enable` | `true` | `~/.claude` へ配布 |
+| `codex.enable` | `true` | `~/.codex` へ配布 |
+| `sharedStore.enable` | `true` | `~/.agents/skills` へ配布 |
+| `rules.enable` | `true` | `AGENTS.md` を `CLAUDE.md` / `AGENTS.md` として配布 |
+| `agentDefs.enable` | `true` | `agents/*.md` を `~/.claude/agents` へ配布(Claude Code 固有) |
+
+- 既定の `mutable = true` は本リポジトリの「編集が即反映」の思想に合わせたもの。
+  完全に純粋な宣言運用にしたいなら `mutable = false`(ただし skill 編集の反映に
+  `home-manager switch` が要る)。
+- skill の**追加・削除**を反映するには、どちらのモードでも flake 更新 + `switch` が要る
+  (配布対象の名前は flake ソースから列挙されるため)。
+- 配布先に install.sh の手動 symlink が残っていると衝突する。home-manager 運用へ移る
+  ときは `bash install.sh --uninstall` で先に外すか、`home-manager switch -b backup` を使う。
+- 周辺ツール: `nix develop` で `jq` / `nodejs`(`npx md2idx` 用)が入る。
+  `mq` / `fastcontext` は nixpkgs 外のため別途導入する。
+
 ## エージェントへの伝わり方
 
 - **skill**: 3者とも同じ `SKILL.md`(YAML frontmatter の `name` / `description`)形式。
