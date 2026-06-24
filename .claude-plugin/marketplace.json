@@ -24,6 +24,14 @@
       "version": "0.1.0",
       "author": { "name": "fenril058" },
       "keywords": ["writing", "japanese", "technical-writing", "editing"]
+    },
+    {
+      "name": "agent-collaboration",
+      "source": "agent-collaboration",
+      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(セッション間の文脈引き継ぎ)、library-update-review(依存更新 PR のレビュー)。shokai/agent-skills(MIT)由来。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "subagent"]
     }
   ]
 }
