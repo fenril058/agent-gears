@@ -70,6 +70,8 @@ flake.nix / nix/     home-manager モジュール(宣言的配布)
   英語版は `SKILL-en.md` として併置。更新は上流から取り直す。
   自作 skill を作った/直した直後の実測 QA に使う**個人用ツール**のため、`marketplace.json`
   には載せず home-manager / install.sh で自環境にだけ配布する。
+  併置の `NOTES-local.md` は上流を触らずに運用追補を置くローカルノート([waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)
+  由来・MIT の知見を session 内ループ向けに書き直したもの。waxa CLI 本体は未導入)。
 
 ## 前提ツール
 
