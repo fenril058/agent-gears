@@ -1,6 +1,6 @@
 # NOTES-local — empirical QA をこのリポジトリの skill に当てるときの追補
 
-このファイルは **ローカル併置ノート**。隣の `SKILL.md` / `SKILL-en.md` は上流
+このファイルは **ローカル併置ノート**。隣の `SKILL.md`(英語正本)/ `SKILL-ja.md`(日本語ミラー)は上流
 ([mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning))
 から取り直す前提なので直接編集しない。上流取り直しでも消えないよう、運用の追補はここに置く。
 

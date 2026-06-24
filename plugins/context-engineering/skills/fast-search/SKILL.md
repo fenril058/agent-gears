@@ -1,57 +1,61 @@
 ---
 name: fast-search
-description: コードベースに対する広域・意味的な探索(「どこで何が行われているか」「この機能はどう実装されているか」)が必要なときに使う。単純な文字列一致や既知ファイルの参照ではなく、複数ファイルにまたがる意味的な問いに、fastcontext で少ない手数で答える。
+description: Use when you need broad, semantic search over a codebase ("where is X done", "how is this feature implemented"). For semantic questions that span multiple files — not simple string matches or references to a known file — answer them in few steps with fastcontext.
 ---
 
 # Fast Search (fastcontext)
 
-広域の「どこで・何が」を、全文 Grep の総当たりではなく `fastcontext` で引く。
-意味的な問いに対し、関連箇所を少ない手数で見つける。
+Answer broad "where / what" questions with `fastcontext` instead of brute-force
+full-text Grep. For semantic questions, find the relevant spots in few steps.
 
-## 前提(初回だけ設定)
+## Prerequisites (one-time setup)
 
-fastcontext は OpenAI 互換 API をバックエンドにする。次の環境変数が要る。
-未設定だと `Missing credentials` で落ちる。
+fastcontext is backed by an OpenAI-compatible API. It needs the following environment
+variables. Without them it fails with `Missing credentials`.
 
-- `API_KEY`: OpenAI 互換エンドポイントの鍵(`OPENAI_API_KEY` でも可)
-- `MODEL`: 使うモデル名
-- `BASE_URL`: エンドポイント URL(OpenAI 本家なら省略可)
+- `API_KEY`: key for the OpenAI-compatible endpoint (`OPENAI_API_KEY` also works)
+- `MODEL`: the model name to use
+- `BASE_URL`: the endpoint URL (omit for OpenAI itself)
 
-鍵は各自の環境で設定する(コミットしない・nix store に置かない)。
-設定済みかは `fastcontext -q "test" --max-turns 1` で確認できる。
-未設定・実行不能のときは下の「フォールバック」に従う。
+Set the key in your own environment (don't commit it, don't put it in the nix store).
+Check whether it's configured with `fastcontext -q "test" --max-turns 1`.
+If it's unset / not runnable, follow "Fallback" below.
 
-## 使い分け
+## When to use which
 
-- 既知ファイル / 単純な文字列・記号の一致 → **Grep / Read**(fastcontext は使わない)。
-- 「どこで認証している?」「この設定はどう読み込まれる?」のような
-  複数ファイルにまたがる意味的な問い → **fastcontext**。
-- 探索の結論だけ要る(本文ダンプ不要)で量が多い → `search` サブエージェントに委譲
-  (`model-routing` skill 参照)。委譲すればメインの文脈を汚さず安価に回せる。
+- Known file / simple string or symbol match → **Grep / Read** (don't use fastcontext).
+- Semantic questions that span multiple files, like "where do we authenticate?" or
+  "how is this config loaded?" → **fastcontext**.
+- You only need the conclusion of the search (no body dump) and there's a lot of it →
+  delegate to the `search` subagent (see the `model-routing` skill). Delegating runs it
+  cheaply without polluting the main context.
 
-## 使い方
-
-```bash
-fastcontext -q "認証トークンはどこで検証されるか"
-```
-
-出典(ファイル/箇所)だけ欲しいとき:
+## How to use
 
 ```bash
-fastcontext -q "設定ファイルの読み込み経路" --citation
+fastcontext -q "where is the auth token validated"
 ```
 
-長い探索を区切るときは `--max-turns N`、挙動を追うときは `--verbose`。
+When you only want the citations (file / location):
 
-## フォールバック(fastcontext が使えないとき)
+```bash
+fastcontext -q "the load path of the config file" --citation
+```
 
-fastcontext が未設定 / 実行不能(`Missing credentials` 等)のときは、広域・意味的な
-探索を次で代替する。fastcontext の不在を理由に全文 Read で抱え込まない。
+Use `--max-turns N` to bound a long search, `--verbose` to trace behavior.
 
-- Explore サブエージェント(読み取り中心の広域探索)、または Grep/Glob/Read の組み合わせ。
-- 結論だけ要る・量が多いなら `search` サブエージェントへ委譲(`model-routing` skill)。
+## Fallback (when fastcontext is unavailable)
 
-## やらないこと
+When fastcontext is unset / not runnable (`Missing credentials` etc.), substitute the
+broad, semantic search with the following. Don't hoard everything via full-text Read
+just because fastcontext is absent.
 
-- 1ファイルを読めば済む問いに fastcontext を回さない。
-- fastcontext の結果を鵜呑みにせず、編集前に該当ファイルを実際に Read で確認する。
+- The Explore subagent (read-centric broad search), or a combination of Grep/Glob/Read.
+- If you only need the conclusion and there's a lot of it, delegate to the `search`
+  subagent (`model-routing` skill).
+
+## Don't
+
+- Don't run fastcontext for a question that's answered by reading a single file.
+- Don't take fastcontext's results at face value; before editing, actually Read the
+  relevant file to confirm.

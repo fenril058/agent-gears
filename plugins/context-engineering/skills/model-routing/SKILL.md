@@ -1,66 +1,70 @@
 ---
 name: model-routing
-description: 重くないが量の多い作業(一括編集・整形・定型置換)や広域探索・調査を、安価モデルのサブエージェントへ委譲してトークンを節約したいときに使う。設計判断や論証はメイン(Opus)に残し、機械的・反復的な仕事を Haiku/Sonnet に落とす判断基準を示す。
+description: Use when you want to save tokens by delegating high-volume but low-judgment work (bulk edits, formatting, boilerplate replacement) or broad search / investigation to a cheaper-model subagent. Keeps design decisions and reasoning on the main model (Opus) and pushes mechanical, repetitive work down to Haiku/Sonnet. Defines the criteria for what to delegate.
 ---
 
-# Model Routing (委譲ポリシー)
+# Model Routing (delegation policy)
 
-トークンを削る一番効くレバーは「安価モデルに委譲できる仕事を委譲する」こと。
+The most effective lever for cutting tokens is to delegate the work that *can* be
+delegated to a cheaper model.
 
-**重要な制約**: Claude Code はメインセッションのモデルを skill/hook で自動切替できない。
-だから「自動でモデルを下げる」のではなく、**重い思考はメイン(Opus)に残し、
-機械的・量的な仕事をサブエージェントへ出す**。委譲は Task/Agent ツールで行う。
+**Key constraint**: Claude Code cannot auto-switch the main session's model from a
+skill/hook. So instead of "automatically lowering the model", **keep heavy thinking
+on the main model (Opus) and push mechanical, high-volume work out to subagents**.
+Delegate via the Task/Agent tool.
 
-## どこへ委譲するか
+## Where to delegate
 
-- **Haiku — `bulk-edit` agent**: 指示が明確で判断の要らない作業。
-  一括リネーム、整形、定型の文字列置換、テンプレ展開、反復編集。
-- **Sonnet — `search` agent**: コードベース探索・要約・調査(fastcontext 実行含む)、
-  中規模で筋の見えている実装。結論だけ返させてメインの文脈を汚さない。
-- **Opus(メイン維持)**: 設計判断、論証、曖昧さの解消、トレードオフの検討、最終レビュー。
-  ここを下げると質が落ちる。
+- **Haiku — `bulk-edit` agent**: clearly specified work that requires no judgment.
+  Bulk renames, formatting, boilerplate string replacement, template expansion, repetitive edits.
+- **Sonnet — `search` agent**: codebase exploration / summary / investigation (including
+  running fastcontext), and medium-sized implementations whose approach is already clear.
+  Have it return only the conclusion so it doesn't pollute the main context.
+- **Opus (keep on main)**: design decisions, reasoning, resolving ambiguity, weighing
+  trade-offs, final review. Lowering the model here degrades quality.
 
-## 判断の目安
+## Criteria
 
-委譲する:
-- 作業を一文で明確に指示でき、出来上がりの正否が機械的に判定できる。
-- ファイルをまたぐ探索だが、欲しいのは結論(該当箇所/要約)だけ。
-- 同じ操作の反復で、量が多い。
+Delegate when:
+- The work can be specified in one sentence and correctness can be judged mechanically.
+- It's a cross-file search but all you want is the conclusion (location / summary).
+- It's repetition of the same operation, in volume.
 
-メインに残す:
-- 何をすべきか自体を決める段階(設計・方針)。
-- 失敗のコストが高く、判断に文脈の含みが要る。
-- 短くて委譲のオーバーヘッドの方が高い。
+Keep on main when:
+- You're still deciding *what* to do (design, direction).
+- The cost of failure is high and the judgment needs contextual nuance.
+- It's short and the delegation overhead would exceed the work itself.
 
-両方の signal が立つとき(機械的だが量が少ない等)は、委譲のオーバーヘッド
-(委譲文の作成・起動・結果回収)が実作業を上回るならメインに残す。「機械的だから」
-だけを理由に些末なタスクを委譲しない。
+When both signals fire (e.g. mechanical but low-volume), keep it on main if the
+delegation overhead (writing the brief, launching, collecting the result) exceeds the
+actual work. Don't delegate trivial tasks just because they're "mechanical".
 
-## 使い方(Claude Code)
+## How to use (Claude Code)
 
-`bulk-edit` / `search` は本リポジトリの `agents/` で定義され、`~/.claude/agents/`
-に配置される。Task/Agent ツールで `subagent_type` に名前を指定して呼ぶ。
-委譲時は、次の3点を必ず埋める(埋めないと委譲先が裁量で補い、結果がぶれる)。
+`bulk-edit` / `search` are defined in this repo's `agents/` and placed in
+`~/.claude/agents/`. Call them via the Task/Agent tool with the name in `subagent_type`.
+When delegating, always fill in these three (otherwise the delegate fills gaps at its
+own discretion and results drift):
 
-- 対象範囲: 何を / どのファイル群を扱うか。除外条件も書く。
-- 期待する成果物: 何が出来上がっていればよいか。
-- 返してほしい形: 差分 / 出典付き要約 / 変更ファイル一覧 のどれか。
+- Scope: what / which set of files to handle. Write the exclusions too.
+- Expected deliverable: what should exist when it's done.
+- Return format: one of — diff / cited summary / list of changed files.
 
-委譲文の例(bulk-edit へ一括リネーム):
+Example brief (bulk rename to bulk-edit):
 
 > subagent_type: bulk-edit
-> 対象範囲: リポジトリ全体の識別子 `foo_bar`(単語境界一致のみ、部分一致・コメント内は除外)
-> 作業: `fooBar` へ機械的に置換。挙動は変えない。曖昧な箇所は置換せず保留して報告。
-> 返す形: 変更ファイル一覧と置換件数の要約(差分は不要)。
+> Scope: the identifier `foo_bar` across the whole repo (word-boundary matches only; exclude partial matches and occurrences inside comments)
+> Work: mechanically replace with `fooBar`. Don't change behavior. Leave ambiguous spots unreplaced and report them.
+> Return: a list of changed files and a count of replacements (no diff needed).
 
-委譲文の例(search へ調査):
+Example brief (investigation to search):
 
 > subagent_type: search
-> 対象範囲: レート制限の実装箇所(ミドルウェア/デコレータ/設定/カウンタ)
-> 期待する成果物: 方式・制限値・適用範囲・主要ファイルの要約
-> 返す形: 出典付き(`path:line`)の簡潔な要約。コード全文転記は不要。
+> Scope: where rate limiting is implemented (middleware / decorator / config / counter)
+> Expected deliverable: a summary of the mechanism, limit values, scope of application, and key files
+> Return: a concise summary with citations (`path:line`). No need to transcribe full code.
 
-## 他エージェント(Codex 等)
+## Other agents (Codex etc.)
 
-agent 定義(`model:`)は Claude Code 固有。Codex では本 skill の判断基準に従い、
-Codex 自身のモデル設定(`/model` 等)で重い作業と軽い作業を使い分ける。
+Agent definitions (`model:`) are Claude Code specific. On Codex, follow this skill's
+criteria and use Codex's own model setting (`/model` etc.) to split heavy vs. light work.

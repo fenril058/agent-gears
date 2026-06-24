@@ -1,41 +1,42 @@
 ---
 name: markdown-context
-description: 大きな・未知の Markdown ファイルから必要な節だけを取り出して読むときに使う。README、設計書、仕様書、長いドキュメント、本の原稿などを全文ロードせず、見出し索引から該当箇所だけを取得してトークンを節約する。md2idx を主役に、構造クエリが要るときだけ mq を併用する。
+description: Use when you need to read only the relevant sections out of a large or unfamiliar Markdown file. For READMEs, design docs, specs, long documents, book manuscripts, etc., save tokens by fetching just the right part from a heading index instead of loading the whole file. md2idx is the primary tool; bring in mq only when you need structural queries.
 ---
 
 # Markdown Context Retrieval
 
-大きな Markdown を全文 Read しない。**索引を見て、必要な節だけ取る。**
-組み込みの Read(offset/limit)+Grep では節の終端を確実に取れないが、
-md2idx は見出しで節境界を切るので、取りこぼしも取りすぎも起きない。
+Don't full-text Read a large Markdown file. **Look at the index, take only the sections
+you need.** The built-in Read (offset/limit) + Grep can't reliably find a section's end,
+but md2idx cuts section boundaries at headings, so you neither miss nor over-grab.
 
-## 判断
+## Decision
 
-- ファイルが小さい(数十行)→ そのまま Read でよい。
-- ファイルが大きい / 長さが不明 / 一部だけ要る → 以下の md2idx 手順。
-- 「コードブロックだけ」「特定要素型の横断抽出」「変換」が要る → mq(後述)。
+- File is small (a few dozen lines) → just Read it.
+- File is large / length unknown / you only need part → the md2idx steps below.
+- You need "only the code blocks", "cross-cutting extraction by element type", or a
+  "transform" → mq (below).
 
-## md2idx(主役・固定2手)
+## md2idx (primary, fixed 2 steps)
 
-`md2idx` は Markdown を `{index, sections}` の JSON に変換する。
-`index` は番号付き目次、`sections` は見出し単位の生 Markdown 配列。
-索引の `## N. 見出し` の N が `sections[N]` に対応する。
+`md2idx` converts Markdown into `{index, sections}` JSON. `index` is a numbered table of
+contents; `sections` is an array of raw Markdown per heading. The N in the index's
+`## N. heading` corresponds to `sections[N]`.
 
-1. 目次を見る(数十行で済む):
+1. Look at the TOC (a few dozen lines):
 
    ```bash
    md2idx path/to/doc.md | jq -r '.index'
    ```
 
-2. 必要な節だけ取る(N は索引の番号):
+2. Take only the sections you need (N is the index number):
 
    ```bash
    md2idx path/to/doc.md | jq -r '.sections[5]'
    ```
 
-   複数節なら `jq -r '.sections[3,5,8]'`。
+   For multiple sections, `jq -r '.sections[3,5,8]'`.
 
-同じファイルを何度も引くなら、一度だけ変換してキャッシュする:
+If you query the same file repeatedly, convert once and cache:
 
 ```bash
 md2idx path/to/doc.md > /tmp/doc.idx.json
@@ -43,21 +44,23 @@ jq -r '.index'       /tmp/doc.idx.json
 jq -r '.sections[5]' /tmp/doc.idx.json
 ```
 
-`--pretty` は人間向け整形。パイプ処理では不要。
+`--pretty` is for human-readable formatting; not needed in a pipeline.
 
-## mq(補助・構造クエリが要るときだけ)
+## mq (auxiliary, only when you need structural queries)
 
-`mq` は Markdown 版の jq。要素型での抽出・横断・変換ができる。
-**節の取得が目的なら md2idx を使う。** mq は次のような別の用途のときだけ:
+`mq` is jq for Markdown. It can extract / traverse / transform by element type.
+**If your goal is fetching sections, use md2idx.** Use mq only for other purposes like:
 
-- 見出しだけ一覧: `mq -F text '.h2' doc.md`
-- コードブロックだけ集める: `mq -F text '.code' doc.md`
-- 入力形式の指定や変換が要る場合は `-I` / `-F`(`mq --help` 参照)
+- List just the headings: `mq -F text '.h2' doc.md`
+- Collect just the code blocks: `mq -F text '.code' doc.md`
+- When you need to specify the input format or transform, `-I` / `-F` (see `mq --help`)
 
-`mq -F text` の出力は要素間に空行が混ざる。読みにくければ末尾に
-`| sed '/^[[:space:]]*$/d'` を足して空行を除く(例: `mq -F text '.h2' doc.md | sed '/^[[:space:]]*$/d'`)。
+`mq -F text` output mixes blank lines between elements. If that's hard to read, append
+`| sed '/^[[:space:]]*$/d'` to strip blank lines
+(e.g. `mq -F text '.h2' doc.md | sed '/^[[:space:]]*$/d'`).
 
-## やらないこと
+## Don't
 
-- 大きな Markdown を理由なく全文 Read しない。
-- md2idx で済む「節取得」を mq のクエリで書かない(誤クエリで取りこぼす)。
+- Don't full-text Read a large Markdown file without reason.
+- Don't write a "section fetch" that md2idx handles as an mq query (a wrong query
+  silently drops content).

@@ -60,14 +60,28 @@ flake.nix / nix/     home-manager モジュール(宣言的配布)
 - **skill(`<plugin>/skills/<name>/SKILL.md`)**: `description` が今の作業に合致したときだけ
   読み込まれる。詳細手順はこちら。
 
+### SKILL.md の言語(英語正本 + 日本語ミラー)
+
+トークナイザは CJK を不利に扱うため、同内容なら英語の方が約 3 割トークンが少ない
+(実測は wiki [SKILL-token-ja-en](../../wiki/SKILL-token-ja-en) 参照)。そこで
+**指示が中心で言語中立な skill は英語版 `SKILL.md` を正本**とし、日本語は読まれない
+保守ミラー `SKILL-ja.md` として併置する(自動ロードされるのは `SKILL.md` のみ)。
+
+- **英語正本 + `SKILL-ja.md`**: `context-engineering`(`model-routing` / `fast-search` /
+  `markdown-context` / `no-neologism`)、`meta/empirical-prompt-tuning`。
+- **日本語 `SKILL.md` のまま**: `japanese-writing`(`japanese-tech-writing` /
+  `argument-gap-edit`)。規範の中身・例文が日本語前提のため。
+- 編集は英語 `SKILL.md` を正、`SKILL-ja.md` は手動で追従させる(ドリフトに注意)。
+
 ### 出典とライセンス
 
 - **japanese-writing**(`japanese-tech-writing` / `argument-gap-edit`): [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)
   由来(public domain)。
 - **meta/empirical-prompt-tuning**: [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)
   由来。同 repo の方針(README)で「`LICENSE.txt` の無い skill は MIT」とされるため **MIT**
-  (`meta/empirical-prompt-tuning/LICENSE` に明記)。有効な `SKILL.md` は日本語版(上流 `SKILL-ja.md`)、
-  英語版は `SKILL-en.md` として併置。更新は上流から取り直す。
+  (`meta/empirical-prompt-tuning/LICENSE` に明記)。**有効な `SKILL.md` は英語版**(上流 `SKILL-en.md`、
+  トークン効率が良いため正本に採用)、日本語ミラーを `SKILL-ja.md` として併置(上流 `SKILL-ja.md`)。
+  更新は上流から取り直す(取り直し時は 上流 `SKILL-en.md`→`SKILL.md`、上流 `SKILL-ja.md`→`SKILL-ja.md` の対応)。
   自作 skill を作った/直した直後の実測 QA に使う**個人用ツール**のため、`marketplace.json`
   には載せず home-manager / install.sh で自環境にだけ配布する。
   併置の `NOTES-local.md` は上流を触らずに運用追補を置くローカルノート([waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)
