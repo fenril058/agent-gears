@@ -177,3 +177,4 @@ gh api repos/{owner}/{repo}/issues/comments/{コメントID} --method PATCH -F b
 
 - **conversation-context-import**: 保存された対話コンテキストを読み込むスキル。新セッションでの開発継続やfeature PRのレビュー時に使用する。
 - **sanity-review**: PRレビュー報告書を作成するスキル。PRコメントに投稿された対話コンテキストを読み込んでレビューに活用する。
+- **wiki-knowledge-export**: 永続層。本スキルは揮発層(PR とともに消えるブランチ単位の文脈)。実測値・規約・システム横断の落とし穴など、ブランチを越えて残すべき発見は、そのスキルで wiki へ書き出す。

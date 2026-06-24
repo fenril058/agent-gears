@@ -1,7 +1,7 @@
 {
   "name": "agent-collaboration",
-  "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(セッション間の文脈引き継ぎ)、library-update-review(依存更新 PR のレビュー)。",
-  "version": "0.1.0",
+  "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(揮発層: ブランチ単位の文脈引き継ぎ)、wiki-knowledge-export(永続層: ブランチを越える知見を wiki へ)、library-update-review(依存更新 PR のレビュー)。",
+  "version": "0.2.0",
   "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
-  "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "subagent"]
+  "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "wiki", "subagent"]
 }
