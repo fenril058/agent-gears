@@ -54,6 +54,15 @@ let
   mkAgentLinks = listToAttrs (map
     (e: { name = ".claude/agents/${e.name}"; value.source = srcOf e.full; })
     agentEntries);
+
+  # mdidx バイナリ。skill 用ツールを PATH に通すため home.packages へ入れる。
+  # 編集即反映が要る skill と違いこれは純粋な store ビルドでよいので、cfg.mutable に
+  # かかわらず常に flake ソース(store)からビルドする。ビルドは Nix が prebuilt の Go
+  # コンパイラを store に取得して行うため、システムへ go を入れる必要はない。
+  mdidx = import (flakeSrc + "/nix/mdidx.nix") {
+    inherit pkgs;
+    src = flakeSrc + "/tools/mdidx";
+  };
 in
 {
   options.programs.agent-gears = {
@@ -86,6 +95,7 @@ in
     sharedStore.enable = mkOption { type = types.bool; default = true; description = "~/.agents/skills へ配布"; };
     rules.enable = mkOption { type = types.bool; default = true; description = "AGENTS.md を CLAUDE.md / AGENTS.md として配布"; };
     agentDefs.enable = mkOption { type = types.bool; default = true; description = "agents/*.md を ~/.claude/agents へ配布(Claude Code 固有)"; };
+    tools.enable = mkOption { type = types.bool; default = true; description = "mdidx バイナリを home.packages に入れて PATH へ通す(markdown-context skill 用)"; };
   };
 
   config = mkIf cfg.enable {
@@ -93,6 +103,8 @@ in
       assertion = !cfg.mutable || cfg.repoPath != null;
       message = "programs.agent-gears.repoPath は mutable = true のとき必須です。";
     }];
+
+    home.packages = lib.optionals cfg.tools.enable [ mdidx ];
 
     home.file =
       (optionalAttrs cfg.claude.enable (mkSkillLinks ".claude/skills"))
