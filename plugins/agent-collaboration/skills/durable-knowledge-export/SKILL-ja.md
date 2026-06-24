@@ -69,6 +69,10 @@ wiki は別 git リポジトリで内容用 REST API が無いため、clone →
    ```
    git add {PageName}.md Home.md && git commit -m "{メッセージ}" && git push
    ```
+   commit には git identity が要る。グローバルの `user.name`/`user.email` が未設定だと
+   (新規 clone では起こりがち)commit が失敗するので、repo の identity をインラインで渡す:
+   `git -c user.name='...' -c user.email='...' commit -m "{メッセージ}"`(値はメイン repo の
+   `git config user.name`/`user.email` を流用する)。
 5. 報告するページ web URL: `{repo-url}/wiki/{PageName}`。
 
 ## 3B. sink: リポジトリ内 docs
