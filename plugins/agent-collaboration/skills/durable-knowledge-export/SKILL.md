@@ -93,6 +93,10 @@ The wiki is a separate git repo with no content REST API, so clone → edit → 
    ```
    git add {PageName}.md Home.md && git commit -m "{message}" && git push
    ```
+   The commit needs a git identity. If global `user.name`/`user.email` are unset (common
+   in fresh clones), the commit fails — pass the repo's identity inline:
+   `git -c user.name='...' -c user.email='...' commit -m "{message}"` (reuse the values
+   from the main repo's `git config user.name`/`user.email`).
 5. Page web URL to report: `{repo-url}/wiki/{PageName}`.
 
 ## 3B. Sink: in-repo docs
