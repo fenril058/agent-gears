@@ -1,4 +1,4 @@
-# home-manager module: context-engineering の skill / 常時ルール / agent定義を
+# home-manager module: agent-gears の skill / 常時ルール / agent定義を
 # Claude Code・Codex・共有ストアへ symlink 配布する。install.sh の宣言的な代替。
 #
 # flakeSrc はこの flake のソース(store)で、配布対象の「名前」の列挙にだけ使う。
@@ -10,19 +10,36 @@
 { flakeSrc }:
 { config, lib, pkgs, ... }:
 let
-  cfg = config.programs.context-engineering;
+  cfg = config.programs.agent-gears;
   inherit (lib)
     mkOption mkEnableOption mkIf types optionalAttrs listToAttrs
-    filterAttrs attrNames elem;
+    filterAttrs attrNames concatMap;
 
   dirNames = path: attrNames (filterAttrs (_: t: t == "directory") (builtins.readDir path));
   regNames = path: attrNames (filterAttrs (_: t: t == "regular") (builtins.readDir path));
   exists = sub: builtins.pathExists (flakeSrc + "/${sub}");
 
-  skillNames = dirNames (flakeSrc + "/skills");
+  # plugins/<plugin>/skills/<name> と meta/<name> を skill として、
+  # plugins/<plugin>/agents/<file> を agent 定義として列挙する。
+  # 各エントリは { name(配布先のベース名); sub(repo 内サブパス) }。
+  pluginNames = if exists "plugins" then dirNames (flakeSrc + "/plugins") else [ ];
   metaNames = if exists "meta" then dirNames (flakeSrc + "/meta") else [ ];
-  allSkillNames = skillNames ++ metaNames;
-  agentFiles = if exists "agents" then regNames (flakeSrc + "/agents") else [ ];
+
+  pluginSkillEntries = concatMap
+    (p:
+      let sub = "plugins/${p}/skills"; in
+      if exists sub then map (s: { name = s; inherit sub; full = "${sub}/${s}"; }) (dirNames (flakeSrc + "/${sub}"))
+      else [ ])
+    pluginNames;
+  metaSkillEntries = map (m: { name = m; full = "meta/${m}"; }) metaNames;
+  skillEntries = pluginSkillEntries ++ metaSkillEntries;
+
+  agentEntries = concatMap
+    (p:
+      let sub = "plugins/${p}/agents"; in
+      if exists sub then map (f: { name = f; full = "${sub}/${f}"; }) (regNames (flakeSrc + "/${sub}"))
+      else [ ])
+    pluginNames;
 
   outLink = config.lib.file.mkOutOfStoreSymlink;
   # サブパス sub の配布元(mutable なら作業ツリー、そうでなければ store)
@@ -30,25 +47,23 @@ let
     if cfg.mutable then outLink "${cfg.repoPath}/${sub}"
     else flakeSrc + "/${sub}";
 
-  skillSub = name: if elem name metaNames then "meta/${name}" else "skills/${name}";
-
   mkSkillLinks = base: listToAttrs (map
-    (name: { name = "${base}/${name}"; value.source = srcOf (skillSub name); })
-    allSkillNames);
+    (e: { name = "${base}/${e.name}"; value.source = srcOf e.full; })
+    skillEntries);
 
   mkAgentLinks = listToAttrs (map
-    (f: { name = ".claude/agents/${f}"; value.source = srcOf "agents/${f}"; })
-    agentFiles);
+    (e: { name = ".claude/agents/${e.name}"; value.source = srcOf e.full; })
+    agentEntries);
 in
 {
-  options.programs.context-engineering = {
+  options.programs.agent-gears = {
     enable = mkEnableOption
-      "context-engineering の skill/ルール/agent定義を各エージェントへ配布する";
+      "agent-gears の skill/ルール/agent定義を各エージェントへ配布する";
 
     repoPath = mkOption {
       type = types.nullOr types.str;
       default = null;
-      example = "/home/ril/ghq/github.com/fenril058/context-engineering";
+      example = "/home/ril/ghq/github.com/fenril058/agent-gears";
       description = ''
         作業ツリー(可変)への絶対パス。mutable = true のとき必須。
         skill 本体はここへの out-of-store symlink になり、既存 skill の編集は
@@ -76,7 +91,7 @@ in
   config = mkIf cfg.enable {
     assertions = [{
       assertion = !cfg.mutable || cfg.repoPath != null;
-      message = "programs.context-engineering.repoPath は mutable = true のとき必須です。";
+      message = "programs.agent-gears.repoPath は mutable = true のとき必須です。";
     }];
 
     home.file =

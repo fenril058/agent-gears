@@ -1,0 +1,29 @@
+{
+  "name": "fenril058-agent-skills",
+  "owner": {
+    "name": "fenril058",
+    "email": "fenril.nh@gmail.com"
+  },
+  "description": "トークン削減と効率的なエージェント運用のための skill / agent 群(Claude Code・Codex 共用)",
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "context-engineering",
+      "source": "context-engineering",
+      "description": "文脈効率・トークン削減のための skill 群: markdown-context(md2idx で部分取得)、fast-search(fastcontext)、model-routing(安価モデルへの委譲)、no-neologism(未定義語の点検)と、委譲先の search / bulk-edit エージェント定義。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown"]
+    },
+    {
+      "name": "japanese-writing",
+      "source": "japanese-writing",
+      "description": "日本語の技術文書・書籍原稿の文章規範 skill: japanese-tech-writing(整形・論証・冗長排除の規範)と argument-gap-edit(論証の筋の点検・再配置)。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["writing", "japanese", "technical-writing", "editing"]
+    }
+  ]
+}

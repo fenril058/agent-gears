@@ -1,0 +1,7 @@
+{
+  "name": "japanese-writing",
+  "description": "日本語の技術文書・書籍原稿の文章規範 skill(整形・論証・冗長排除、論証の筋の点検・再配置)。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["writing", "japanese", "technical-writing", "editing"]
+}

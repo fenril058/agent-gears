@@ -1,13 +1,15 @@
-# context-engineering
+# agent-gears
 
-トークン削減と効率的なエージェント運用のための **skill + 常時ルール** の単一ソース。
-このリポジトリを編集すると、`install.sh` の symlink を通じて Claude Code・Codex・
-共有スキルストアへ一括で反映される。
+トークン削減と効率的なエージェント運用のための、Claude Code・Codex 共用の
+**skill / agent / 常時ルール** 一式。Claude には plugin マーケットプレイスとして、
+Codex には skill として、自分の環境には home-manager で配布できる。
+
+マーケットプレイス名: `fenril058-agent-skills`(`marketplace.json` の `name`)。
 
 ## なぜ
 
 エージェント運用のコストの多くは、無駄な文脈の読み込みと、安価に回せる作業まで
-高いモデルで処理することから来る。このリポジトリは次の4つを仕組みにする。
+高いモデルで処理することから来る。このリポジトリは次を仕組みにする。
 
 1. **モデル委譲** — 機械的・量的な作業を安価モデルのサブエージェントへ落とす。
 2. **広域探索の効率化** — fastcontext で意味的な探索を少ない手数で行う。
@@ -17,39 +19,47 @@
 ## 構成
 
 ```
-AGENTS.md            常時ルール(単一ソース)。全エージェントが常に従う最小限の不変則
-skills/              必要なときだけ読み込まれる on-demand スキル
-  markdown-context/  大きな Markdown を md2idx で部分取得(主役)/ mq(補助)
-  fast-search/       fastcontext での広域・意味的探索
-  model-routing/     安価モデルのサブエージェントへの委譲ポリシー
-  no-neologism/      未定義語・勝手造語の点検手順(核ルールは AGENTS.md)
-  japanese-tech-writing/  日本語技術文書の文章規範
-  argument-gap-edit/      論証の筋を点検・再配置する編集
-meta/                skill 自体を対象にするメタスキル(自作 skill の QA)
-  empirical-prompt-tuning/  skill/プロンプトを実行者に走らせ実測で反復改善
-agents/              Claude Code 用 安価モデル サブエージェント定義
-  search.md          コードベース探索・調査(Sonnet)
-  bulk-edit.md       機械的・反復的な編集(Haiku)
-install.sh           symlink 配布スクリプト(skills/ と meta/ を配布)
+.claude-plugin/marketplace.json   Claude 用マーケットプレイス定義(plugin 一覧)
+plugins/
+  context-engineering/            plugin: 文脈効率・トークン削減
+    .claude-plugin/plugin.json
+    skills/
+      markdown-context/  大きな Markdown を md2idx で部分取得(主役)/ mq(補助)
+      fast-search/       fastcontext での広域・意味的探索
+      model-routing/     安価モデルのサブエージェントへの委譲ポリシー
+      no-neologism/      未定義語・勝手造語の点検手順(核ルールは AGENTS.md)
+    agents/
+      search.md          コードベース探索・調査(Sonnet)
+      bulk-edit.md       機械的・反復的な編集(Haiku)
+  japanese-writing/               plugin: 日本語の文章規範
+    .claude-plugin/plugin.json
+    skills/
+      japanese-tech-writing/  日本語技術文書の文章規範
+      argument-gap-edit/      論証の筋を点検・再配置する編集
+meta/
+  empirical-prompt-tuning/        自作 skill の QA(第三者由来・非公開、下記)
+AGENTS.md            常時ルール(個人設定)。各エージェントへ常時配線する最小限の不変則
+install.sh           symlink 配布スクリプト(home-manager を使わない場合)
+flake.nix / nix/     home-manager モジュール(宣言的配布)
 ```
 
-`meta/` の skill も `skills/` と同様に各エージェントへ配布される。
-skill を作った/直した直後に `empirical-prompt-tuning` をかけて、description が
-狙ったタイミングで発火するか・本体が想定どおり振る舞うかを実測で締める。
-
-### 外部 skill の取り込み
-
-`meta/empirical-prompt-tuning` は [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)
-由来。本リポジトリは日本語で統一しているため、有効な `SKILL.md` を日本語版
-(上流の `SKILL-ja.md`)とし、上流の英語版を `SKILL-en.md` として参照用に併置した。
-更新するときは上流の対応ファイルから取り直す。
+このリポジトリは2つの性格を併せ持つ。**公開する skill/agent(`plugins/`)** と、
+**個人のエージェント設定(`AGENTS.md` と配布配線)** である。前者はマーケットプレイス
+として共有でき、後者は自分の `~/.claude` / `~/.codex` を構成する。
 
 ### 常時ルール vs skill
 
-- **常時ルール(AGENTS.md / CLAUDE.md)**: 毎ターン読まれる。短い不変則だけを置く。
-- **skill**: `description` が今の作業に合致したときだけ読み込まれる。詳細手順はこちら。
+- **常時ルール(AGENTS.md → CLAUDE.md / AGENTS.md)**: 毎ターン読まれる。短い不変則だけ。
+- **skill(`<plugin>/skills/<name>/SKILL.md`)**: `description` が今の作業に合致したときだけ
+  読み込まれる。詳細手順はこちら。
 
-「常に効かせたい最小限」は常時ルールへ、「必要時の詳しい手順」は skill へ、と分ける。
+### 外部 skill の扱い(meta/empirical-prompt-tuning)
+
+`meta/empirical-prompt-tuning` は [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)
+由来で、**ライセンス表記が無い(全権利留保)**。そのため `marketplace.json` には載せず
+**公開 plugin に含めない**。自分の環境へは home-manager / install.sh で配布する(個人利用)。
+有効な `SKILL.md` は日本語版(上流 `SKILL-ja.md`)、英語版は `SKILL-en.md` として併置。
+更新は上流から取り直す。自作 skill を作った/直した直後に、これで実測 QA をかける。
 
 ## 前提ツール
 
@@ -60,82 +70,93 @@ skill を作った/直した直後に `empirical-prompt-tuning` をかけて、d
 - [md2idx](https://github.com/oubakiou/md2idx) — Markdown を索引+節に変換(`npm i -g md2idx`)
 - [mq](https://mqlang.org/) — Markdown 構造クエリ(補助)
 
-## インストール
+## 配布方法
 
-```bash
-bash install.sh --dry-run   # 張る予定を確認
-bash install.sh             # 実行
+用途に応じて3経路。中身(`SKILL.md` ディレクトリ)は共通で、経路は併用できる。
+
+### 1. Claude — plugin マーケットプレイス
+
+```
+/plugin marketplace add fenril058/agent-gears
+/plugin install context-engineering@fenril058-agent-skills
+/plugin install japanese-writing@fenril058-agent-skills
 ```
 
-配布先(単一ソース = このリポジトリ):
+plugin 内の `skills/` と `agents/` が自動で読み込まれる。
 
-| 対象 | Claude Code | Codex | 共有ストア |
-|------|-------------|-------|-----------|
-| skills/<name> | `~/.claude/skills/` | `~/.codex/skills/` | `~/.agents/skills/` |
-| AGENTS.md | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` | — |
-| agents/*.md | `~/.claude/agents/` | (非対応) | — |
+### 2. Codex — skill-installer
 
-- 冪等。既存 symlink は張り直し、実ファイルは `.bak.<時刻>` に退避してから張る。
-- 外すときは `bash install.sh --uninstall`(このリポジトリを指す symlink だけ外す)。
-- **反映には Claude Code / Codex の再起動が必要。**
+Codex の `skill-installer` で GitHub の skill ディレクトリを `$CODEX_HOME/skills` へ導入する。
 
-## Nix / home-manager
+```
+install-skill-from-github.py --repo fenril058/agent-gears --path plugins/context-engineering/skills/markdown-context
+```
 
-`install.sh` の宣言的な代替として home-manager モジュールを同梱する。
-`flake.nix` の `homeManagerModules.default` を imports に足すと、skills/meta/agents/
-常時ルールを各エージェントへ symlink 配布する。
+(`agents/` は Claude 固有のため Codex では扱わない。)
 
-home-manager の flake に取り込む例:
+### 3. 自分の環境 — home-manager(クロスエージェント宣言配布)
+
+skills/agents/常時ルールを `~/.claude`・`~/.codex`・共有ストアへ一括 symlink する。
+Claude を plugin 経由にするなら `claude.enable = false` にして重複を避けられる。
 
 ```nix
 {
-  inputs.context-engineering.url = "github:fenril058/context-engineering";
+  inputs.agent-gears.url = "github:fenril058/agent-gears";
 
-  # home.nix 側
-  imports = [ inputs.context-engineering.homeManagerModules.default ];
+  imports = [ inputs.agent-gears.homeManagerModules.default ];
 
-  programs.context-engineering = {
+  programs.agent-gears = {
     enable = true;
-    # 作業ツリーへの絶対パス。既存 skill の編集が再ビルドなしで即反映される
-    repoPath = "/home/ril/ghq/github.com/fenril058/context-engineering";
+    repoPath = "/home/ril/ghq/github.com/fenril058/agent-gears";  # 作業ツリー(編集即反映)
   };
 }
 ```
 
-オプション(既定値):
-
 | オプション | 既定 | 意味 |
 |---|---|---|
 | `repoPath` | `null` | 作業ツリーの絶対パス(`mutable = true` のとき必須) |
-| `mutable` | `true` | `true`=作業ツリーへの out-of-store symlink(編集即反映)。`false`=flake ソース(store)を直接配布(完全宣言的・反映には switch) |
-| `claude.enable` | `true` | `~/.claude` へ配布 |
+| `mutable` | `true` | `true`=作業ツリーへの out-of-store symlink(編集即反映)。`false`=flake ソース(store)を直接配布 |
+| `claude.enable` | `true` | `~/.claude` へ配布(plugin 経由にするなら `false`) |
 | `codex.enable` | `true` | `~/.codex` へ配布 |
 | `sharedStore.enable` | `true` | `~/.agents/skills` へ配布 |
 | `rules.enable` | `true` | `AGENTS.md` を `CLAUDE.md` / `AGENTS.md` として配布 |
-| `agentDefs.enable` | `true` | `agents/*.md` を `~/.claude/agents` へ配布(Claude Code 固有) |
+| `agentDefs.enable` | `true` | `plugins/*/agents/*.md` を `~/.claude/agents` へ配布(Claude 固有) |
 
-- 既定の `mutable = true` は本リポジトリの「編集が即反映」の思想に合わせたもの。
-  完全に純粋な宣言運用にしたいなら `mutable = false`(ただし skill 編集の反映に
-  `home-manager switch` が要る)。
-- skill の**追加・削除**を反映するには、どちらのモードでも flake 更新 + `switch` が要る
-  (配布対象の名前は flake ソースから列挙されるため)。
-- 配布先に install.sh の手動 symlink が残っていると衝突する。home-manager 運用へ移る
-  ときは `bash install.sh --uninstall` で先に外すか、`home-manager switch -b backup` を使う。
-- 周辺ツール: `nix develop` で `jq` / `nodejs`(`npx md2idx` 用)が入る。
-  `mq` / `fastcontext` は nixpkgs 外のため別途導入する。
+- skill の**追加・削除**の反映には flake 更新 + `home-manager switch` が要る
+  (配布対象は flake ソースから列挙)。既存 skill の編集は `mutable = true` なら即反映。
+- 配布対象は `plugins/*/skills/*`・`plugins/*/agents/*`・`meta/*`。
+
+### 4. home-manager を使わない場合 — install.sh
+
+```bash
+bash install.sh --dry-run   # 張る予定を確認
+bash install.sh             # 実行(冪等。実ファイルは .bak.<時刻> に退避)
+bash install.sh --uninstall # このリポジトリを指す symlink だけ外す
+```
+
+配布先:
+
+| 対象 | Claude Code | Codex | 共有ストア |
+|------|-------------|-------|-----------|
+| 各 skill | `~/.claude/skills/` | `~/.codex/skills/` | `~/.agents/skills/` |
+| AGENTS.md | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` | — |
+| agents/*.md | `~/.claude/agents/` | (非対応) | — |
+
+**反映には Claude Code / Codex の再起動が必要。**
 
 ## エージェントへの伝わり方
 
-- **skill**: 3者とも同じ `SKILL.md`(YAML frontmatter の `name` / `description`)形式。
+- **skill**: 3者とも同じ `SKILL.md`(frontmatter の `name` / `description`)形式。
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
-- **常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md` を読む。中身は同一ファイル。
-- **モデル委譲**: agent 定義(`model:`)は Claude Code 固有。Claude Code は
-  メインのモデルを自動切替できないため、`model-routing` skill の方針に従って
-  Task/Agent ツールで安価サブエージェントへ委譲する。Codex は本 skill の方針 +
-  Codex 自身のモデル設定で同等を達成する。
+- **常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md` を読む。中身は同一(`AGENTS.md`)。
+- **モデル委譲**: agent 定義(`model:`)は Claude 固有。Claude はメインのモデルを自動切替
+  できないため、`model-routing` skill に従い Task/Agent ツールで安価サブエージェントへ委譲する。
+  Codex は本 skill の方針 + Codex 自身のモデル設定で同等を達成する。
 
 ## 新しい skill を足すとき
 
-1. `skills/<name>/SKILL.md` を作る(frontmatter に `name` と用途の具体的な `description`)。
+1. `plugins/<plugin>/skills/<name>/SKILL.md` を作る(frontmatter に `name` と具体的な `description`)。
 2. 常時効かせたい最小限の不変則があれば `AGENTS.md` に1行追記する。
-3. `bash install.sh` を実行し、各エージェントを再起動する。
+3. 公開するなら `marketplace.json` の該当 plugin に含まれることを確認(skills/ 配下は自動検出)。
+4. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
+5. 重要 skill は `meta/empirical-prompt-tuning` で実測 QA をかける。

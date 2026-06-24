@@ -1,0 +1,7 @@
+{
+  "name": "context-engineering",
+  "description": "文脈効率・トークン削減のための skill 群と、安価モデルへの委譲先エージェント定義。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown"]
+}

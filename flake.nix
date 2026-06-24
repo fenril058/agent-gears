@@ -1,5 +1,5 @@
 {
-  description = "context-engineering: token削減・効率agent運用の skill を Claude Code / Codex / 共有ストアへ配布する";
+  description = "agent-gears: token削減・効率agent運用の skill/agent を Claude Code / Codex / 共有ストアへ配布する";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -10,9 +10,9 @@
       pkgsFor = system: nixpkgs.legacyPackages.${system};
     in
     {
-      # home-manager モジュール: imports に足して programs.context-engineering.enable = true。
-      homeManagerModules.context-engineering = import ./nix/hm-module.nix { flakeSrc = self; };
-      homeManagerModules.default = self.homeManagerModules.context-engineering;
+      # home-manager モジュール: imports に足して programs.agent-gears.enable = true。
+      homeManagerModules.agent-gears = import ./nix/hm-module.nix { flakeSrc = self; };
+      homeManagerModules.default = self.homeManagerModules.agent-gears;
 
       # skill が使う周辺ツール(md2idx は npx 経由、jq は md2idx の出力処理に必須)。
       # mq / fastcontext は nixpkgs 外のため別途導入する。
