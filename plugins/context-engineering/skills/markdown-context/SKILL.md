@@ -34,7 +34,10 @@ contents; `sections` is an array of raw Markdown per heading. The N in the index
    md2idx path/to/doc.md | jq -r '.sections[5]'
    ```
 
-   For multiple sections, `jq -r '.sections[3,5,8]'`.
+   For multiple sections, `jq -r '.sections[3,5,8]'`. To grab a heading together with
+   its subsections, slice the range: `jq -r '.sections[2:6][]'`. Children follow their
+   parent in the numbering, so a contiguous deeper-heading range is that heading's whole
+   subtree. `sections[0]` is any preamble before the first heading.
 
 If you query the same file repeatedly, convert once and cache:
 
