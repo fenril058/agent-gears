@@ -10,6 +10,6 @@
 
 ## 文脈効率(トークン削減)
 
-- 大きな Markdown を理由なく全文読みしない。索引から必要な節だけ取る(`markdown-context` skill / `md2idx`)。
+- 大きな Markdown を理由なく全文読みしない。索引から必要な節だけ取る(`markdown-context` skill / `mdidx`)。
 - コードベースの広域・意味的な探索は全文 Grep の総当たりでなく `fastcontext`(`fast-search` skill)。
 - 重くないが量の多い作業(機械的編集・反復・広域探索)は、安価モデルのサブエージェントへ委譲する(`model-routing` skill)。重い判断はメインに残す。

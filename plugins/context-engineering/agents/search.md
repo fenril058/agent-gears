@@ -23,4 +23,4 @@ model: sonnet
   - 答え(要約)
   - 根拠となるファイルと該当箇所(`path:line` 形式)
   - メインが次に判断するために必要な補足だけ
-- 大きな Markdown を読むときは全文 Read せず md2idx で該当節だけ取る。
+- 大きな Markdown を読むときは全文 Read せず mdidx で該当節だけ取る。
