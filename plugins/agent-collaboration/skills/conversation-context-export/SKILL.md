@@ -207,3 +207,7 @@ Respect the prior session's record as "a predecessor's findings":
   continuing development in a new session or reviewing a feature PR.
 - **sanity-review**: write a PR review report. Loads the conversation context posted to
   the PR comment and uses it in the review.
+- **durable-knowledge-export**: the durable tier. This skill is the ephemeral tier
+  (per-branch context that dies with the PR). A finding that should outlive the branch —
+  a measurement, convention, or system-wide gotcha — goes to its persistent home (the
+  GitHub wiki, or an in-repo docs dir if there is no wiki) via that skill instead.
