@@ -19,7 +19,7 @@
       # 持たない単一静的バイナリ。出力は md2idx とバイト互換。
       packages = forAll (system:
         let pkgs = pkgsFor system; in {
-          mdidx = import ./nix/mdidx.nix { inherit pkgs; src = ./tools/mdidx; };
+          mdidx = import ./nix/mdidx.nix { inherit pkgs; src = ./cmd/mdidx; };
           default = self.packages.${system}.mdidx;
         });
 
