@@ -61,7 +61,7 @@ let
   # コンパイラを store に取得して行うため、システムへ go を入れる必要はない。
   mdidx = import (flakeSrc + "/nix/mdidx.nix") {
     inherit pkgs;
-    src = flakeSrc + "/tools/mdidx";
+    src = flakeSrc + "/cmd/mdidx";
   };
 in
 {
