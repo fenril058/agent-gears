@@ -3,7 +3,7 @@
 # install.sh — context-engineering を単一ソースとして各エージェントへ symlink 配布する。
 #
 #   skills/<name>  -> ~/.claude/skills/<name>, ~/.codex/skills/<name>, ~/.agents/skills/<name>
-#   AGENTS.md      -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md
+#   rules/always-on.md -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md
 #   agents/*.md    -> ~/.claude/agents/<file>   (Claude Code 固有)
 #
 # 冪等。既存 symlink は張り直す。実ファイル/実ディレクトリは .bak.<時刻> に退避してから張る。
@@ -76,8 +76,8 @@ if [ "$UNINSTALL" = 1 ]; then
   for f in $(agent_defs); do n="$(basename "$f")"
     unlink_if_ours "$CLAUDE_HOME/agents/$n" "$f"
   done
-  unlink_if_ours "$CLAUDE_HOME/CLAUDE.md" "$REPO/AGENTS.md"
-  unlink_if_ours "$CODEX_HOME/AGENTS.md"  "$REPO/AGENTS.md"
+  unlink_if_ours "$CLAUDE_HOME/CLAUDE.md" "$REPO/rules/always-on.md"
+  unlink_if_ours "$CODEX_HOME/AGENTS.md"  "$REPO/rules/always-on.md"
   echo "Done. Restart Claude Code / Codex to apply."
   exit 0
 fi
@@ -93,8 +93,8 @@ for d in $(skills); do n="$(basename "$d")"
 done
 
 echo "Always-on rules:"
-link "$REPO/AGENTS.md" "$CLAUDE_HOME/CLAUDE.md"
-link "$REPO/AGENTS.md" "$CODEX_HOME/AGENTS.md"
+link "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
+link "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
 
 echo "Agent definitions (Claude Code):"
 for f in $(agent_defs); do n="$(basename "$f")"
