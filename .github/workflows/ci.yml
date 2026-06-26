@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: mdidx (test / vet / govulncheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cmd/mdidx
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: cmd/mdidx/go.mod
+          cache: false  # mdidx has no external deps, so there is no go.sum to key the cache on
+      - run: go vet ./...
+      - run: go test ./...
+      - name: govulncheck
+        # setup-go v6 pins GOTOOLCHAIN=local (go.mod's 1.24); govulncheck@latest
+        # needs go >= 1.25, so let this step fetch the toolchain it requires.
+        # Analysis still uses the module's go 1.24, where GO-2025-3750 is fixed.
+        env:
+          GOTOOLCHAIN: auto
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  shellcheck:
+    name: shellcheck (install.sh)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - run: shellcheck install.sh
+
+  nix:
+    name: nix flake check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-flakecheck-${{ hashFiles('**/flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-flakecheck-
+          gc-max-store-size-linux: 1G
+      # validates the mdidx package, devShell, and formatter; also the receiver
+      # that verifies Dependabot's nix (flake.lock) bump PRs.
+      - run: nix flake check
+
+  workflow-lint:
+    name: workflow lint (ghalint / zizmor / pinact)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-lint-${{ hashFiles('**/flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-lint-
+          gc-max-store-size-linux: 1G
+      - run: nix run nixpkgs#ghalint -- run
+      - run: nix run nixpkgs#zizmor -- .github/workflows/
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: nix run nixpkgs#pinact -- run --check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

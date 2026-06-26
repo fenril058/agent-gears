@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Nix flake inputs（flake.lock の nixpkgs 等を追従。このリポジトリでは本命）
+  - package-ecosystem: nix
+    directory: /
+    schedule:
+      interval: weekly
+
+  # GitHub Actions（CodeQL 等のワークフローを入れたら本命になる）
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # mdidx（現状は外部依存ゼロ。go ディレクティブ更新の捕捉用）
+  - package-ecosystem: gomod
+    directory: /cmd/mdidx
+    schedule:
+      interval: weekly
