@@ -93,7 +93,7 @@ in
     claude.enable = mkOption { type = types.bool; default = true; description = "~/.claude へ配布"; };
     codex.enable = mkOption { type = types.bool; default = true; description = "~/.codex へ配布"; };
     sharedStore.enable = mkOption { type = types.bool; default = true; description = "~/.agents/skills へ配布"; };
-    rules.enable = mkOption { type = types.bool; default = true; description = "AGENTS.md を CLAUDE.md / AGENTS.md として配布"; };
+    rules.enable = mkOption { type = types.bool; default = true; description = "rules/always-on.md を CLAUDE.md / AGENTS.md として配布"; };
     agentDefs.enable = mkOption { type = types.bool; default = true; description = "agents/*.md を ~/.claude/agents へ配布(Claude Code 固有)"; };
     tools.enable = mkOption { type = types.bool; default = true; description = "mdidx バイナリを home.packages に入れて PATH へ通す(markdown-context skill 用)"; };
   };
@@ -112,10 +112,10 @@ in
       // (optionalAttrs cfg.sharedStore.enable (mkSkillLinks ".agents/skills"))
       // (optionalAttrs (cfg.agentDefs.enable && cfg.claude.enable) mkAgentLinks)
       // (optionalAttrs (cfg.rules.enable && cfg.claude.enable) {
-        ".claude/CLAUDE.md".source = srcOf "AGENTS.md";
+        ".claude/CLAUDE.md".source = srcOf "rules/always-on.md";
       })
       // (optionalAttrs (cfg.rules.enable && cfg.codex.enable) {
-        ".codex/AGENTS.md".source = srcOf "AGENTS.md";
+        ".codex/AGENTS.md".source = srcOf "rules/always-on.md";
       });
   };
 }
