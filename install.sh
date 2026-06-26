@@ -43,7 +43,7 @@ link() {
     if [ "$cur" = "$src" ]; then echo "  ok       $dest"; return; fi
     run "rm '$dest'"
   elif [ -e "$dest" ]; then
-    local bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
+    local bak; bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
     echo "  backup   $dest -> $bak"
     run "mv '$dest' '$bak'"
   fi
