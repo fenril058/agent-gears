@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: mdidx (test / vet / govulncheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmd/mdidx
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cmd/mdidx/go.mod
+          cache: false  # mdidx has no external deps, so there is no go.sum to key the cache on
+      - run: go vet ./...
+      - run: go test ./...
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  shellcheck:
+    name: shellcheck (install.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck install.sh
+
+  nix:
+    name: nix flake check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      # validates the mdidx package, devShell, and formatter; also the receiver
+      # that verifies Dependabot's nix (flake.lock) bump PRs.
+      - run: nix flake check
