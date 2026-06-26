@@ -60,10 +60,12 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+          primary-key: nix-${{ runner.os }}-flakecheck-${{ hashFiles('**/flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-flakecheck-
+          gc-max-store-size-linux: 1G
       # validates the mdidx package, devShell, and formatter; also the receiver
       # that verifies Dependabot's nix (flake.lock) bump PRs.
       - run: nix flake check
@@ -78,10 +80,12 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+      - uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
         with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+          primary-key: nix-${{ runner.os }}-lint-${{ hashFiles('**/flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-lint-
+          gc-max-store-size-linux: 1G
       - run: nix run nixpkgs#ghalint -- run
       - run: nix run nixpkgs#zizmor -- .github/workflows/
         env:
