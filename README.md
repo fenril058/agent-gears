@@ -76,6 +76,7 @@ rules/always-on.md   常時ルール(個人設定)。`~/.claude/CLAUDE.md`・`~/
 CLAUDE.md / AGENTS.md このリポジトリで作業するエージェント向けの repo-local 指示(配布しない。AGENTS.md は CLAUDE.md への symlink)
 install.sh           symlink 配布スクリプト(home-manager を使わない場合)
 flake.nix / nix/     home-manager モジュール(宣言的配布)
+scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致)
 ```
 
 ### 常時ルール vs skill

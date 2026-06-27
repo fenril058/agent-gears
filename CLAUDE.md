@@ -2,10 +2,13 @@
 
 - `SKILL.md`(英語=正本)を直したら `SKILL-ja.md` も手動で追従。
   例外: `japanese-writing` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
-- 配布の仕組みは `install.sh` と `nix/hm-module.nix` の2系統。
-  参照名やレイアウトを変えたら両方(install.sh の `--uninstall` 節も)直す。
-- plugin の description は `marketplace.json` と各 `plugin.json` に重複。
-  両方更新。
+- 配布は `install.sh`(命令的)と `nix/hm-module.nix`(宣言的)の2系統。
+  両者は skill/agent をディレクトリ構成から自動列挙するので名前の追従は要らない。
+  配布先(`~/.claude` 等)やレイアウト規約を変えたら両方直す。
+  配布先集合の一致は CI の `scripts/check-distribution.sh` が検証する。
+- plugin の `name`/`version`/`keywords` は `marketplace.json` と各 `plugin.json` に重複。
+  一致は CI の `scripts/check-plugin-meta.sh` が検証する。
+  `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
 - `agent-collaboration`(MIT)/ `japanese-writing`(public domain)/ `meta`(MIT) は外部由来。
   `LICENSE` / `NOTICE` を消さない。`meta` は upstream から取り直す。
