@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - run: shellcheck install.sh
+      - run: shellcheck install.sh scripts/*.sh
 
   nix:
     name: nix flake check
@@ -69,6 +69,27 @@ jobs:
       # validates the mdidx package, devShell, and formatter; also the receiver
       # that verifies Dependabot's nix (flake.lock) bump PRs.
       - run: nix flake check
+
+  consistency:
+    name: consistency (distribution / plugin metadata)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+        with:
+          primary-key: nix-${{ runner.os }}-consistency-${{ hashFiles('**/flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-consistency-
+          gc-max-store-size-linux: 1G
+      # install.sh と nix/hm-module.nix の配布先集合が一致するか / marketplace.json と
+      # 各 plugin.json の name・version・keywords が一致するかを検証する。
+      - run: nix shell nixpkgs#jq --command bash scripts/check-distribution.sh
+      - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
 
   workflow-lint:
     name: workflow lint (ghalint / zizmor / pinact)

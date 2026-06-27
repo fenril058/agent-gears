@@ -66,18 +66,28 @@ skills() {
 }
 agent_defs() { find "$REPO/plugins" -mindepth 3 -maxdepth 3 -type f -name '*.md' -path '*/agents/*' 2>/dev/null; }
 
+# plan — このリポジトリが管理する link を "src<TAB>dest" で列挙する。
+# install と uninstall はこの単一の対応表を共有する(配布先の二重記述を避ける)。
+# hm-module.nix と同じ配布先集合になることは scripts/check-distribution.sh が検証する。
+plan() {
+  local d n f
+  for d in $(skills); do n="$(basename "$d")"
+    printf '%s\t%s\n' "$d" "$CLAUDE_HOME/skills/$n"
+    printf '%s\t%s\n' "$d" "$CODEX_HOME/skills/$n"
+    printf '%s\t%s\n' "$d" "$AGENTS_HOME/skills/$n"
+  done
+  printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
+  printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
+  for f in $(agent_defs); do n="$(basename "$f")"
+    printf '%s\t%s\n' "$f" "$CLAUDE_HOME/agents/$n"
+  done
+}
+
 if [ "$UNINSTALL" = 1 ]; then
   echo "Uninstalling symlinks pointing into $REPO ..."
-  for d in $(skills); do n="$(basename "$d")"
-    unlink_if_ours "$CLAUDE_HOME/skills/$n" "$d"
-    unlink_if_ours "$CODEX_HOME/skills/$n" "$d"
-    unlink_if_ours "$AGENTS_HOME/skills/$n" "$d"
+  plan | while IFS=$'\t' read -r src dest; do
+    unlink_if_ours "$dest" "$src"
   done
-  for f in $(agent_defs); do n="$(basename "$f")"
-    unlink_if_ours "$CLAUDE_HOME/agents/$n" "$f"
-  done
-  unlink_if_ours "$CLAUDE_HOME/CLAUDE.md" "$REPO/rules/always-on.md"
-  unlink_if_ours "$CODEX_HOME/AGENTS.md"  "$REPO/rules/always-on.md"
   echo "Done. Restart Claude Code / Codex to apply."
   exit 0
 fi
@@ -85,20 +95,8 @@ fi
 echo "Installing from $REPO"
 [ "$DRY_RUN" = 1 ] && echo "(dry-run: 変更は行いません)"
 
-echo "Skills:"
-for d in $(skills); do n="$(basename "$d")"
-  link "$d" "$CLAUDE_HOME/skills/$n"
-  link "$d" "$CODEX_HOME/skills/$n"
-  link "$d" "$AGENTS_HOME/skills/$n"
-done
-
-echo "Always-on rules:"
-link "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
-link "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
-
-echo "Agent definitions (Claude Code):"
-for f in $(agent_defs); do n="$(basename "$f")"
-  link "$f" "$CLAUDE_HOME/agents/$n"
+plan | while IFS=$'\t' read -r src dest; do
+  link "$src" "$dest"
 done
 
 echo "Done. Restart Claude Code / Codex to pick up new skills."
