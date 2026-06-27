@@ -28,8 +28,8 @@ inst="$(CLAUDE_HOME="$tmp/.claude" CODEX_HOME="$tmp/.codex" AGENTS_HOME="$tmp/.a
 # 評価しなくてよい(mutable = false, tools.enable = false)。
 hm="$(nix eval --impure --json --expr "
   let
-    pkgs = import <nixpkgs> {};
-    lib = pkgs.lib;
+    # flake.lock に固定された nixpkgs の lib を使う(<nixpkgs> チャンネルに依存しない)。
+    lib = (builtins.getFlake \"$REPO\").inputs.nixpkgs.lib;
     flakeSrc = $REPO;
     agModule = import (flakeSrc + \"/nix/hm-module.nix\") { inherit flakeSrc; };
     # home-manager が普段提供する options/lib をこのテスト用に最小限だけ用意する。
