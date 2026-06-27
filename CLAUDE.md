@@ -15,6 +15,12 @@
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
 
+nix の落とし穴:
+
+- 補助スクリプトや `nix eval` で `<nixpkgs>` / NIX_PATH に依存しない。
+  `<nixpkgs>` の解決は各自の nix.conf(`nix-path` / `extra-nix-path`)頼みで、CI の最小 nix には無く落ちる。
+  nixpkgs は flake から引く(例: `builtins.getFlake` の `inputs.nixpkgs`)。
+
 Markdownの整形ルール:
 
 - 一文ごとに改行し、段落の区切りは空行で示す。
