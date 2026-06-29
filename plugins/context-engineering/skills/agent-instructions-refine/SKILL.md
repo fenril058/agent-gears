@@ -1,5 +1,5 @@
 ---
-name: claude-md-refine
+name: agent-instructions-refine
 description: Use when reviewing or tightening a CLAUDE.md / AGENTS.md (agent instruction file) so it stays small and high-signal — it is read every turn, and bloat makes the agent ignore the rules that matter. Cuts what the agent can derive from the code, moves sometimes-relevant knowledge to skills or @-imported files, keeps test/architecture/ownership-boundary facts, and rewrites the rest as terse, testable, imperative rules. Triggers: "refine / clean up / slim down CLAUDE.md", "review my agent instructions", or the file has grown bloated.
 ---
 
