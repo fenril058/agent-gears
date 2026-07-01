@@ -1,6 +1,7 @@
 ---
 name: fast-search
 description: コードベースに対する広域・意味的な探索(「どこで何が行われているか」「この機能はどう実装されているか」)が必要なときに使う。単純な文字列一致や既知ファイルの参照ではなく、複数ファイルにまたがる意味的な問いに、fastcontext で少ない手数で答える。
+compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 API_KEY または OPENAI_API_KEY / MODEL / BASE_URL)も要る。どちらも skill には同梱されない。無い場合は Grep/Read のフォールバックへ。入手は https://github.com/microsoft/fastcontext
 ---
 
 # Fast Search (fastcontext)
@@ -9,6 +10,10 @@ description: コードベースに対する広域・意味的な探索(「どこ
 意味的な問いに対し、関連箇所を少ない手数で見つける。
 
 ## 前提(初回だけ設定)
+
+`fastcontext` CLI は skill に同梱されない。
+[microsoft/fastcontext](https://github.com/microsoft/fastcontext) から導入する。
+PATH に無ければ後述の「フォールバック」を使う。
 
 fastcontext は OpenAI 互換 API をバックエンドにする。次の環境変数が要る。
 未設定だと `Missing credentials` で落ちる。

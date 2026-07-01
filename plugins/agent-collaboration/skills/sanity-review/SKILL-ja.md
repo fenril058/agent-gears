@@ -4,6 +4,7 @@ description: >-
   PRのレビュー報告書を作成する。bugや脆弱性の調査だけでなく、exportされた対話コンテキスト・PR概要欄・実装されたコードの整合性を確認し、実装者の正気を疑う。
   ユーザーが「PRのレビュー報告書を書いて」「対話コンテキストと共にコードレビューして」「このPRの正気を疑って」と言った時に使用する。
 argument-hint: "[PR-URL-or-number]"
+compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR・差分・コメントの取得に使う。gh の入手は https://cli.github.com
 ---
 
 # PRレビュー報告書の作成手順書

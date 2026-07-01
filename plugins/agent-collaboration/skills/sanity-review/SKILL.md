@@ -7,6 +7,7 @@ description: >-
   review report for this PR", "code-review this with the conversation context", or
   "doubt this PR's sanity".
 argument-hint: "[PR-URL-or-number]"
+compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read the PR, diffs, and comments. Install gh from https://cli.github.com.
 ---
 
 # PR review report procedure

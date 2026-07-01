@@ -8,6 +8,7 @@ description: >-
   durable vs ephemeral; ephemeral per-branch context goes to conversation-context-export
   instead. Triggers: "save this as durable knowledge", "write this to the wiki/docs",
   "this should outlive the branch".
+compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read repo state and write to the GitHub wiki. Install gh from https://cli.github.com.
 ---
 
 # Durable knowledge export procedure

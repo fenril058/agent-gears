@@ -4,6 +4,7 @@ description: >-
   ブランチを越えて永続させる知見を、最適な永続置き場——あれば GitHub wiki、無ければリポジトリ内 docs——に書き出す。現在のブランチ/PR を越えて残す価値のある発見(実測値、ツール評価、アーキテクチャ判断、規約、システム自体に関わる横断的な落とし穴)のときに使う。
   まず永続/揮発を判定する。揮発する(ブランチ単位の)文脈は conversation-context-export 側へ回す。
   トリガ: 「永続知見として保存して」「wiki/docs に書いて」「これはブランチを越えて残すべき」。
+compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh はリポジトリ状態の取得と GitHub wiki への書き込みに使う。gh の入手は https://cli.github.com
 ---
 
 # 永続知見の書き出し手順書
