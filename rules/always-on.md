@@ -13,3 +13,10 @@
 - コードベースの広域・意味的な探索は全文 Grep の総当たりでなく `fastcontext`(`fast-search` skill)。
 - 重くないが量の多い作業（機械的編集・反復・広域探索）は、安価モデルのサブエージェントへ委譲する（`model-routing` skill）。
   設計・判断・レビューはメインモデルに残し、委譲オーバーヘッドが見合わない小規模作業はそのまま処理する
+
+## リポジトリ配置 (ghq)
+
+- GitHub 等の clone は ghq 管理下に置く(`~/ghq/<host>/<owner>/<repo>`)。
+- ただし `<owner>/<repo>` は **`ghq get` した URL** で決まり、現在の `origin` とは一致しないことがある。
+  upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
+- よって path を `origin` から推測しない。実 path は `ghq list --full-path <repo>` で確認する。
