@@ -2,6 +2,12 @@
 
 - `SKILL.md`(英語=正本)を直したら `SKILL-ja.md` も手動で追従。
   例外: `japanese-writing` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
+  各 `SKILL.md` は agentskills.io 仕様に準拠(公式 `skills-ref` で検証)。
+  CI の `scripts/check-skill-spec.sh`(flake の `packages.skills-ref` を使う)が検証する。
+  skills-ref は Claude 拡張フィールド(argument-hint 等)を一律エラーにするが、スクリプト側で
+  既知の Claude 拡張(`CLAUDE_EXT`)のみの Unexpected fields エラーは合格に読み替える。
+  未知フィールドや name/description 違反は失格。Claude 拡張フィールドを増やしたら CLAUDE_EXT も追従。
+  skills-ref 本体の nix 定義は `nix/skills-ref.nix`(由来: yasunori0418/skills, MIT)。
 - 配布は `install.sh`(命令的)と `nix/hm-module.nix`(宣言的)の2系統。
   両者は skill/agent をディレクトリ構成から自動列挙するので名前の追従は要らない。
   配布先(`~/.claude` 等)やレイアウト規約を変えたら両方直す。

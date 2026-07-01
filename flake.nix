@@ -20,6 +20,8 @@
       packages = forAll (system:
         let pkgs = pkgsFor system; in {
           mdidx = import ./nix/mdidx.nix { inherit pkgs; src = ./cmd/mdidx; };
+          # 公式 agentskills.io バリデータ。scripts/check-skill-spec.sh が使う。
+          skills-ref = pkgs.callPackage ./nix/skills-ref.nix { };
           default = self.packages.${system}.mdidx;
         });
 
@@ -33,6 +35,8 @@
               pkgs.jq
               pkgs.git
               self.packages.${system}.mdidx
+              # scripts/check-skill-spec.sh が使う公式 agentskills.io バリデータ。
+              self.packages.${system}.skills-ref
               pkgs.go
               pkgs.gopls
               pkgs.gotools
