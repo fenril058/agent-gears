@@ -2,8 +2,8 @@
 #
 # install.sh — context-engineering を単一ソースとして各エージェントへ symlink 配布する。
 #
-#   skills/<name>  -> ~/.claude/skills/<name>, ~/.codex/skills/<name>, ~/.agents/skills/<name>
-#   rules/always-on.md -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md
+#   skills/<name>  -> ~/.claude/skills/<name>, ~/.codex/skills/<name>, ~/.agents/skills/<name>, ~/.copilot/skills/<name>
+#   rules/always-on.md -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ~/.copilot/copilot-instructions.md
 #   agents/*.md    -> ~/.claude/agents/<file>   (Claude Code 固有)
 #
 # 冪等。既存 symlink は張り直す。実ファイル/実ディレクトリは .bak.<時刻> に退避してから張る。
@@ -29,6 +29,7 @@ done
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 AGENTS_HOME="${AGENTS_HOME:-$HOME/.agents}"
+COPILOT_HOME="${COPILOT_HOME:-$HOME/.copilot}"
 
 run() { if [ "$DRY_RUN" = 1 ]; then echo "  [dry-run] $*"; else eval "$*"; fi; }
 
@@ -75,9 +76,11 @@ plan() {
     printf '%s\t%s\n' "$d" "$CLAUDE_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$CODEX_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$AGENTS_HOME/skills/$n"
+    printf '%s\t%s\n' "$d" "$COPILOT_HOME/skills/$n"
   done
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
+  printf '%s\t%s\n' "$REPO/rules/always-on.md" "$COPILOT_HOME/copilot-instructions.md"
   for f in $(agent_defs); do n="$(basename "$f")"
     printf '%s\t%s\n' "$f" "$CLAUDE_HOME/agents/$n"
   done
