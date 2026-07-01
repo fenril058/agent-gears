@@ -53,6 +53,7 @@ plugins/
       fast-search/       fastcontext での広域・意味的探索
       model-routing/     安価モデルのサブエージェントへの委譲ポリシー
       no-neologism/      未定義語・勝手造語の点検手順(核ルールは rules/always-on.md)
+      agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを簡潔・高信号に推敲
     agents/
       search.md          コードベース探索・調査(Sonnet)
       bulk-edit.md       機械的・反復的な編集(Haiku)
@@ -75,8 +76,9 @@ meta/
 rules/always-on.md   常時ルール(個人設定)。`~/.claude/CLAUDE.md`・`~/.codex/AGENTS.md`・`~/.copilot/copilot-instructions.md` へ symlink する最小限の不変則
 CLAUDE.md / AGENTS.md このリポジトリで作業するエージェント向けの repo-local 指示(配布しない。AGENTS.md は CLAUDE.md への symlink)
 install.sh           symlink 配布スクリプト(home-manager を使わない場合)
-flake.nix / nix/     home-manager モジュール(宣言的配布)
-scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致)
+flake.nix / nix/     home-manager モジュール・mdidx/skills-ref のビルド定義(宣言的配布)
+cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
+scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / skills-ref による SKILL.md 仕様検証)
 ```
 
 ### 常時ルール vs skill
@@ -90,7 +92,7 @@ scripts/             CI 用の整合チェック(配布2系統の配布先一致
 そこで **指示が中心で言語中立な skill は英語版 `SKILL.md` を正本** とし、日本語は保守ミラー `SKILL-ja.md` として併置する(agentがロードするのは `SKILL.md` のみ)。
 
 - **英語正本 + `SKILL-ja.md`**:
-  - `context-engineering`(`model-routing` / `fast-search` / `markdown-context` / `no-neologism`)
+  - `context-engineering`(`model-routing` / `fast-search` / `markdown-context` / `no-neologism` / `agent-instructions-refine`)
   - `agent-collaboration`(全 skill)、
   - `meta/empirical-prompt-tuning`。
 - **日本語 `SKILL.md` のまま**:
