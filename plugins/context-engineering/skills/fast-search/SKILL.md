@@ -1,6 +1,7 @@
 ---
 name: fast-search
 description: Use when you need broad, semantic search over a codebase ("where is X done", "how is this feature implemented"). For semantic questions that span multiple files — not simple string matches or references to a known file — answer them in few steps with fastcontext.
+compatibility: Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars API_KEY or OPENAI_API_KEY, MODEL, BASE_URL). Neither is bundled with the skill; without them, fall back to Grep/Read. Install from https://github.com/microsoft/fastcontext.
 ---
 
 # Fast Search (fastcontext)
@@ -9,6 +10,10 @@ Answer broad "where / what" questions with `fastcontext` instead of brute-force
 full-text Grep. For semantic questions, find the relevant spots in few steps.
 
 ## Prerequisites (one-time setup)
+
+The `fastcontext` CLI is not bundled with this skill. Install it from
+[microsoft/fastcontext](https://github.com/microsoft/fastcontext); if it isn't on PATH,
+use the "Fallback" below.
 
 fastcontext is backed by an OpenAI-compatible API. It needs the following environment
 variables. Without them it fails with `Missing credentials`.

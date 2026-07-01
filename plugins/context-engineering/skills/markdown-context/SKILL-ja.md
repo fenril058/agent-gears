@@ -1,6 +1,7 @@
 ---
 name: markdown-context
 description: 大きな・未知の Markdown ファイルから必要な節だけを取り出して読むときに使う。README、設計書、仕様書、長いドキュメント、本の原稿などを全文ロードせず、見出し索引から該当箇所だけを取得してトークンを節約する。mdidx を主役に、構造クエリが要るときだけ mq を併用する。
+compatibility: mdidx と jq が PATH に必要。mq は任意(構造クエリ用途のみ)。いずれも skill には同梱されない。導入は README の周辺ツール節を参照(mdidx は例えば `nix profile install github:fenril058/agent-gears#mdidx`)。
 ---
 
 # Markdown Context Retrieval
@@ -8,6 +9,10 @@ description: 大きな・未知の Markdown ファイルから必要な節だけ
 大きな Markdown を全文 Read しない。**索引を見て、必要な節だけ取る。**
 組み込みの Read(offset/limit)+Grep では節の終端を確実に取れないが、
 mdidx は見出しで節境界を切るので、取りこぼしも取りすぎも起きない。
+
+> `mdidx` と `jq` が PATH に必要(`mq` は任意)。skill には同梱されないので、
+> 無ければ [リポジトリ README](https://github.com/fenril058/agent-gears#readme) の手順で導入する
+> (例: `nix profile install github:fenril058/agent-gears#mdidx`)。
 
 ## 判断
 

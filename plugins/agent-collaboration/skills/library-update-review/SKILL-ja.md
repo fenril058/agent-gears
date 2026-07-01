@@ -5,6 +5,7 @@ description: >-
   dependabotやrenovatebotが作成したPR、または手動で作成されたライブラリ更新PRをレビューし、
   release note分析、コード更新、依存関係調査、過去の失敗調査を行う。
 argument-hint: "[PR-URL-or-number]"
+compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR・差分・CI 状態の取得に使う。gh の入手は https://cli.github.com
 ---
 
 # ライブラリ更新のレビュー手順書

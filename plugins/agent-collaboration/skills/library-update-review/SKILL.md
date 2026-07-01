@@ -5,6 +5,7 @@ description: >-
   manually created library-update PRs, doing release-note analysis, code updates,
   dependency investigation, and past-failure investigation.
 argument-hint: "[PR-URL-or-number]"
+compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read the PR, diffs, and CI state. Install gh from https://cli.github.com.
 ---
 
 # Library-update review procedure

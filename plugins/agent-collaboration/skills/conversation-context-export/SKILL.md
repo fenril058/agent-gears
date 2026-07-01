@@ -6,6 +6,7 @@ description: >-
   a PR comment if a PR exists. Hand off to the next worker (a reviewer, an AI in another
   session, a bug-hunting AI, etc.). Use when the user says "export the context", "write
   out the conversation context", or "save what we discussed to .dev".
+compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to detect a PR and post/update the context comment. Install gh from https://cli.github.com.
 ---
 
 # Conversation context export procedure

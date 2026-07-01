@@ -1,6 +1,7 @@
 ---
 name: markdown-context
 description: Use when you need to read only the relevant sections out of a large or unfamiliar Markdown file. For READMEs, design docs, specs, long documents, book manuscripts, etc., save tokens by fetching just the right part from a heading index instead of loading the whole file. mdidx is the primary tool; bring in mq only when you need structural queries.
+compatibility: Requires the mdidx and jq binaries on PATH. mq is optional (structural queries only). These are not bundled with the skill; see the repo README tools section to install (mdidx e.g. `nix profile install github:fenril058/agent-gears#mdidx`).
 ---
 
 # Markdown Context Retrieval
@@ -8,6 +9,10 @@ description: Use when you need to read only the relevant sections out of a large
 Don't full-text Read a large Markdown file. **Look at the index, take only the sections
 you need.** The built-in Read (offset/limit) + Grep can't reliably find a section's end,
 but mdidx cuts section boundaries at headings, so you neither miss nor over-grab.
+
+> Needs `mdidx` and `jq` on PATH (`mq` is optional). They are not shipped with this skill;
+> if missing, install per the [repo README](https://github.com/fenril058/agent-gears#readme)
+> — e.g. `nix profile install github:fenril058/agent-gears#mdidx`.
 
 ## Decision
 

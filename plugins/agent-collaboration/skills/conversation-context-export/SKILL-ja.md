@@ -4,6 +4,7 @@ description: >-
   対話コンテキストをexportする。
   会話で共有された目的・意図・設計判断・制約条件を `.dev/contexts/` ディレクトリに書き出し、PRが存在する場合はPRコメントにも投稿する。次の作業者(レビュワー、別セッションのAI、バグハンティングのAIなど)に引き継ぐ。
   ユーザーが「コンテキストを書き出して」「対話コンテキストをexport」「会話した内容を.devに保存して」と言った時に使用する。
+compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR の検出とコンテキストコメントの投稿/更新に使う。gh の入手は https://cli.github.com
 ---
 
 # 対話コンテキストのexport手順書
