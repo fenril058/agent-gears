@@ -66,7 +66,8 @@ jobs:
           primary-key: nix-${{ runner.os }}-flakecheck-${{ hashFiles('**/flake.lock', '**/*.nix') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-flakecheck-
           gc-max-store-size-linux: 1G
-      # validates the mdidx package, devShell, and formatter; also the receiver
+      # validates the mdidx package, devShell, formatter, and formatting
+      # (checks.formatting via treefmt: nixpkgs-fmt + gofmt); also the receiver
       # that verifies Dependabot's nix (flake.lock) bump PRs.
       - run: nix flake check
 

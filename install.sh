@@ -20,9 +20,12 @@ DRY_RUN=0
 UNINSTALL=0
 for arg in "$@"; do
   case "$arg" in
-    --dry-run) DRY_RUN=1 ;;
-    --uninstall) UNINSTALL=1 ;;
-    *) echo "unknown option: $arg" >&2; exit 2 ;;
+  --dry-run) DRY_RUN=1 ;;
+  --uninstall) UNINSTALL=1 ;;
+  *)
+    echo "unknown option: $arg" >&2
+    exit 2
+    ;;
   esac
 done
 
@@ -36,15 +39,21 @@ run() { if [ "$DRY_RUN" = 1 ]; then echo "  [dry-run] $*"; else eval "$*"; fi; }
 # link SRC DEST — DEST を SRC への symlink にする(冪等・実ファイルは退避)
 link() {
   local src="$1" dest="$2"
-  local parent; parent="$(dirname "$dest")"
+  local parent
+  parent="$(dirname "$dest")"
   [ -d "$parent" ] || run "mkdir -p '$parent'"
 
   if [ -L "$dest" ]; then
-    local cur; cur="$(readlink "$dest")"
-    if [ "$cur" = "$src" ]; then echo "  ok       $dest"; return; fi
+    local cur
+    cur="$(readlink "$dest")"
+    if [ "$cur" = "$src" ]; then
+      echo "  ok       $dest"
+      return
+    fi
     run "rm '$dest'"
   elif [ -e "$dest" ]; then
-    local bak; bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
+    local bak
+    bak="$dest.bak.$(date +%Y%m%d%H%M%S)"
     echo "  backup   $dest -> $bak"
     run "mv '$dest' '$bak'"
   fi
@@ -56,7 +65,8 @@ link() {
 unlink_if_ours() {
   local dest="$1" src="$2"
   if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
-    run "rm '$dest'"; echo "  unlink   $dest"
+    run "rm '$dest'"
+    echo "  unlink   $dest"
   fi
 }
 
@@ -72,7 +82,8 @@ agent_defs() { find "$REPO/plugins" -mindepth 3 -maxdepth 3 -type f -name '*.md'
 # hm-module.nix と同じ配布先集合になることは scripts/check-distribution.sh が検証する。
 plan() {
   local d n f
-  for d in $(skills); do n="$(basename "$d")"
+  for d in $(skills); do
+    n="$(basename "$d")"
     printf '%s\t%s\n' "$d" "$CLAUDE_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$CODEX_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$AGENTS_HOME/skills/$n"
@@ -81,7 +92,8 @@ plan() {
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$COPILOT_HOME/copilot-instructions.md"
-  for f in $(agent_defs); do n="$(basename "$f")"
+  for f in $(agent_defs); do
+    n="$(basename "$f")"
     printf '%s\t%s\n' "$f" "$CLAUDE_HOME/agents/$n"
   done
 }

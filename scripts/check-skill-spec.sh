@@ -43,7 +43,7 @@ tolerable() {
   local errlines=()
   while IFS= read -r errline; do
     case "$errline" in
-      "  - "*) errlines+=("${errline#  - }") ;;
+    "  - "*) errlines+=("${errline#  - }") ;;
     esac
   done <<<"$out"
 
@@ -52,8 +52,8 @@ tolerable() {
 
   local msg="${errlines[0]}"
   case "$msg" in
-    "Unexpected fields in frontmatter: "*) ;;
-    *) return 1 ;;
+  "Unexpected fields in frontmatter: "*) ;;
+  *) return 1 ;;
   esac
 
   # "Unexpected fields in frontmatter: a, b. Only [...] are allowed." から a, b を取り出す。
@@ -67,8 +67,8 @@ tolerable() {
     f="$(printf '%s' "$raw" | tr -d '[:space:]')"
     [ -z "$f" ] && continue
     case "$CLAUDE_EXT" in
-      *" $f "*) ;;
-      *) return 1 ;;
+    *" $f "*) ;;
+    *) return 1 ;;
     esac
   done
   return 0

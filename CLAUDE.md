@@ -21,6 +21,15 @@
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
 
+コード整形(treefmt):
+
+- フォーマッタの唯一の定義は `treefmt.nix`。`nix fmt` で一括整形、`nix flake check` の
+  `checks.formatting` が未整形を落とす(CI の `nix` job が実行)。対象は `.nix`(nixpkgs-fmt)/
+  `.go`(gofmt)/ `.sh`(shfmt)。shell のインデントは `.editorconfig`(space/2)に従う。
+  `switch_case_indent` は treefmt 経由で効かず直接 shfmt と食い違うので `.editorconfig` に書かない。
+  Markdown は「一文一行」規約と衝突するため対象外(手動整形)。
+  対象言語を増やすときは `treefmt.nix` に programs を足す。
+
 nix の落とし穴:
 
 - 補助スクリプトや `nix eval` で `<nixpkgs>` / NIX_PATH に依存しない。
