@@ -90,6 +90,8 @@ jobs:
       # 各 plugin.json の name・version・keywords が一致するかを検証する。
       - run: nix shell nixpkgs#jq --command bash scripts/check-distribution.sh
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
+      # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
+      - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 
   workflow-lint:
     name: workflow lint (ghalint / zizmor / pinact)
