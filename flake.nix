@@ -2,12 +2,16 @@
   description = "agent-gears: token削減・効率agent運用の skill/agent を Claude Code / Codex / 共有ストアへ配布する";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.treefmt-nix.url = "github:numtide/treefmt-nix";
+  inputs.treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, treefmt-nix }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAll = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
+      # treefmt: nix fmt / checks.formatting の唯一のフォーマッタ定義(./treefmt.nix)。
+      treefmtEval = forAll (system: treefmt-nix.lib.evalModule (pkgsFor system) ./treefmt.nix);
     in
     {
       # home-manager モジュール: imports に足して programs.agent-gears.enable = true。
@@ -40,10 +44,18 @@
               pkgs.go
               pkgs.gopls
               pkgs.gotools
+              # treefmt が使う shell フォーマッタ(直接 shfmt を叩く用)。
+              pkgs.shfmt
             ];
           };
         });
 
-      formatter = forAll (system: (pkgsFor system).nixpkgs-fmt);
+      # nix fmt = treefmt(nixpkgs-fmt + gofmt を一括実行)。
+      formatter = forAll (system: treefmtEval.${system}.config.build.wrapper);
+
+      # nix flake check が整形も検査する(未整形なら fail)。個別の CI ステップは不要。
+      checks = forAll (system: {
+        formatting = treefmtEval.${system}.config.build.check self;
+      });
     };
 }

@@ -17,11 +17,11 @@ cd "$REPO"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 inst="$(CLAUDE_HOME="$tmp/.claude" CODEX_HOME="$tmp/.codex" AGENTS_HOME="$tmp/.agents" COPILOT_HOME="$tmp/.copilot" \
-  bash install.sh --dry-run \
-  | grep -E '^[[:space:]]+(link|ok)[[:space:]]' \
-  | awk '{print $2}' \
-  | sed "s#^$tmp/##" \
-  | sort)"
+  bash install.sh --dry-run |
+  grep -E '^[[:space:]]+(link|ok)[[:space:]]' |
+  awk '{print $2}' |
+  sed "s#^$tmp/##" |
+  sort)"
 
 # hm-module 側: home-manager 本体なしで評価し home.file の配布先名を取る。
 # 配布先の名前だけが要るので、編集即反映(out-of-store symlink)・mdidx ビルドは
