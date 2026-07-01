@@ -20,3 +20,9 @@
 - ただし `<owner>/<repo>` は **`ghq get` した URL** で決まり、現在の `origin` とは一致しないことがある。
   upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
 - よって path を `origin` から推測しない。実 path は `ghq list --full-path <repo>` で確認する。
+
+## worktree(エージェント隔離)
+
+- worktree は必ず `wt`(worktrunk)で作る。`wt switch --create <branch>` を使う。
+- `wt` を経由しない worktree は使わない。post-start hook が走らず、gitignored の symlink 化・`direnv allow` が済まないため、direnv/依存の無い壊れた作業ツリーになり、ビルド・テストが通らない。
+- サブエージェントを隔離環境で動かすときも、先に `wt` で作った worktree の中で動かす。
