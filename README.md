@@ -103,6 +103,25 @@ scripts/             CI 用の整合チェック(配布2系統の配布先一致
   出力は利用者の作業言語に従う。
 - 編集は英語 `SKILL.md` を正、`SKILL-ja.md` は手動で追従させる(内容の乖離に注意)。
 
+### agentskills.io 標準への準拠
+
+skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標準](https://agentskills.io/specification)に準拠する。
+公式リファレンスバリデータ `skills-ref` で CI(`scripts/check-skill-spec.sh`)が検証する。
+
+**標準に従う部分**:
+
+- 各 skill を1ディレクトリ = 1 `SKILL.md` で置く。
+- frontmatter の必須フィールド `name` / `description`(名前・説明の制約、`name` とディレクトリ名の一致)。
+- `compatibility`(外部ツール要件の宣言)も標準フィールド。
+
+**標準から外れる部分**:
+
+- Claude Code のトップレベル拡張フィールド(本リポジトリでは `argument-hint`)は agentskills 標準外。
+  Claude Code が解釈する拡張であり、`skills-ref` は本来これを "Unexpected fields" として弾く。
+  この配布物の主対象は Claude Code なので、`check-skill-spec.sh` は既知の Claude 拡張(`CLAUDE_EXT`)だけを許容に読み替える(未知フィールドや `name`/`description` 違反は失格のまま)。
+- 付随ファイル `SKILL-ja.md` / `TEMPLATE.md` / `NOTES-local.md` は標準の対象外。
+  正本は `SKILL.md` のみで、バリデータもこれらを検証しない。
+
 ### 出典とライセンス
 
 - **japanese-writing**(`japanese-tech-writing` / `argument-gap-edit`):
