@@ -124,6 +124,9 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
 
 ### 出典とライセンス
 
+リポジトリ全体および自作物は **MIT**(`LICENSE`)。
+第三者由来のディレクトリは各自の条項(いずれも MIT / public domain で互換)に従い、一覧は `NOTICE` にまとめてある。
+
 - **japanese-writing**(`japanese-tech-writing` / `argument-gap-edit`):
   - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。
   - ライセンスは[実質 public domain](https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d571a936063)。
