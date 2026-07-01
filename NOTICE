@@ -1,0 +1,34 @@
+agent-gears
+Copyright (c) 2026 fenril058 (ril)
+
+This product is licensed under the MIT License (see LICENSE). The MIT License
+covers the repository as a whole and all original work in it, including the
+context-engineering plugin, agent-collaboration/durable-knowledge-export,
+cmd/mdidx, and the packaging/distribution machinery (install.sh, nix/, scripts/,
+flake.nix, etc.).
+
+The following directories are vendored from third parties. Each retains its own
+license/notice file, which governs that directory. All are MIT or public domain
+and thus compatible with the repository's MIT License; their attribution notices
+are kept as required.
+
+- plugins/agent-collaboration/
+    subagent-consultation, sanity-review, conversation-context-export,
+    conversation-context-import, library-update-review are derived from
+    shokai/agent-skills (MIT). See plugins/agent-collaboration/LICENSE.
+    Note: durable-knowledge-export in this directory is original work by this
+    repository's author and is covered by the top-level MIT License.
+
+- plugins/japanese-writing/
+    japanese-tech-writing and argument-gap-edit are based on a gist by
+    k16shikano, released as public domain. Attribution is retained for respect
+    and traceability, not obligation. See plugins/japanese-writing/NOTICE.
+
+- meta/empirical-prompt-tuning/
+    Vendored from mizchi/skills. Upstream had no LICENSE.txt; per that repo's
+    policy such skills default to MIT. See meta/empirical-prompt-tuning/LICENSE.
+
+- cmd/mdidx/
+    A faithful Go reimplementation of oubakiou/md2idx (MIT), byte-compatible
+    with the original. The original's MIT notice is reproduced in
+    cmd/mdidx/LICENSE as required.
