@@ -16,7 +16,7 @@ cd "$REPO"
 # install.sh 側: dry-run の link/ok 行から配布先を取り、HOME 相対に正規化する。
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-inst="$(CLAUDE_HOME="$tmp/.claude" CODEX_HOME="$tmp/.codex" AGENTS_HOME="$tmp/.agents" \
+inst="$(CLAUDE_HOME="$tmp/.claude" CODEX_HOME="$tmp/.codex" AGENTS_HOME="$tmp/.agents" COPILOT_HOME="$tmp/.copilot" \
   bash install.sh --dry-run \
   | grep -E '^[[:space:]]+(link|ok)[[:space:]]' \
   | awk '{print $2}' \

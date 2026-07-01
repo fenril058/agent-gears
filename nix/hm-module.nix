@@ -92,8 +92,9 @@ in
 
     claude.enable = mkOption { type = types.bool; default = true; description = "~/.claude へ配布"; };
     codex.enable = mkOption { type = types.bool; default = true; description = "~/.codex へ配布"; };
+    copilot.enable = mkOption { type = types.bool; default = true; description = "~/.copilot へ配布(GitHub Copilot)"; };
     sharedStore.enable = mkOption { type = types.bool; default = true; description = "~/.agents/skills へ配布"; };
-    rules.enable = mkOption { type = types.bool; default = true; description = "rules/always-on.md を CLAUDE.md / AGENTS.md として配布"; };
+    rules.enable = mkOption { type = types.bool; default = true; description = "rules/always-on.md を CLAUDE.md / AGENTS.md / copilot-instructions.md として配布"; };
     agentDefs.enable = mkOption { type = types.bool; default = true; description = "agents/*.md を ~/.claude/agents へ配布(Claude Code 固有)"; };
     tools.enable = mkOption { type = types.bool; default = true; description = "mdidx バイナリを home.packages に入れて PATH へ通す(markdown-context skill 用)"; };
   };
@@ -109,6 +110,7 @@ in
     home.file =
       (optionalAttrs cfg.claude.enable (mkSkillLinks ".claude/skills"))
       // (optionalAttrs cfg.codex.enable (mkSkillLinks ".codex/skills"))
+      // (optionalAttrs cfg.copilot.enable (mkSkillLinks ".copilot/skills"))
       // (optionalAttrs cfg.sharedStore.enable (mkSkillLinks ".agents/skills"))
       // (optionalAttrs (cfg.agentDefs.enable && cfg.claude.enable) mkAgentLinks)
       // (optionalAttrs (cfg.rules.enable && cfg.claude.enable) {
@@ -116,6 +118,9 @@ in
       })
       // (optionalAttrs (cfg.rules.enable && cfg.codex.enable) {
         ".codex/AGENTS.md".source = srcOf "rules/always-on.md";
+      })
+      // (optionalAttrs (cfg.rules.enable && cfg.copilot.enable) {
+        ".copilot/copilot-instructions.md".source = srcOf "rules/always-on.md";
       });
   };
 }
