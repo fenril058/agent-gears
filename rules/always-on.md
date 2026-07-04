@@ -26,3 +26,7 @@
 - worktree は必ず `wt`(worktrunk)で作る。`wt switch --create <branch>` を使う。
 - `wt` を経由しない worktree は使わない。post-start hook が走らず、gitignored の symlink 化・`direnv allow` が済まないため、direnv/依存の無い壊れた作業ツリーになり、ビルド・テストが通らない。
 - サブエージェントを隔離環境で動かすときも、先に `wt` で作った worktree の中で動かす。
+
+## Markdownの整形ルール
+
+- 一文ごとに改行し、段落の区切りは空行で示す。
