@@ -23,9 +23,14 @@ def parse_range(token: str) -> tuple[int, int]:
     token = token.strip()
     if "-" in token:
         start_s, end_s = token.split("-", 1)
-        return int(start_s), int(end_s)
-    n = int(token)
-    return n, n
+        start, end = int(start_s), int(end_s)
+    else:
+        start = end = int(token)
+    if start < 1:
+        raise ValueError(f"line numbers must be >= 1: {token!r}")
+    if start > end:
+        raise ValueError(f"range start must be <= end: {token!r}")
+    return start, end
 
 
 def merge_ranges(ranges: list[tuple[int, int, str]], margin: int, max_line: int):
@@ -36,7 +41,7 @@ def merge_ranges(ranges: list[tuple[int, int, str]], margin: int, max_line: int)
     expanded = []
     for start, end, label in ranges:
         w_start = max(1, start - margin)
-        w_end = end + margin if max_line is None else min(max_line, end + margin)
+        w_end = min(max_line, end + margin)
         expanded.append((w_start, w_end, label))
 
     expanded.sort(key=lambda r: (r[0], r[1]))
@@ -61,22 +66,31 @@ def main() -> int:
     args = parser.parse_args()
 
     raw_ranges: list[tuple[int, int, str]] = []
-    for i, token in enumerate(args.ranges, 1):
-        start, end = parse_range(token)
-        raw_ranges.append((start, end, token))
+    try:
+        for token in args.ranges:
+            start, end = parse_range(token)
+            raw_ranges.append((start, end, token))
 
-    if args.ranges_file:
-        with open(args.ranges_file, encoding="utf-8") as f:
-            for line in f:
-                line = line.rstrip("\n")
-                if not line or line.lstrip().startswith("#"):
-                    continue
-                if "\t" in line:
-                    token, label = line.split("\t", 1)
-                else:
-                    token, label = line, line
-                start, end = parse_range(token)
-                raw_ranges.append((start, end, label))
+        if args.ranges_file:
+            with open(args.ranges_file, encoding="utf-8") as f:
+                for lineno, line in enumerate(f, 1):
+                    line = line.rstrip("\n")
+                    if not line or line.lstrip().startswith("#"):
+                        continue
+                    if "\t" in line:
+                        token, label = line.split("\t", 1)
+                    else:
+                        token, label = line, line
+                    try:
+                        start, end = parse_range(token)
+                    except ValueError as e:
+                        raise ValueError(
+                            f"{args.ranges_file}:{lineno}: {e}"
+                        ) from None
+                    raw_ranges.append((start, end, label))
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
     if not raw_ranges:
         print("no ranges given", file=sys.stderr)
@@ -85,6 +99,19 @@ def main() -> int:
     with open(args.file, encoding="utf-8") as f:
         lines = f.readlines()
     max_line = len(lines)
+
+    if max_line == 0:
+        print(f"error: {args.file} is empty", file=sys.stderr)
+        return 1
+
+    out_of_range = [token for start, _, token in raw_ranges if start > max_line]
+    if out_of_range:
+        print(
+            f"error: range(s) beyond the file's {max_line} lines: "
+            f"{', '.join(out_of_range)}",
+            file=sys.stderr,
+        )
+        return 1
 
     merged = merge_ranges(raw_ranges, args.margin, max_line)
 
