@@ -39,7 +39,7 @@ jobs:
           govulncheck ./...
 
   shellcheck:
-    name: shellcheck (install.sh)
+    name: shellcheck / shell unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -48,7 +48,10 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - run: shellcheck install.sh scripts/*.sh
+      - run: shellcheck -x -P SCRIPTDIR install.sh scripts/*.sh scripts/lib/*.sh
+      # tolerable()(check-skill-spec.sh の skills-ref 出力パース)の単体テスト。
+      # skills-ref を呼ばないので nix 不要、この job だけで完結する。
+      - run: bash scripts/check-skill-spec-tolerable.test.sh
 
   nix:
     name: nix flake check
