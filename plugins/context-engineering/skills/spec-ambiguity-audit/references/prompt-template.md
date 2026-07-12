@@ -1,7 +1,8 @@
 # Pass-1 prompt template
 
-Dispatch with `subagent_type: search` or a plain `Agent` call, `model: haiku` (or the
-cheapest available tier). Fill in only the file path — do not add project background,
+See the parent SKILL.md's *Platform implementations* section for how to dispatch this
+on your platform (Claude Code: `Agent` tool with `model: haiku`; Codex: a separate
+`/model`-switched session). Fill in only the file path — do not add project background,
 do not summarize what the document is for beyond what's needed to name the file.
 
 ## English

@@ -19,13 +19,13 @@ turns a useful signal into noise the user has to re-derive themselves.
 
 ## The two-pass shape
 
-**Pass 1 (cheap tier, cold read):** dispatch a subagent on the cheapest available model
-(e.g. haiku) with only the document path and this instruction: read it as the engineer
-about to implement it, and list every point where you can't tell which of several
-implementations is intended, without guessing at an answer. Require a line-number
-citation on every item — this is not optional, the filter in pass 2 depends on it.
-See `references/prompt-template.md` for the exact prompt (Japanese-project version
-included).
+**Pass 1 (cheap tier, cold read):** have a cheap-tier model read only the document path
+cold, with this instruction: read it as the engineer about to implement it, and list
+every point where you can't tell which of several implementations is intended, without
+guessing at an answer. Require a line-number citation on every item — this is not
+optional, the filter in pass 2 depends on it. See `references/prompt-template.md` for
+the exact prompt (Japanese-project version included) and *Platform implementations*
+below for how to run this pass on your platform.
 
 **Pass 2 (mechanical filter, no model call):** collect the cited ranges, sort and merge
 overlapping/adjacent ones, and extract only those windows from the source file with
@@ -91,6 +91,24 @@ reflects the document's maturity as much as the weak model's judgment. A rough d
 with large unwritten sections will score high because nearly everything genuinely is
 unspecified — that's not the audit working better, it's the document being thinner.
 A carefully considered spec that still scores 50%+ valid is the more meaningful signal.
+
+## Platform implementations
+
+### Claude Code
+
+Dispatch pass 1 with the `Agent` tool, `subagent_type: search` (or a plain `Agent` call),
+`model: haiku` (or the cheapest available tier). See `references/prompt-template.md` for
+the exact prompt to send.
+
+### Codex
+
+Codex has no per-subagent model switch. Run pass 1 in a separate Codex session with
+`/model` switched to its cheapest tier, paste in the pass-1 prompt from
+`references/prompt-template.md`, and copy the resulting list (with citations) back to
+the main session for pass 2. If no cheap tier is available, skip pass 1's cost-saving
+intent and just run the cold read on the main model in a fresh session with no project
+context loaded — the value comes from the cold read, not specifically from a cheaper
+model.
 
 ## Reference
 
