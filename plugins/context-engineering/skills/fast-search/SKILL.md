@@ -1,7 +1,7 @@
 ---
 name: fast-search
 description: Use when you need broad, semantic search over a codebase ("where is X done", "how is this feature implemented"). For semantic questions that span multiple files — not simple string matches or references to a known file — answer them in few steps with fastcontext.
-compatibility: Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars API_KEY or OPENAI_API_KEY, MODEL, BASE_URL). Neither is bundled with the skill; without them, fall back to Grep/Read. Install from https://github.com/microsoft/fastcontext.
+compatibility: Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars FC_API_KEY, FC_MODEL, FC_BASE_URL; legacy names are also supported). Neither is bundled with the skill; without them, fall back to Grep/Read. Install from https://github.com/microsoft/fastcontext.
 ---
 
 # Fast Search (fastcontext)
@@ -15,16 +15,22 @@ The `fastcontext` CLI is not bundled with this skill. Install it from
 [microsoft/fastcontext](https://github.com/microsoft/fastcontext); if it isn't on PATH,
 use the "Fallback" below.
 
-fastcontext is backed by an OpenAI-compatible API. It needs the following environment
-variables. Without them it fails with `Missing credentials`.
+fastcontext is backed by an OpenAI-compatible API. It reads the following environment
+variables. The `FC_` names are preferred; the names in parentheses are legacy
+fallbacks.
 
-- `API_KEY`: key for the OpenAI-compatible endpoint (`OPENAI_API_KEY` also works)
-- `MODEL`: the model name to use
-- `BASE_URL`: the endpoint URL (omit for OpenAI itself)
+- `FC_API_KEY` (`API_KEY`): key for the OpenAI-compatible endpoint
+- `FC_MODEL` (`MODEL`): the model name to use
+- `FC_BASE_URL` (`BASE_URL`): the endpoint URL
 
 Set the key in your own environment (don't commit it, don't put it in the nix store).
-Check whether it's configured with `fastcontext -q "test" --max-turns 1`.
-If it's unset / not runnable, follow "Fallback" below.
+For Ollama's OpenAI-compatible API, use a non-empty dummy key and a base URL such as
+`http://localhost:11434/v1`.
+
+Check availability by actually running `fastcontext -q "test" --max-turns 1` instead
+of inferring it only from legacy environment-variable names. If the command reports
+missing credentials, connection failure, or is otherwise not runnable, follow
+"Fallback" below.
 
 ## When to use which
 
