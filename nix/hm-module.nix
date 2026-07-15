@@ -1,5 +1,5 @@
 # home-manager module: agent-gears の skill / 常時ルール / agent定義を
-# Claude Code・Codex・共有ストアへ symlink 配布する。install.sh の宣言的な代替。
+# Claude Code・Codex・GitHub Copilot へ symlink 配布する。install.sh の宣言的な代替。
 #
 # flakeSrc はこの flake のソース(store)で、配布対象の「名前」の列挙にだけ使う。
 # 実体の symlink 先は cfg.mutable に従って切り替える:
@@ -91,9 +91,8 @@ in
     };
 
     claude.enable = mkOption { type = types.bool; default = true; description = "~/.claude へ配布"; };
-    codex.enable = mkOption { type = types.bool; default = true; description = "~/.codex へ配布"; };
+    codex.enable = mkOption { type = types.bool; default = true; description = "~/.agents/skills と ~/.codex/AGENTS.md へ Codex 向けファイルを配布"; };
     copilot.enable = mkOption { type = types.bool; default = true; description = "~/.copilot へ配布(GitHub Copilot)"; };
-    sharedStore.enable = mkOption { type = types.bool; default = true; description = "~/.agents/skills へ配布"; };
     rules.enable = mkOption { type = types.bool; default = true; description = "共通ルールとエージェント固有ルールを対応する instruction file として配布"; };
     agentDefs.enable = mkOption { type = types.bool; default = true; description = "agents/*.md を ~/.claude/agents へ配布(Claude Code 固有)"; };
     tools.enable = mkOption { type = types.bool; default = true; description = "mdidx バイナリを home.packages に入れて PATH へ通す(markdown-context skill 用)"; };
@@ -109,9 +108,8 @@ in
 
     home.file =
       (optionalAttrs cfg.claude.enable (mkSkillLinks ".claude/skills"))
-      // (optionalAttrs cfg.codex.enable (mkSkillLinks ".codex/skills"))
       // (optionalAttrs cfg.copilot.enable (mkSkillLinks ".copilot/skills"))
-      // (optionalAttrs cfg.sharedStore.enable (mkSkillLinks ".agents/skills"))
+      // (optionalAttrs cfg.codex.enable (mkSkillLinks ".agents/skills"))
       // (optionalAttrs (cfg.agentDefs.enable && cfg.claude.enable) mkAgentLinks)
       // (optionalAttrs (cfg.rules.enable && cfg.claude.enable) {
         ".claude/CLAUDE.md".source = srcOf "rules/always-on.md";

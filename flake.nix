@@ -1,5 +1,5 @@
 {
-  description = "agent-gears: token削減・効率agent運用の skill/agent を Claude Code / Codex / 共有ストアへ配布する";
+  description = "agent-gears: token削減・効率agent運用の skill/agent を Claude Code / Codex / GitHub Copilot へ配布する";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.treefmt-nix.url = "github:numtide/treefmt-nix";

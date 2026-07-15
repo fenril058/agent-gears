@@ -2,7 +2,7 @@
 #
 # install.sh — context-engineering を単一ソースとして各エージェントへ symlink 配布する。
 #
-#   skills/<name>  -> ~/.claude/skills/<name>, ~/.codex/skills/<name>, ~/.agents/skills/<name>, ~/.copilot/skills/<name>
+#   skills/<name>  -> ~/.claude/skills/<name>, ~/.agents/skills/<name>, ~/.copilot/skills/<name>
 #   rules/always-on.md -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ~/.copilot/copilot-instructions.md
 #   rules/claude.md    -> ~/.claude/rules/agent-gears.md
 #   agents/*.md    -> ~/.claude/agents/<file>   (Claude Code 固有)
@@ -86,7 +86,6 @@ plan() {
   for d in $(skills); do
     n="$(basename "$d")"
     printf '%s\t%s\n' "$d" "$CLAUDE_HOME/skills/$n"
-    printf '%s\t%s\n' "$d" "$CODEX_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$AGENTS_HOME/skills/$n"
     printf '%s\t%s\n' "$d" "$COPILOT_HOME/skills/$n"
   done
@@ -100,11 +99,27 @@ plan() {
   done
 }
 
+# obsolete_plan — 旧版が作成した、現在は使わない link を列挙する。
+obsolete_plan() {
+  local d n
+  for d in $(skills); do
+    n="$(basename "$d")"
+    printf '%s\t%s\n' "$d" "$CODEX_HOME/skills/$n"
+  done
+}
+
+remove_obsolete_links() {
+  obsolete_plan | while IFS=$'\t' read -r src dest; do
+    unlink_if_ours "$dest" "$src"
+  done
+}
+
 if [ "$UNINSTALL" = 1 ]; then
   echo "Uninstalling symlinks pointing into $REPO ..."
   plan | while IFS=$'\t' read -r src dest; do
     unlink_if_ours "$dest" "$src"
   done
+  remove_obsolete_links
   echo "Done. Restart Claude Code / Codex to apply."
   exit 0
 fi
@@ -112,6 +127,7 @@ fi
 echo "Installing from $REPO"
 [ "$DRY_RUN" = 1 ] && echo "(dry-run: 変更は行いません)"
 
+remove_obsolete_links
 plan | while IFS=$'\t' read -r src dest; do
   link "$src" "$dest"
 done
