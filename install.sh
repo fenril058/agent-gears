@@ -4,6 +4,7 @@
 #
 #   skills/<name>  -> ~/.claude/skills/<name>, ~/.codex/skills/<name>, ~/.agents/skills/<name>, ~/.copilot/skills/<name>
 #   rules/always-on.md -> ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md, ~/.copilot/copilot-instructions.md
+#   rules/claude.md    -> ~/.claude/rules/agent-gears.md
 #   agents/*.md    -> ~/.claude/agents/<file>   (Claude Code 固有)
 #
 # 冪等。既存 symlink は張り直す。実ファイル/実ディレクトリは .bak.<時刻> に退避してから張る。
@@ -90,6 +91,7 @@ plan() {
     printf '%s\t%s\n' "$d" "$COPILOT_HOME/skills/$n"
   done
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CLAUDE_HOME/CLAUDE.md"
+  printf '%s\t%s\n' "$REPO/rules/claude.md" "$CLAUDE_HOME/rules/agent-gears.md"
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$CODEX_HOME/AGENTS.md"
   printf '%s\t%s\n' "$REPO/rules/always-on.md" "$COPILOT_HOME/copilot-instructions.md"
   for f in $(agent_defs); do
