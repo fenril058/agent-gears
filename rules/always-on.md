@@ -25,7 +25,13 @@
 
 - worktree は必ず `wt`(worktrunk)で作る。`wt switch --create <branch>` を使う。
 - `wt` を経由しない worktree は使わない。post-start hook が走らず、gitignored の symlink 化・`direnv allow` が済まないため、direnv/依存の無い壊れた作業ツリーになり、ビルド・テストが通らない。
-- サブエージェントを隔離環境で動かすときも、先に `wt` で作った worktree の中で動かす。
+- worktree 内を変更するときは、その worktree をカレントディレクトリまたは書き込み可能な workspace root にしてエージェントのセッションを開始する。
+  別の worktree で開始済みのセッションから兄弟 worktree を変更しない。
+  `wt` で作成しても、開始済みセッションの filesystem sandbox に兄弟 worktree は自動追加されない。
+- 兄弟 worktree の読み取り専用レビューは既存セッションから行ってよい。
+  編集、テスト、`direnv exec`、Git 操作が必要になったら、対象 worktree を書き込み可能な workspace root にしたセッションへ切り替える。
+- サブエージェントを隔離環境で動かすときも、先に `wt` で worktree を作り、その worktree を書き込み可能な workspace root にして動かす。
+  worktree の path をサブエージェントへ伝えるだけで書き込み可能になるとは仮定しない。
 
 ## Markdownの整形ルール
 
