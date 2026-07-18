@@ -28,6 +28,29 @@ This file is used in these situations:
 - **Sharing via a PR comment**: when a PR exists, also post it as a comment so other
   workers or sanity-review can reference it directly.
 
+## Worktree note
+
+The write in step 3 targets `.dev/contexts/`, not implementation files, but it is still
+subject to the worktree rule in your always-on instructions (`CLAUDE.md` / `AGENTS.md` /
+`copilot-instructions.md`).
+
+If your session's workspace root **is** the target worktree, write normally — no extra
+check needed.
+
+If you are running from a session whose workspace root is a **different** (sibling)
+worktree, the write is allowed only if all of these hold:
+
+- The target worktree is explicitly included in this session's filesystem sandbox
+  writable range.
+- The write target is exactly `.dev/contexts/{sanitized branch name}.md`.
+- The user has explicitly authorized this one-time cross-worktree write.
+
+This skill never builds, tests, runs `direnv exec`, or performs Git operations, so those
+restrictions in the worktree rule never apply here.
+
+If any condition doesn't hold, tell the user and ask them to switch to a session whose
+workspace root is the target worktree instead.
+
 ## Procedure
 
 ### 1. Fetch metadata

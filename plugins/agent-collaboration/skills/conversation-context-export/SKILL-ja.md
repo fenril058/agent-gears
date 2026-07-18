@@ -20,6 +20,22 @@ compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh 
 - **新セッションでの開発継続**: 前セッションのコンテキストを引き継ぐ
 - **PRコメントでの共有**: PRが存在する場合にコメントとしても投稿し、他の作業者やsanity-reviewが直接参照できるようにする
 
+## worktree に関する注意
+
+ステップ3の書き込み先は `.dev/contexts/` であり実装ファイルではないが、常時ルール(`CLAUDE.md` / `AGENTS.md` / `copilot-instructions.md`)のworktreeルールの対象ではある。
+
+セッションのworkspace rootが対象worktreeそのものであれば、追加の確認なしにそのまま書き込んでよい。
+
+セッションのworkspace rootが対象worktreeとは**別の**(兄弟)worktreeである場合、書き込みは次をすべて満たすときに限り許可される。
+
+- 対象worktreeが、このセッションのfilesystem sandboxの書き込み可能範囲に明示的に含まれている
+- 書き込み対象が `.dev/contexts/{サニタイズ済みブランチ名}.md` ちょうどである
+- ユーザーがこの一回限りの兄弟worktreeへの書き込みを明示的に許可している
+
+このスキルはビルド・テスト・`direnv exec`・Git操作を一切行わないため、worktreeルールが定めるそれらの禁止事項は関係しない。
+
+いずれかの条件を満たさない場合は、その旨をユーザーに伝え、対象worktreeをworkspace rootにしたセッションへの切り替えを依頼する。
+
 ## 手順
 
 ### 1. メタデータを取得する
