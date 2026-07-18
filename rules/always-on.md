@@ -23,15 +23,20 @@
 
 ## worktree(エージェント隔離)
 
-- worktree は必ず `wt`(worktrunk)で作る。`wt switch --create <branch>` を使う。
-- `wt` を経由しない worktree は使わない。post-start hook が走らず、gitignored の symlink 化・`direnv allow` が済まないため、direnv/依存の無い壊れた作業ツリーになり、ビルド・テストが通らない。
-- worktree 内を変更するときは、その worktree をカレントディレクトリまたは書き込み可能な workspace root にしてエージェントのセッションを開始する。
-  別の worktree で開始済みのセッションから兄弟 worktree を変更しない。
-  `wt` で作成しても、開始済みセッションの filesystem sandbox に兄弟 worktree は自動追加されない。
-- 兄弟 worktree の読み取り専用レビューは既存セッションから行ってよい。
-  編集、テスト、`direnv exec`、Git 操作が必要になったら、対象 worktree を書き込み可能な workspace root にしたセッションへ切り替える。
-- サブエージェントを隔離環境で動かすときも、先に `wt` で worktree を作り、その worktree を書き込み可能な workspace root にして動かす。
-  worktree の path をサブエージェントへ伝えるだけで書き込み可能になるとは仮定しない。
+- worktree は原則として `wt`(worktrunk)で作成する。新規作成には `wt switch --create <branch>` を使う。
+- `wt` を経由せず作成された worktree では、post-start hook、gitignored ファイルの symlink 化、`direnv allow`、依存関係の準備が完了していない可能性がある。その状態で実装、ビルド、テスト、`direnv exec` を行わない。
+- 実装ファイルを変更する場合は、対象 worktree をカレントディレクトリ、または書き込み可能な workspace root としてエージェントのセッションを開始する。
+- 別の worktree で開始済みのセッションから、兄弟 worktree に対する実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
+- 兄弟 worktree の読み取り専用レビューは、既存セッションから行ってよい。
+- 次の条件をすべて満たす場合に限り、既存セッションから兄弟 worktree への限定的な書き込みを許可できる。
+
+  - 対象 worktree が filesystem sandbox の書き込み可能範囲に明示的に追加されている。
+  - 書き込み対象のディレクトリまたはファイルが明示されている。
+  - 実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
+  - ユーザーが今回限りの例外として明示的に許可している。
+
+- 限定的な書き込みの例として、`.dev/contexts/` への context export や、作業引き継ぎ用メタデータの保存を認める。
+- サブエージェントに実装作業を行わせる場合も、先に `wt` で worktree を作成し、その worktree を書き込み可能な workspace root として開始する。worktree の path を伝えるだけで書き込み可能になるとは仮定しない。
 
 ## Markdownの整形ルール
 
