@@ -26,6 +26,8 @@
 
 ## worktree(エージェント隔離)
 
+- worktree は並列作業(複数セッション/エージェントの同時進行)を意図するときだけ使う。
+  worktree はセッション分割によるcontext断絶と人間の切り替えの手間を伴うため、並列を意図しない単発作業ではメインの checkout で `git switch`/`git checkout` して branch を切り替える。
 - worktree は原則として `wt`(worktrunk)で作成する。新規作成には `wt switch --create <branch>` を使う。
 - `wt` を経由せず作成された worktree では、post-start hook、gitignored ファイルの symlink 化、`direnv allow`、依存関係の準備が完了していない可能性がある。
   その状態で実装、ビルド、テスト、`direnv exec` を行わない。
