@@ -1,13 +1,13 @@
 ---
-name: decision-interview
+name: grilling
 description: >-
-  Interview the user about a plan, decision, or idea — one question at a time, with a
+  Grill the user about a plan, decision, or idea — one question at a time, with a
   recommended answer for each — until a shared understanding is reached. Use when the
-  user wants to stress-test their thinking before implementation, or says "interview
-  me", "grill me", "壁打ちして", or "詰めて".
+  user wants to stress-test their thinking before implementation, or says "grill me",
+  "interview me", or "要件を詰めて".
 ---
 
-# Decision interview procedure
+# Grilling procedure
 
 Interview the user thoroughly about every aspect of the plan, decision, or idea until
 you reach a shared understanding. Walk down each branch of the decision tree, resolving
@@ -27,7 +27,7 @@ Rules:
 ## Related skills
 
 - **spec-ambiguity-audit**: audits a written spec for gaps with a cold-reading cheap
-  model. The decision interview is the interactive counterpart: it resolves the open
+  model. Grilling is the interactive counterpart: it resolves the open
   decisions with the user directly.
 - **conversation-context-export**: once the shared understanding is reached, export it
   so the next session inherits the decisions.
