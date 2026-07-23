@@ -98,11 +98,23 @@ file in its structure.
 
 If the `.dev/contexts/` directory does not exist, create it.
 
+Include the "suggested skills" section of the template when there are skills the next
+worker should invoke to continue (e.g. conversation-context-import, sanity-review, a
+domain skill used in this work); add a one-line reason each. Omit the section if there
+are none.
+
+**Redact sensitive information** — API keys, tokens, passwords, and personally
+identifiable information must not appear in the file. This matters doubly because step
+4 posts the same content to a PR comment, which publishes it.
+
 Write to `.dev/contexts/{sanitized branch name}.md` with the Write tool.
 
 ### 4. Post to a PR comment
 
 If no PR number was obtained in step 1 (PR not created), skip this step.
+
+Posting publishes the content. Before posting, re-confirm the file contains no
+unredacted secrets or personal information (step 3's redaction rule).
 
 #### 4-1. Get repo info and the current GitHub user
 

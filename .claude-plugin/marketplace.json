@@ -28,8 +28,8 @@
     {
       "name": "agent-collaboration",
       "source": "agent-collaboration",
-      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(揮発層: ブランチ単位の文脈引き継ぎ)、durable-knowledge-export(永続層: ブランチを越える知見を wiki/リポジトリ内 docs へ)、library-update-review(依存更新 PR のレビュー)。一部 shokai/agent-skills(MIT)由来。",
-      "version": "0.2.0",
+      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(揮発層: ブランチ単位の文脈引き継ぎ)、durable-knowledge-export(永続層: ブランチを越える知見を wiki/リポジトリ内 docs へ)、library-update-review(依存更新 PR のレビュー)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)、codepatrol(領域ごとのセキュリティ調査)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
+      "version": "0.3.0",
       "author": { "name": "fenril058" },
       "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "wiki", "subagent"]
     }

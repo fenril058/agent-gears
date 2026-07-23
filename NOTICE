@@ -14,8 +14,11 @@ are kept as required.
 
 - plugins/agent-collaboration/
     subagent-consultation, sanity-review, conversation-context-export,
-    conversation-context-import, library-update-review are derived from
-    shokai/agent-skills (MIT). See plugins/agent-collaboration/LICENSE.
+    conversation-context-import, library-update-review, codepatrol,
+    unconventional-simplification are derived from shokai/agent-skills (MIT).
+    See plugins/agent-collaboration/LICENSE.
+    grilling is derived from mattpocock/skills (MIT). See
+    plugins/agent-collaboration/skills/grilling/LICENSE.
     Note: durable-knowledge-export in this directory is original work by this
     repository's author and is covered by the top-level MIT License.
 
