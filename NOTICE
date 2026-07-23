@@ -17,8 +17,8 @@ are kept as required.
     conversation-context-import, library-update-review, codepatrol,
     unconventional-simplification are derived from shokai/agent-skills (MIT).
     See plugins/agent-collaboration/LICENSE.
-    grilling is derived from mattpocock/skills (MIT). See
-    plugins/agent-collaboration/skills/grilling/LICENSE.
+    decision-interview is derived from mattpocock/skills' grilling (MIT). See
+    plugins/agent-collaboration/skills/decision-interview/LICENSE.
     Note: durable-knowledge-export in this directory is original work by this
     repository's author and is covered by the top-level MIT License.
 
