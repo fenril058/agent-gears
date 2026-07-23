@@ -29,6 +29,9 @@ Three parties appear in this procedure:
 When reporting to the user, use your own agent name in the heading (e.g. "Claude
 Code's view", "Cline's view").
 
+On agents without the Agent tool, substitute the closest subagent/task mechanism; the
+rest of the procedure is unchanged.
+
 ## 1. Confirm consultation depth
 
 If the user did not state a depth ("thoroughly", "deeply", "well", "lightly", etc.),
@@ -92,6 +95,10 @@ Launch the subagent via the Agent tool:
 
 - `prompt`: the prompt designed in section 2.
 - `description`: a 3-5 word summary of the consultation.
+
+A consultation is judgment work: run the consultant on a strong model, not a cheap
+one (the cheap-model delegation criteria in the model-routing skill are for
+mechanical work and do not apply to second opinions).
 
 ### Deciding on a second round-trip
 
