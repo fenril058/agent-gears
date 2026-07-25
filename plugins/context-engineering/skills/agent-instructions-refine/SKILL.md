@@ -25,7 +25,7 @@ If not, cut it. That single question drives every keep/cut decision below.
 | Code style that differs from defaults, as concrete rules ("validate with Zod, never raw types"; "API routes go through `/lib/auth`") | Standard language conventions the agent already knows |
 | Testing instructions, the preferred test runner, and where fixtures live | Detailed API docs — link to them instead |
 | Repo etiquette: branch naming, PR / commit conventions | Information that changes frequently |
-| Project-specific architecture decisions | Long explanations, tutorials, file-by-file tours |
+| The **rules** a project-specific architecture decision imposes ("events cross context boundaries, never synchronous HTTP") | The decision's rationale and rejected alternatives — that is an ADR (see `domain-modeling`); link it, don't retell it |
 | Non-standard directory layout / conventions that deviate from the norm — the deviation, not a file-by-file tour | Self-evident advice ("write clean code") |
 | **Ownership boundaries** — in a monorepo, what each service / module owns and, crucially, does **not** own | **Secrets / credentials** (API keys, passwords, tokens) — never, even in a private repo |
 | Dev-env quirks (required env vars, `.env.example` location), non-obvious gotchas, easy-to-miss follow-up edits | Aspirational rules the team doesn't actually follow — the agent applies them strictly and causes friction; document what you *do* |
