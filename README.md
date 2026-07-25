@@ -147,7 +147,10 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
     - ライセンスは **MIT**、`LICENSE` 参照。
     - 英語化のうえ取り込んだ。
     - upstream の `codex-consultation`(Codex CLI 相談)は取り込んでいない。
+      Codex は独立した skill ではなく `subagent-consultation` が選ぶ相談先の一つとして扱う(Claude Code では `subagent_type: codex:codex-rescue`)。
+      相談プロトコルを二重に持たずに済み、呼び出し側は相談先を知らなくてよい。
     - `sanity-review` の外部 Agent 相談は `subagent-consultation` →(失敗時)main 単独の 2 段フォールバックに書き換えてある。
+      相談先の種類(別モデルファミリか同ファミリか)は手順ごとに `Args:` で指定する。
     - `unconventional-simplification` / `codepatrol` の外部 Agent 相談も `codex-consultation` を外し `subagent-consultation` に書き換えてある。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
   - `grilling` は [mattpocock/skills](https://github.com/mattpocock/skills) 由来。
