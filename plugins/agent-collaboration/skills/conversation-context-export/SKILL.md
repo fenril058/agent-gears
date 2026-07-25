@@ -28,6 +28,22 @@ This file is used in these situations:
 - **Sharing via a PR comment**: when a PR exists, also post it as a comment so other
   workers or sanity-review can reference it directly.
 
+## Lifetime
+
+`.dev/contexts/` is a **working-tree scratch area that is never committed**. The file
+dies with the branch, and that is intended: this skill is the ephemeral tier.
+
+The sharing channel is therefore the **PR comment** (step 4), not the repo. That is why
+step 4 exists — without a PR, the context reaches nobody but the next session on this
+same worktree.
+
+Do not `git add` `.dev/`. If the user wants it ignored, `.dev/` belongs in their global
+gitignore rather than the repo's — it is an agent artifact, not a property of the
+project.
+
+A finding that must survive the branch does not belong here at all; route it per
+"Related skills" below.
+
 ## Worktree note
 
 The write in step 3 targets `.dev/contexts/`, not implementation files, but it is still
