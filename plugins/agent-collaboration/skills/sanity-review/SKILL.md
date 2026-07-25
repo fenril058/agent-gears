@@ -108,6 +108,15 @@ contain. Stating the depth up front stops the consultation skill from asking the
 back and interrupting the review. "If it fails" means the skill is unavailable or errors
 on its single attempt; do not retry — fall back to 2.
 
+**Which consultant.** `subagent-consultation` picks the consultant itself, but tell it
+what this step needs, because the steps differ. Steps 3, 5, and 6 ask whether the code
+and the implementer's claims are *right*, so they are worth the extra cost of a
+consultant from a different model family — one whose priors are independent of yours
+(on Claude Code, Codex). Step 4 is a read of the existing codebase rather than a
+judgment call, so a same-family subagent is enough. The per-step `Args:` lines below
+carry this preference; if the host has no cross-family consultant, the consultation
+skill falls back on its own and the review continues.
+
 If a fallback occurred or the external agent was unavailable, note it in the report's
 "Problems encountered during review" section.
 
@@ -153,7 +162,7 @@ missed.
 Per the common policy, call with these Args:
 
 ```
-Args: Consult well. For PR #{number}, check whether the description and the actual diff have any discrepancy. {description summary and check points}
+Args: Consult well. Prefer a consultant from a different model family. For PR #{number}, check whether the description and the actual diff have any discrepancy. {description summary and check points}
 ```
 
 When you get the external agent's points, compare with your own results and check for
@@ -185,7 +194,7 @@ consistency.
 Per the common policy, call with these Args:
 
 ```
-Args: Consult well. For PR #{number}, check whether the added/changed naming and design patterns match the existing codebase's conventions. {change summary}
+Args: Consult well. A same-family subagent is fine. For PR #{number}, check whether the added/changed naming and design patterns match the existing codebase's conventions. {change summary}
 ```
 
 When you get the external agent's points, compare and check for oversights.
@@ -223,7 +232,7 @@ summary, a diff summary, and the points to check.
 unspecified, which interrupts the review flow:
 
 ```
-Args: Consult well. Please code-review PR #{number}. {change summary and check points}
+Args: Consult well. Prefer a consultant from a different model family. Please code-review PR #{number}. {change summary and check points}
 ```
 
 #### Verifying the result
@@ -285,7 +294,7 @@ Verify, by reading the code, that the "facts" written in the conversation contex
 actually correct.
 
 If anything is suspicious, also consult an external agent per the common policy. Include
-"Consult well" in the Args.
+"Consult well" and the preference for a different model family in the Args.
 
 ### Step 7: Write the review report
 
@@ -313,7 +322,7 @@ The template headings are in Japanese; write the report in the user's working la
 ## Related skills
 
 - **subagent-consultation**: consult a subagent (the Agent tool). Used as the external
-  agent in steps 3/4/5/6.
+  agent in steps 3/4/5/6; it also decides which consultant to use, Codex included.
 - **conversation-context-import**: load the conversation context. Background for step 1.
 - **conversation-context-export**: write out the conversation context. Background on the
   conversation-context format.

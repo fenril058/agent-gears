@@ -29,8 +29,8 @@ Three parties appear in this procedure:
 When reporting to the user, use your own agent name in the heading (e.g. "Claude
 Code's view", "Cline's view").
 
-On agents without the Agent tool, substitute the closest subagent/task mechanism; the
-rest of the procedure is unchanged.
+Which consultant is available depends on the host; see "Platform implementations"
+below. The rest of the procedure is the same everywhere.
 
 ## 1. Confirm consultation depth
 
@@ -89,16 +89,39 @@ The stated angles are a starting point, not a constraint. Always include a reque
 that the subagent explore the repo itself and proactively report anything that
 concerns it.
 
-## 3. Run the subagent
+## 3. Choose the consultant and run it
 
-Launch the subagent via the Agent tool:
+### Choosing the consultant
 
-- `prompt`: the prompt designed in section 2.
-- `description`: a 3-5 word summary of the consultation.
+A second opinion is worth having only to the extent that the consultant's priors are
+independent of yours. Prefer, in this order:
+
+1. **A different model family.** Independent training, so independent priors. The
+   strongest second opinion, and the one to pick when you may be systematically wrong
+   rather than merely under-informed: correctness, security, "is this explanation
+   actually true".
+2. **The same family on a strong model, in a fresh session.** Independent context,
+   shared priors. Enough when the job is reading the repository — conventions, naming,
+   where something is implemented — rather than judging whether it is right.
+3. **Whatever subagent/task mechanism the host has**, when neither of the above exists.
 
 A consultation is judgment work: run the consultant on a strong model, not a cheap
 one (the cheap-model delegation criteria in the model-routing skill are for
 mechanical work and do not apply to second opinions).
+
+A cross-family consultant costs more to use. It cannot see this conversation, its tool
+access and permissions differ, and it may run asynchronously. Write the prompt to stand
+completely on its own (section 2 already requires this) and expect a slower round-trip.
+
+If whoever invoked this skill stated which kind of consultant the task needs, follow
+that. See "Platform implementations" below for what actually exists on this host.
+
+### Launching
+
+Launch the consultant via the Agent tool:
+
+- `prompt`: the prompt designed in section 2.
+- `description`: a 3-5 word summary of the consultation.
 
 ### Deciding on a second round-trip
 
@@ -188,3 +211,28 @@ If you detect a failure:
 
 If you recognize a pattern where the subagent failed, suggest improvements for next
 time to the user.
+
+## Platform implementations
+
+### Claude Code
+
+Every consultant is reached through the `Agent` tool, by `subagent_type`:
+
+- **Different family**: `subagent_type: codex:codex-rescue` (Codex / GPT), when the
+  Codex plugin is installed. Give the target worktree's absolute path as `--cwd` in the
+  request text, and read the result back with `/codex:status` and `/codex:result` from
+  that same cwd — a job created with `task --cwd <path>` lives in that workspace's
+  state and cannot be found from another cwd. Do not assume the session's cwd is the
+  target worktree.
+- **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`). A
+  fresh session with no memory of this conversation.
+
+Do not consult the `bulk-edit` or `search` agents: they are cheap-tier delegates for
+mechanical work, which is the one thing a second opinion must not be.
+
+### Codex
+
+Codex has no Agent tool; use its own subagent/session mechanism. If another vendor's
+CLI is installed, that is the different-family consultant. Otherwise run the
+consultation in a fresh session with no project context loaded — independent context,
+shared priors, i.e. tier 2 above.
