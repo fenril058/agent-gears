@@ -8,7 +8,7 @@ Claude には plugin マーケットプレイスとして、Codex / Copilot に�
 前者はマーケットプレイスとして共有でき、後者は自分の `~/.claude` / `~/.codex` / `~/.copilot` を構成する。
 マーケットプレイス名は `fenril058-agent-skills`(`marketplace.json` の `name`)である。
 
-リポジトリ直下の `CLAUDE.md` / `AGENTS.md` はこの両者とは別で、このリポジトリ自体を編集するエージェントへの repo-local 指示である。
+リポジトリ直下の `AGENTS.md` はこの両者とは別で、このリポジトリ自体を編集するエージェントへの repo-local 指示である。
 こちらは配布はされない。
 
 ## 内容
@@ -139,7 +139,9 @@ plugins/
       no-neologism/           未定義語・造語の点検手順(核ルールは rules/always-on.md)
 rules/always-on.md   全エージェント共通の常時ルール(個人設定)
 rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
-CLAUDE.md / AGENTS.md このリポジトリで作業するエージェント向けの repo-local 指示(配布しない。AGENTS.md は CLAUDE.md への symlink)
+AGENTS.md            このリポジトリで作業する全エージェント向けの repo-local 指示(配布しない)
+CLAUDE.md            `@AGENTS.md` で上を取り込む。Claude Code 固有の指示があればここに足す
+.github/copilot-instructions.md  AGENTS.md への symlink(Copilot は import 構文を持たないため)
 install.sh           symlink 配布スクリプト(home-manager を使わない場合)
 flake.nix / nix/     home-manager モジュール・mdidx/skills-ref のビルド定義(宣言的配布)
 cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
