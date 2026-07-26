@@ -69,6 +69,17 @@ Ask with the AskUserQuestion tool:
 - **Continue without conversation context**: skip step 6 (omission check).
 - **Abort**: ask the user to prepare the conversation context.
 
+#### 1-4. Follow the ADRs the context links to
+
+The conversation context keeps only a summary of a decision recorded as an ADR; the
+grounds live in the ADR itself (see `conversation-context-export`). Read every ADR the
+context links to — without them you are reviewing against a summary and will read a
+deliberate, recorded decision as an unexplained choice.
+
+If the PR's diff touches the ADR directory or `CONTEXT.md`, read those changes here too.
+A PR that changes a decision or a definition is making a claim about the whole codebase,
+not just about its own diff.
+
 ### Step 2: Assess PR description quality
 
 **Do this before reading the code.** It prevents being pulled toward code-coherence
@@ -328,3 +339,5 @@ The template headings are in Japanese; write the report in the user's working la
   conversation-context format.
 - **library-update-review**: review skill for library-update PRs — the kind of PR out of
   scope for this skill.
+- **domain-modeling**: owns the record tier (`CONTEXT.md` and the ADRs). Background on the
+  ADR format and superseding rules for the ADRs step 1-4 follows.

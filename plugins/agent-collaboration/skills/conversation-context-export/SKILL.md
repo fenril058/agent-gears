@@ -28,6 +28,22 @@ This file is used in these situations:
 - **Sharing via a PR comment**: when a PR exists, also post it as a comment so other
   workers or sanity-review can reference it directly.
 
+## Lifetime
+
+`.dev/contexts/` is a **working-tree scratch area that is never committed**. The file
+dies with the branch, and that is intended: this skill is the ephemeral tier.
+
+The sharing channel is therefore the **PR comment** (step 4), not the repo. That is why
+step 4 exists — without a PR, the context reaches nobody but the next session on this
+same worktree.
+
+Do not `git add` `.dev/`. If the user wants it ignored, `.dev/` belongs in their global
+gitignore rather than the repo's — it is an agent artifact, not a property of the
+project.
+
+A finding that must survive the branch does not belong here at all; route it per
+"Related skills" below.
+
 ## Worktree note
 
 The write in step 3 targets `.dev/contexts/`, not implementation files, but it is still
@@ -207,6 +223,24 @@ that.
 - Design approach = the adopted approach and its grounds.
 - Rejected alternatives = approaches considered but not adopted, and why.
 
+**When the approach rests on a decision recorded as an ADR:**
+
+Some of what lands in "design approach" is not a choice made for this branch but an
+architectural decision — hard to reverse, surprising without context, the result of a real
+trade-off. That belongs in an ADR (`domain-modeling`), because this file is regenerated
+and dies with the branch.
+
+When that happens, **do not drop it from this file** — split it:
+
+- Here: a one-line summary of the decision and a **link to the ADR**.
+- In the ADR: the decision, its grounds, and the alternatives whose rejection is what makes
+  it non-obvious.
+
+The link is required, not optional. `sanity-review` and the AI reading this as a briefing
+see only this file and the PR comment; without the pointer they lose the design intent
+entirely. Rejected alternatives otherwise stay here by default — the ADR takes only the
+ones that explain the decision.
+
 **"Discovered constraints" vs "pitfalls to watch":**
 
 - Constraint = a fact that binds the judgment and won't disappear no matter how careful
@@ -243,7 +277,13 @@ Respect the prior session's record as "a predecessor's findings":
   continuing development in a new session or reviewing a feature PR.
 - **sanity-review**: write a PR review report. Loads the conversation context posted to
   the PR comment and uses it in the review.
-- **durable-knowledge-export**: the durable tier. This skill is the ephemeral tier
-  (per-branch context that dies with the PR). A finding that should outlive the branch —
-  a measurement, convention, or system-wide gotcha — goes to its persistent home (the
-  GitHub wiki, or an in-repo docs dir if there is no wiki) via that skill instead.
+- **durable-knowledge-export**: the durable tier, outside the repo. A finding about the
+  system itself that should outlive the branch goes there. Route by that skill's own
+  judgment rather than a copy of it here.
+- **domain-modeling**: the record tier — this codebase's glossary and its ADRs, committed
+  with the code. An architectural decision goes there; see the section boundary guide for
+  how this file links to it.
+
+This skill is the **ephemeral tier**: per-branch context that dies with the PR. When a
+finding does not belong here, hand it to the tier that owns it rather than keeping a
+weaker copy.
