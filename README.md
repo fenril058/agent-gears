@@ -341,8 +341,16 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
 
 ## 新しい skill を足すとき
 
-1. `plugins/<plugin>/skills/<name>/SKILL.md` を作る(frontmatter に `name` と具体的な `description`)。
-2. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
-3. 公開するなら `marketplace.json` の該当 plugin に含まれることを確認(skills/ 配下は自動検出)。
-4. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
-5. 重要 skill は `empirical-prompt-tuning` で実測 QA を実施する。
+1. どの plugin に置くか決める。判定基準は分類の綺麗さではなく**インストール単位**である。
+   「これだけ欲しくて他は要らない人がいるか」で決める。
+2. `plugins/<plugin>/skills/<name>/SKILL.md` を作る(frontmatter に `name` と具体的な `description`)。
+   英語を正本とし、日本語ミラー `SKILL-ja.md` を併置する(例外は「SKILL.md の言語」節)。
+3. **外部から取り込んだ skill なら** `PROVENANCE.json` に追記し、帰属表示ファイルを置く。
+   `scope` が `plugin` なら `plugins/<plugin>/LICENSE`、`skill` なら skill ディレクトリ直下。
+   直下の `NOTICE` にも出所を書く。`scripts/check-licenses.sh` が両方を検証する。
+4. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
+5. 公開するなら `marketplace.json` の該当 plugin に含まれることを確認(skills/ 配下は自動検出)。
+   plugin を新設したなら `marketplace.json` と `plugins/<plugin>/.claude-plugin/plugin.json` の両方に書く
+   (`name` / `version` / `keywords` の一致を `scripts/check-plugin-meta.sh` が検証する)。
+6. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
+7. 重要 skill は `empirical-prompt-tuning` で実測 QA を実施する。
