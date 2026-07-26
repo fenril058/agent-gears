@@ -63,7 +63,7 @@ When unsure, flag it for the user instead of dropping it. A missing safeguard is
 
 ## Combine with
 
-- `meta/empirical-prompt-tuning` is the measured QA loop for instruction text (operator-triggered).
+- `empirical-prompt-tuning` is the measured QA loop for instruction text (operator-triggered).
   This skill is the direct editing procedure — run [[empirical-prompt-tuning]] afterward to verify the slimmed file still works.
 - Undefined-term checking is delegated to [[no-neologism]].
 

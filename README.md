@@ -14,38 +14,48 @@ Claude には plugin マーケットプレイスとして、Codex / Copilot に�
 ## 内容
 
 このリポジトリは、領域の異なるエージェント向け skill を1か所に束ねて配布する。
-現在は3つの plugin がある。
+現在は6つの plugin があり、依存の向きで層になっている。
 
-### context-engineering (文脈効率・トークン削減)
+```
+critique / project-records / code-review   ← ワークフロー層
+        ↓                                    (基盤を呼ぶ)
+context-engineering                        ← 基盤層
+agent-instructions                         ← 指示テキスト自体を書き、測る
+writing                                    ← 文章の規範(用語規則は全層から参照)
+```
+
+### context-engineering (基盤: どう読み・探し・委譲されるか)
 
 運用コストの多くは、無駄な文脈の読み込みと、安価に回せる作業まで高いモデルで処理することから来る。
-これに対し以下の対策を用意する。
 
-1. **Instruction fileのスリム化** — CLAUDE.mdやAGENT.mdを最小限にする。
-2. **モデル委譲** — 機械的・量的な作業を安価モデルのサブエージェントへ回す。
-3. **広域探索の効率化** — fastcontext で意味的な探索を少ないトークンで行う。
-4. **Markdown の部分取得** — mdidx で大きな文書の必要な節だけ取る。
-5. **未定義語の抑制** — 勝手な造語を使わせない。
-6. **仕様書の曖昧点監査** — 安価モデルに仕様書を素読みさせて疑問点を挙げさせ、機械的フィルタで裏取りする(spec-ambiguity-audit)。
+- markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
+- fast-search: fastcontext で広域・意味的な探索を少ないトークンで行う。
+- model-routing: 機械的・量的な作業を安価モデルのサブエージェントへ回す。
+- subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 
-### japanese-writing (日本語の文章規範)
+後ろ2つは「作業を別のモデル/エージェントに回す」の両輪である。
+機械的な作業は安価に、判断は強いモデルに、と適用範囲を互いに書き分けている。
 
-日本語の技術文書・書籍原稿で、整形・パラグラフライティング・論証の厳密さ・冗長の排除などの規範を skill 化し、執筆・推敲時に適用する。
-論証の筋の点検と再配置を行う argument-gap-edit を含む。
+### agent-instructions (指示テキスト自体を書き、測る)
 
-### agent-collaboration (エージェント協調)
+- agent-instructions-refine: CLAUDE.md / AGENTS.md を圧縮する。コードから導出できる情報を削り、残りを検証可能な命令文に書き直す。
+- empirical-prompt-tuning: 書いた指示をバイアスを排した実行者に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する。
 
-エージェント単独では精度に限界がある作業を、別エージェントとの相談や対話コンテキストの引き継ぎで補う。
+対で回す。片方が削り、もう片方が削った結果まだ機能するかを測る。
 
-- subagent-consultation: サブエージェントにセカンドオピニオンを求め、往復検証で精度を上げる。
-- sanity-review: 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
-- library-update-review: 依存更新 PR のレビューを行う。
-- conversation-context-export/import: ブランチ単位で設計判断・却下理由・制約を引き継ぐ。`.dev/contexts/` は作業ブランチに置き、PR とともに捨てる(main へは merge しない)揮発層。
-- domain-modeling: このコードベースの用語集 (`CONTEXT.md`) と ADR を保守する記録層。コードと一緒に commit され、書き換えず supersede する。
-- durable-knowledge-export: ブランチを越えて残す知見 (実測値・ツール評価・システム横断の落とし穴) を、リポジトリの外 (GitHub wiki、または専用の knowledge リポジトリ) へ保存する永続層。
+### critique (決める前に案を叩く)
+
 - grilling: 計画・決定について一問ずつ推奨案付きでインタビューし、共通理解に達するまで実装に着手しない。固まった語と決定はその場で domain-modeling へ記録する。
+- spec-ambiguity-audit: 安価モデルに仕様書を素読みさせて疑問点を挙げさせ、機械的フィルタで裏取りする。
 - unconventional-simplification: 実装の裏の暗黙の前提を1つずつ外し、より少ない実装・説明で済む別解を探す。
-- codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
+
+いずれも計画を作る skill ではなく、既にある案・仕様・実装を攻撃する skill である。
+
+### project-records (決めたことを寿命ごとに記録する)
+
+- conversation-context-export/import: ブランチ単位で設計判断・却下理由・制約を引き継ぐ。
+- domain-modeling: このコードベースの用語集 (`CONTEXT.md`) と ADR を保守する。
+- durable-knowledge-export: ブランチを越えて残す知見を、リポジトリの外へ保存する。
 
 #### 記録先の3層
 
@@ -62,43 +72,71 @@ Claude には plugin マーケットプレイスとして、Codex / Copilot に�
 living page に置いた決定はその履歴を失うため、ADR は永続層ではなく記録層に属する。
 永続層はリポジトリの外に書く。使える sink が無ければ置き場所を作らずに中止する。
 
+### code-review (出来上がったものを検める)
+
+- sanity-review: 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
+- library-update-review: 依存更新 PR のレビューを行う。
+- codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
+
+### writing (文章の規範)
+
+- japanese-tech-writing: 日本語の技術文書・書籍原稿の整形・パラグラフライティング・論証の厳密さ・冗長の排除。
+- argument-gap-edit: 論証の筋を点検し、段落を再配置する。
+- no-neologism: 未定義語・勝手な造語を確立した術語へ直す。
+
+前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。
+`no-neologism` が扱うのは分野の術語であり、プロジェクト内部の語彙は `project-records` の `domain-modeling` が扱う。
+
 ## 構成
 
 ```
 .claude-plugin/marketplace.json   Claude 用マーケットプレイス定義(plugin 一覧)
 plugins/
-  context-engineering/            plugin: 文脈効率・トークン削減
+  context-engineering/            plugin: 基盤(どう読み・探し・委譲されるか)
     .claude-plugin/plugin.json
+    LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       fast-search/       fastcontext での広域・意味的探索
       model-routing/     安価モデルのサブエージェントへの委譲ポリシー
-      no-neologism/      未定義語・造語の点検手順(核ルールは rules/always-on.md)
-      agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
-      spec-ambiguity-audit/  安価モデルに仕様書を素読みさせ、疑問点を機械的フィルタで検証する監査
+      subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
     agents/
       search.md          コードベース探索・調査(Sonnet)
       bulk-edit.md       機械的・反復的な編集(Haiku)
-  japanese-writing/               plugin: 日本語の文章規範
+  agent-instructions/             plugin: 指示テキスト自体を書き、測る
     .claude-plugin/plugin.json
     skills/
-      japanese-tech-writing/  日本語技術文書の文章規範
-      argument-gap-edit/      論証の筋を点検・再配置する編集
-  agent-collaboration/            plugin: エージェント協調(一部 shokai/agent-skills 由来・MIT)
+      agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
+      empirical-prompt-tuning/    指示の実測 QA ループ(mizchi/skills 由来・MIT)
+  critique/                       plugin: 決める前に案を叩く
     .claude-plugin/plugin.json
+    LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
-      subagent-consultation/      サブエージェントへのセカンドオピニオン(往復検証)
-      sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
+      grilling/          一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT)
+      spec-ambiguity-audit/  安価モデルに仕様書を素読みさせ、疑問点を機械的フィルタで検証する監査
+      unconventional-simplification/ 暗黙の前提を1つずつ外してシンプルな別解を探す
+  project-records/                plugin: 決めたことを寿命ごとに記録する
+    .claude-plugin/plugin.json
+    LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
+    skills/
       conversation-context-export/ 揮発層: 文脈の書き出し(.dev/contexts/ + PR コメント、+ TEMPLATE.md)
       conversation-context-import/ 揮発層: 文脈の読み込み
       domain-modeling/            記録層: 用語集と ADR(mattpocock/skills 由来・MIT、+ CONTEXT-FORMAT.md / ADR-FORMAT.md)
       durable-knowledge-export/   永続層: ブランチを越える知見をリポジトリ外へ(自作、+ TEMPLATE.md)
+  code-review/                    plugin: 出来上がったものを検める(shokai/agent-skills 由来・MIT)
+    .claude-plugin/plugin.json
+    LICENSE
+    skills/
+      sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
       library-update-review/      依存更新 PR のレビュー
-      grilling/                   一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT)
-      unconventional-simplification/ 暗黙の前提を1つずつ外してシンプルな別解を探す
       codepatrol/                 領域ごとのセキュリティ調査(+ CHECKLIST.md / REPORT-TEMPLATE.md / checklist-vs-report.md)
-meta/
-  empirical-prompt-tuning/        自作 skill の QA(第三者由来・非公開、下記)
+  writing/                        plugin: 文章の規範(一部 k16shikano の gist 由来・public domain)
+    .claude-plugin/plugin.json
+    NOTICE
+    skills/
+      japanese-tech-writing/  日本語技術文書の文章規範
+      argument-gap-edit/      論証の筋を点検・再配置する編集
+      no-neologism/           未定義語・造語の点検手順(核ルールは rules/always-on.md)
 rules/always-on.md   全エージェント共通の常時ルール(個人設定)
 rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
 CLAUDE.md / AGENTS.md このリポジトリで作業するエージェント向けの repo-local 指示(配布しない。AGENTS.md は CLAUDE.md への symlink)
@@ -120,13 +158,11 @@ scripts/             CI 用の整合チェック(配布2系統の配布先一致
 そこで **指示が中心で言語中立な skill は英語版 `SKILL.md` を正本** とし、日本語は保守ミラー `SKILL-ja.md` として併置する(agentがロードするのは `SKILL.md` のみ)。
 
 - **英語正本 + `SKILL-ja.md`**:
-  - `context-engineering`(`model-routing` / `fast-search` / `markdown-context` / `no-neologism` / `agent-instructions-refine` / `spec-ambiguity-audit`)
-  - `agent-collaboration`(全 skill)、
-  - `meta/empirical-prompt-tuning`。
+  - `writing` の `no-neologism` を含む、下記以外のすべて。
 - **日本語 `SKILL.md` のまま**:
-  - `japanese-writing`(`japanese-tech-writing` /  `argument-gap-edit`)。規範の中身・例文が日本語前提のため。
+  - `writing` の `japanese-tech-writing` / `argument-gap-edit`。規範の中身・例文が日本語前提のため。
 - **`TEMPLATE.md` は日本語のまま**:
-  - `agent-collaboration` の `sanity-review` / `conversation-context-export` / `durable-knowledge-export`。
+  - `code-review` の `sanity-review`、`project-records` の `conversation-context-export` / `durable-knowledge-export`。
   - `codepatrol` の付属ファイル(`CHECKLIST.md` / `REPORT-TEMPLATE.md` / `checklist-vs-report.md`)も同様に日本語のまま。
   これは GitHub に貼る/wiki・docs に残す成果物の雛形(出力)であり、指示本体(`SKILL.md`)のみ英語化する。
   出力は利用者の作業言語に従う。
@@ -156,12 +192,12 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
 リポジトリ全体および自作物は **MIT**(`LICENSE`)。
 第三者由来のディレクトリは各自の条項(いずれも MIT / public domain で互換)に従い、一覧は `NOTICE` にまとめてある。
 
-- **japanese-writing**(`japanese-tech-writing` / `argument-gap-edit`):
+- **writing**(`japanese-tech-writing` / `argument-gap-edit`):
   - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。
   - ライセンスは[実質 public domain](https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d571a936063)。
-- **agent-collaboration**
-  - `subagent-consultation` / `sanity-review` / `conversation-context-export` / `conversation-context-import` / `library-update-review` / `unconventional-simplification` / `codepatrol` は[shokai/agent-skills](https://github.com/shokai/agent-skills) 由来。
-    - ライセンスは **MIT**、`LICENSE` 参照。
+- **shokai/agent-skills 由来**(`context-engineering` の `subagent-consultation`、`code-review` の `sanity-review` / `library-update-review` / `codepatrol`、`critique` の `unconventional-simplification`、`project-records` の `conversation-context-export` / `conversation-context-import`):
+  - [shokai/agent-skills](https://github.com/shokai/agent-skills) 由来。
+    - ライセンスは **MIT**。該当 skill を持つ plugin それぞれの `LICENSE` に複製してある。
     - 英語化のうえ取り込んだ。
     - upstream の `codex-consultation`(Codex CLI 相談)は取り込んでいない。
       Codex は独立した skill ではなく `subagent-consultation` が選ぶ相談先の一つとして扱う(Claude Code では `subagent_type: codex:codex-rescue`)。
@@ -170,27 +206,28 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
       相談先の種類(別モデルファミリか同ファミリか)は手順ごとに `Args:` で指定する。
     - `unconventional-simplification` / `codepatrol` の外部 Agent 相談も `codex-consultation` を外し `subagent-consultation` に書き換えてある。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
-  - `grilling` は [mattpocock/skills](https://github.com/mattpocock/skills) 由来。
-    - ライセンスは **MIT**、`skills/grilling/LICENSE` 参照。
+- **mattpocock/skills 由来**:
+  - `critique` の `grilling`。
+    - ライセンスは **MIT**、`plugins/critique/skills/grilling/LICENSE` 参照。
     - 上流は英語のみのため英語正本のまま取り込み、日本語ミラー `SKILL-ja.md` を追加した。
     - 上流の `grill-with-docs`(本文は「`/grilling` を `/domain-modeling` を使って走らせる」の一行)は取り込まず、
       同じ合成を `grilling` 本体の「固まった端から記録する」規律として持たせてある。
-  - `domain-modeling` も [mattpocock/skills](https://github.com/mattpocock/skills) 由来。
-    - ライセンスは **MIT**、`skills/domain-modeling/LICENSE` 参照。
+  - `project-records` の `domain-modeling`。
+    - ライセンスは **MIT**、`plugins/project-records/skills/domain-modeling/LICENSE` 参照。
     - ADR ディレクトリを上流の `docs/adr/` 決め打ちから解決式に変更した(既存リポジトリの慣習・`.adr-dir` 等を探す)。
     - supersede 規則、3層の振り分け、`no-neologism` との分担を追記した。
-  - `agent-collaboration` の `durable-knowledge-export` は **自作**。
+- `project-records` の `durable-knowledge-export` は **自作**。
     - 揮発層(`conversation-context-export`)・記録層(`domain-modeling`)の対として、
       ブランチを越える永続知見を**リポジトリの外**(GitHub wiki、または `AGENT_KNOWLEDGE_REPO` が指す knowledge リポジトリ)へ書き出す。
-- **meta/empirical-prompt-tuning**:
+- **mizchi/skills 由来**(`agent-instructions` の `empirical-prompt-tuning`):
   - [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)由来。
-  - 同 repo の方針(README)で「`LICENSE.txt` の無い skill は MIT」とされるため **MIT** (`meta/empirical-prompt-tuning/LICENSE` に明記)。
+  - 同 repo の方針(README)で「`LICENSE.txt` の無い skill は MIT」とされるため **MIT**(同 skill の `LICENSE` に明記)。
   - **有効な `SKILL.md` は英語版**、日本語ミラーを `SKILL-ja.md` として併置(upstream と同様)。
-  - 更新は upstream から取り直す。
-  - 自作 skill を作った/直した直後の実測 QA に使う **個人用ツール** のため、`marketplace.json` には載せず home-manager / install.sh で自環境にだけ配布する。
-  - 併置の `NOTES-local.md` は upstream を触らずに運用追補を置くローカルノート
-    - [waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)由来・MIT の知見を session 内ループ向けに書き直したもの。
-    - waxa CLI 本体は未導入。
+  - MIT なので取り込んで改変する方針に変えた(上流を取り直さない)。
+    これに伴い、上流の運用追補を置いていた `NOTES-local.md` は `SKILL.md` / `SKILL-ja.md` へ畳んで削除し、
+    上流生成の `README.md`(中身は上流からのインストール手順)も削除した。
+    畳んだ内容には [waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)(MIT)由来の知見を
+    session 内ループ向けに書き直したものを含む。waxa CLI 本体は未導入。
 
 ## 前提ツール
 
@@ -217,7 +254,11 @@ GitHub Copilot 向けには専用のマーケットプレイス経路はなく�
 ```
 /plugin marketplace add fenril058/agent-gears
 /plugin install context-engineering@fenril058-agent-skills
-/plugin install japanese-writing@fenril058-agent-skills
+/plugin install agent-instructions@fenril058-agent-skills
+/plugin install critique@fenril058-agent-skills
+/plugin install project-records@fenril058-agent-skills
+/plugin install code-review@fenril058-agent-skills
+/plugin install writing@fenril058-agent-skills
 ```
 
 plugin 内の `skills/` と `agents/` が自動で読み込まれる。
@@ -263,7 +304,7 @@ Claude を plugin 経由にするなら `claude.enable = false` にして重複�
 
 - skill の **追加・削除** の反映には flake 更新 + `home-manager switch` が要る
   (配布対象は flake ソースから列挙)。既存 skill の編集は `mutable = true` なら即反映。
-- 配布対象は `plugins/*/skills/*`・`plugins/*/agents/*`・`meta/*`。
+- 配布対象は `plugins/*/skills/*`・`plugins/*/agents/*`。
 
 ### 4. home-manager を使わない場合 — install.sh
 
@@ -300,4 +341,4 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
 2. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
 3. 公開するなら `marketplace.json` の該当 plugin に含まれることを確認(skills/ 配下は自動検出)。
 4. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
-5. 重要 skill は `meta/empirical-prompt-tuning` で実測 QA を実施する。
+5. 重要 skill は `empirical-prompt-tuning` で実測 QA を実施する。

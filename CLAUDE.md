@@ -1,7 +1,7 @@
 このリポジトリの編集で間違えやすい点(更新の追従漏れ):
 
 - `SKILL.md`(英語=正本)を直したら `SKILL-ja.md` も手動で追従。
-  例外: `japanese-writing` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
+  例外: `writing` の `japanese-tech-writing` / `argument-gap-edit` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
   各 `SKILL.md` は agentskills.io 仕様に準拠(公式 `skills-ref` で検証)。
   CI の `scripts/check-skill-spec.sh`(flake の `packages.skills-ref` を使う)が検証する。
   skills-ref は Claude 拡張フィールド(argument-hint 等)を一律エラーにするが、スクリプト側で
@@ -16,8 +16,12 @@
   一致は CI の `scripts/check-plugin-meta.sh` が検証する。
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
-- `agent-collaboration`(MIT)/ `japanese-writing`(public domain)/ `meta`(MIT) は外部由来。
-  `LICENSE` / `NOTICE` を消さない。`meta` は upstream から取り直す。
+- 外部由来の skill は取り込んで改変する(上流を取り直す運用はしない)。
+  `LICENSE` / `NOTICE` を消さない。shokai/agent-skills と mattpocock/skills(いずれも MIT)は
+  `critique` / `code-review` / `project-records` / `context-engineering` に分散しているので、
+  skill を plugin 間で動かしたら移動先に `LICENSE` を複製する。
+  `writing` は public domain(`NOTICE`)、`agent-instructions` の
+  `empirical-prompt-tuning` は mizchi/skills(MIT)由来。
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
 
