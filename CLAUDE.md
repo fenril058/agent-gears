@@ -17,11 +17,10 @@
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
 - 外部由来の skill は取り込んで改変する(上流を取り直す運用はしない)。
-  `LICENSE` / `NOTICE` を消さない。shokai/agent-skills と mattpocock/skills(いずれも MIT)は
-  `critique` / `code-review` / `project-records` / `context-engineering` に分散しているので、
-  skill を plugin 間で動かしたら移動先に `LICENSE` を複製する。
-  `writing` は public domain(`NOTICE`)、`agent-instructions` の
-  `empirical-prompt-tuning` は mizchi/skills(MIT)由来。
+  由来の宣言元は `PROVENANCE.json` ただ1つ。新たに取り込んだらここに追記する。
+  `LICENSE` / `NOTICE` を消さない。plugin 単位の `LICENSE`(shokai/agent-skills)は
+  複数 plugin に分散するので、skill を動かしたら移動先への複製と移動元の残骸に注意。
+  宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
 

@@ -143,7 +143,8 @@ CLAUDE.md / AGENTS.md このリポジトリで作業するエージェント向�
 install.sh           symlink 配布スクリプト(home-manager を使わない場合)
 flake.nix / nix/     home-manager モジュール・mdidx/skills-ref のビルド定義(宣言的配布)
 cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
-scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / skills-ref による SKILL.md 仕様検証)
+PROVENANCE.json      外部由来 skill の出所と帰属表示ファイルの置き場所(唯一の宣言元)
+scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / 帰属表示の配置 / skills-ref による SKILL.md 仕様検証)
 ```
 
 ### 常時ルール vs skill
@@ -190,7 +191,10 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
 ### 出典とライセンス
 
 リポジトリ全体および自作物は **MIT**(`LICENSE`)。
-第三者由来のディレクトリは各自の条項(いずれも MIT / public domain で互換)に従い、一覧は `NOTICE` にまとめてある。
+第三者由来の skill は各自の条項(いずれも MIT / public domain で互換)に従う。
+人間向けの一覧は `NOTICE`、機械可読な宣言元は `PROVENANCE.json` で、後者から組み立てた
+「あるべき `LICENSE` / `NOTICE` の集合」と実ファイルの一致を CI(`scripts/check-licenses.sh`)が検証する。
+plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れも移動後の残骸も同じ差分で捕まる。
 
 - **writing**(`japanese-tech-writing` / `argument-gap-edit`):
   - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。

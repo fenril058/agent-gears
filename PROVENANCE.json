@@ -1,0 +1,63 @@
+{
+  "$comment": [
+    "外部由来 skill の出所と、その帰属表示ファイルの置き場所。scripts/check-licenses.sh が",
+    "この宣言と plugins/ 以下の実ファイルの一致を検証する。skill を plugin 間で移したら、",
+    "ここではなく実ファイルの方を動かせばよい(skills はファイル名なので変わらない)。",
+    "新たに外部から取り込んだら、必ずここに追記する。未登録の LICENSE/NOTICE は失格になる。",
+    "scope=plugin は plugins/<plugin>/<file>、scope=skill は plugins/<plugin>/skills/<skill>/<file>。"
+  ],
+  "sources": [
+    {
+      "id": "shokai",
+      "name": "shokai/agent-skills",
+      "url": "https://github.com/shokai/agent-skills",
+      "license": "MIT",
+      "scope": "plugin",
+      "file": "LICENSE",
+      "skills": [
+        "subagent-consultation",
+        "sanity-review",
+        "library-update-review",
+        "codepatrol",
+        "unconventional-simplification",
+        "conversation-context-export",
+        "conversation-context-import"
+      ]
+    },
+    {
+      "id": "mattpocock",
+      "name": "mattpocock/skills",
+      "url": "https://github.com/mattpocock/skills",
+      "license": "MIT",
+      "scope": "skill",
+      "file": "LICENSE",
+      "skills": [
+        "grilling",
+        "domain-modeling"
+      ]
+    },
+    {
+      "id": "mizchi",
+      "name": "mizchi/skills",
+      "url": "https://github.com/mizchi/skills",
+      "license": "MIT",
+      "scope": "skill",
+      "file": "LICENSE",
+      "skills": [
+        "empirical-prompt-tuning"
+      ]
+    },
+    {
+      "id": "k16shikano",
+      "name": "k16shikano gist",
+      "url": "https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d",
+      "license": "public domain",
+      "scope": "plugin",
+      "file": "NOTICE",
+      "skills": [
+        "japanese-tech-writing",
+        "argument-gap-edit"
+      ]
+    }
+  ]
+}
