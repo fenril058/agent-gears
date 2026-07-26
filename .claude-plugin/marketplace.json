@@ -18,6 +18,14 @@
       "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent"]
     },
     {
+      "name": "agent-instructions",
+      "source": "agent-instructions",
+      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(バイアスを排した実行者に実際に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する)。対で回す。mizchi/skills(MIT)由来を含む。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
+    },
+    {
       "name": "critique",
       "source": "critique",
       "description": "決める前に手持ちの案を叩く skill 群: grilling(一問ずつ推奨案付きの意思決定インタビュー)、spec-ambiguity-audit(安価モデルの素読みによる仕様書の穴の監査)、unconventional-simplification(暗黙の前提を1つずつ外してシンプルな別解を探す)。計画・仕様・実装のいずれにも当てる。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",

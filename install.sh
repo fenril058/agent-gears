@@ -71,10 +71,9 @@ unlink_if_ours() {
   fi
 }
 
-# skill: plugins/<plugin>/skills/<name> と meta/<name>。agent定義: plugins/<plugin>/agents/<file>。
+# skill: plugins/<plugin>/skills/<name>。agent定義: plugins/<plugin>/agents/<file>。
 skills() {
   find "$REPO/plugins" -mindepth 3 -maxdepth 3 -type d -path '*/skills/*' 2>/dev/null
-  find "$REPO/meta" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
 }
 agent_defs() { find "$REPO/plugins" -mindepth 3 -maxdepth 3 -type f -name '*.md' -path '*/agents/*' 2>/dev/null; }
 

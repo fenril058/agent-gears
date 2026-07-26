@@ -126,6 +126,20 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 
 呼び出し側はレポートから自己申告部分を抽出し、`tool_uses` / `duration_ms` を Agent tool の usage メタから取得して評価軸表を埋める。
 
+### 各チェックリスト軸を surface + semantic のペアで持つ
+
+各チェックリスト軸を、可能なら 2 本立てにする。
+
+- **surface 判定**: 成果物に特定トークンが出たか。**日英両方の表記を必ず入れる**。
+  日本語 skill が中心のリポジトリでは取りこぼしが頻発する。例:
+  `スクレイプ` / `scrape`、`非互換` / `incompatible`、`信頼` / `trust`、
+  `止める` / `stop` / `defer`。1 軸につき広い alternation でまとめる。
+- **semantic 判定**: 同じ軸を意味等価で見る(subagent の自己申告 ○/×/部分的)。
+
+surface だけだと「言い換え・略語・日本語表記」で false negative が出る。
+semantic が ○ で surface が × のときは **判定文言(surface 側)を広げる**。
+シナリオ側を「この語を使え」と縛らない(skill の自然な出力を歪める)。
+
 ## 環境制約
 
 新規 subagent を dispatch できない環境（既に subagent として動作している、Task tool が無効化されている等）では、本 skill は **適用しない**。
@@ -134,6 +148,34 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 - **NG**: 自己再読で代替する（バイアスが入るので評価結果を信じてはいけない）
 
 **構造審査モード**: empirical 評価ではなく、skill / プロンプトの **記述の整合性・明瞭性だけ** をチェックしたい場合は、構造審査モードとして明示的に切り分ける。subagent への依頼プロンプトに「今回は構造審査モード: 実行ではなくテキスト整合性チェック」と明記する。これにより subagent は環境制約節の skip 動作に引っかからず、静的レビューを返せる。構造審査は empirical の代替ではなく補助（連続クリア判定には使えない）。
+
+### Execution の stuck は 2 種類 — 実行できるなら実行させる
+
+`fast-search` / `markdown-context` は実ツール(`mdidx` / `fastcontext` / `mq`、Web 取得、
+外部 CLI)の実行を前提にする。評価で Execution が stuck になったら、原因を必ず切り分ける。
+
+- **環境起因**(ツールが無い・API キー未設定・ネットワーク禁止)→ **false signal**。
+  skill の欠陥ではない。台帳に「eval 環境制約」と記録して追わない。
+- **指示起因**(ツールはあるのに、skill の説明では何をどう打てばいいか分からない)→
+  **本物の欠陥**。これが直す対象。
+
+方針:
+
+- **実行できる環境を整えて実行させる**。これが唯一の正規ルート。
+  実行すれば end-to-end の本物の Execution シグナル(フラグ違い・出力形式の想定ズレなど、動かして初めて出る失敗)が取れる。
+- **実行不能なら、その軸は評価せず止めて報告する**。narrate で代替しない。
+  口で説明させると「もっともらしいが間違った手順」が pass し、実ツールを通っていない偽の合格が出る。
+  これは上の dispatch 不能時のルール(自己再読で代替せず正直に報告する)と同じ哲学である。
+
+実行不能を検出したら、当該軸を「環境未整備で未評価」と明示し、ユーザーに環境整備を促す。例:
+
+```
+fast-search の Execution 軸は fastcontext の実行が必要だが、
+この環境では API_KEY 未設定で動かせない。
+→ この軸は未評価。fastcontext を設定して再実行してほしい。
+```
+
+環境整備はユーザーの責務。評価側が narrate で穴埋めして「測れたことにする」のが最悪手。
 
 ## 反復の打ち切り基準
 
@@ -145,6 +187,19 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
   - **過適合チェック**: 収束判定時に、これまで使っていない hold-out シナリオ 1 本を追加して評価。精度が直近平均から 15 ポイント以上落ちたら過適合。baseline シナリオ設計に戻って edge を足す。
 - **発散（設計を疑う）**: 3 回以上イテレーションしても新規不明瞭点が減らない → プロンプトの設計方針自体が間違っている可能性。修正パッチで直すのをやめ、構造を書き直す
 - **リソース打ち切り**: 重要度と改善コストが釣り合わなくなったら止める（80 点で出す判断）
+
+### 4 段階トラジェクトリを収束の目安に使う
+
+構造的に健全な skill は **3〜4 iteration** で収束する。各 iter がどの段階かを見る。
+
+| 段階 | 直すもの | 兆候 |
+|---|---|---|
+| 1. 構造欠落 | 振る舞いが丸ごと欠けている(skill が X を指示していない) | surface も semantic も**両方**落ちる。1 修正で pass 率が跳ねる |
+| 2. 判定の幅 | skill は正しいが surface 判定が狭すぎる | semantic ○ / surface × が同じ軸で出る → regex を広げる |
+| 3. surface 表記 | LLM が日本語・同義語・略語を使い、判定が拾えない | 片方の trial だけ落ちる。中身ではなく表記の取りこぼし |
+| 4. 残余 | eval 設定の構造的限界(上の Execution stuck の節)で、skill 本体の問題ではない | 自己申告が「外部実行 stuck」を出す。台帳に記録し追わない |
+
+4 iter を超えても減らないなら、上の発散基準どおり設計を疑う(パッチを続けない)。
 
 ## 失敗パターン台帳
 
@@ -243,3 +298,4 @@ description: agent 向けテキスト指示（skill / slash command / task プ�
 - `retrospective-codify` — タスク後の学び固定化。本 skill はプロンプト開発中、retrospective-codify はタスク終了後、と使い分ける
 - `superpowers:dispatching-parallel-agents` — 複数シナリオを並列で走らせるときの作法
 - `waxa-eval` — `waxa` CLI の運用マニュアル。 eval / iterate ループを YAML scenario と永続 ledger で外部プロセスに自動化する。 本 skill (empirical-prompt-tuning) は **方法論と session 内 Task-tool subagent フロー**、 `waxa-eval` は **CLI 操作と YAML authoring** を担当する補完関係。 empirical は Iter 0 の静的整合チェック、 `[critical]` タグ付きチェックリスト、 `tool_uses` ベースの skill 診断 (CLI プロセスからは届かない領域) を担う。 waxa-eval は永続性 / CI 再現性 / 外部 adoption gate が要るときに使う。
+- `agent-instructions-refine` — instruction file を直接編集する手順。あちらが削って書き直し、こちらが結果がまだ機能するかを測る。対で回す。
