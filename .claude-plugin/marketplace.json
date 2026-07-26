@@ -26,9 +26,17 @@
       "keywords": ["writing", "japanese", "technical-writing", "editing"]
     },
     {
+      "name": "project-records",
+      "source": "project-records",
+      "description": "会話で決まったことを寿命ごとに記録する skill 群。区別は置き場所ではなく更新モデルである: conversation-context-export/import(揮発層: ブランチごとに再生成し commit しない、`.dev/contexts/` + PR コメント)、domain-modeling(記録層: 追記と supersede、`CONTEXT.md` と ADR をコードと一緒に commit)、durable-knowledge-export(永続層: 常に現在状態の living page を GitHub wiki / knowledge リポジトリへ)。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["context-handoff", "adr", "glossary", "knowledge", "wiki", "documentation"]
+    },
+    {
       "name": "agent-collaboration",
       "source": "agent-collaboration",
-      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(揮発層: ブランチ単位の文脈引き継ぎ)、durable-knowledge-export(永続層: ブランチを越える知見を wiki/リポジトリ内 docs へ)、library-update-review(依存更新 PR のレビュー)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)、codepatrol(領域ごとのセキュリティ調査)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
+      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、library-update-review(依存更新 PR のレビュー)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)、codepatrol(領域ごとのセキュリティ調査)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
       "version": "0.3.0",
       "author": { "name": "fenril058" },
       "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "wiki", "subagent"]
