@@ -34,9 +34,17 @@
       "keywords": ["context-handoff", "adr", "glossary", "knowledge", "wiki", "documentation"]
     },
     {
+      "name": "code-review",
+      "source": "code-review",
+      "description": "出来上がったものを検めるレビュー skill 群: sanity-review(対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書)、library-update-review(依存更新 PR のリリースノート分析と過去障害調査)、codepatrol(領域ごとに継続するセキュリティ調査)。shokai/agent-skills(MIT)由来。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["code-review", "pull-request", "security", "dependencies", "audit"]
+    },
+    {
       "name": "agent-collaboration",
       "source": "agent-collaboration",
-      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、library-update-review(依存更新 PR のレビュー)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)、codepatrol(領域ごとのセキュリティ調査)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
+      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
       "version": "0.3.0",
       "author": { "name": "fenril058" },
       "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "wiki", "subagent"]
