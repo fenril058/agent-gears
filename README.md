@@ -41,10 +41,26 @@ Claude には plugin マーケットプレイスとして、Codex / Copilot に�
 - sanity-review: 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
 - library-update-review: 依存更新 PR のレビューを行う。
 - conversation-context-export/import: ブランチ単位で設計判断・却下理由・制約を引き継ぐ。`.dev/contexts/` は作業ブランチに置き、PR とともに捨てる(main へは merge しない)揮発層。
-- durable-knowledge-export: ブランチを越えて残す知見 (実測値・規約・システム横断の落とし穴) を、あれば GitHub wiki、無ければリポジトリ内 docs へ保存する。
-- grilling: 計画・決定について一問ずつ推奨案付きでインタビューし、共通理解に達するまで実装に着手しない。
+- domain-modeling: このコードベースの用語集 (`CONTEXT.md`) と ADR を保守する記録層。コードと一緒に commit され、書き換えず supersede する。
+- durable-knowledge-export: ブランチを越えて残す知見 (実測値・ツール評価・システム横断の落とし穴) を、リポジトリの外 (GitHub wiki、または専用の knowledge リポジトリ) へ保存する永続層。
+- grilling: 計画・決定について一問ずつ推奨案付きでインタビューし、共通理解に達するまで実装に着手しない。固まった語と決定はその場で domain-modeling へ記録する。
 - unconventional-simplification: 実装の裏の暗黙の前提を1つずつ外し、より少ない実装・説明で済む別解を探す。
 - codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
+
+#### 記録先の3層
+
+会話で得たものをどこに書くかは、置き場所ではなく**更新モデル**で決まる。
+どの skill も自分の層だけを規定し、他層の判定を写さずに渡す。
+
+| 層 | skill | sink | 更新モデル |
+| --- | --- | --- | --- |
+| 揮発 | conversation-context-export/import | `.dev/contexts/` + PR コメント | ブランチごとに再生成。commit しない |
+| 記録 | domain-modeling | `CONTEXT.md`、ADR ディレクトリ | 追記と supersede。書き換えない |
+| 永続 | durable-knowledge-export | GitHub wiki / knowledge リポジトリ | living page。常に現在状態 |
+
+記録層だけが「決めて後で覆した」を保存する。
+living page に置いた決定はその履歴を失うため、ADR は永続層ではなく記録層に属する。
+永続層はリポジトリの外に書く。使える sink が無ければ置き場所を作らずに中止する。
 
 ## 構成
 
@@ -75,7 +91,8 @@ plugins/
       sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
       conversation-context-export/ 揮発層: 文脈の書き出し(.dev/contexts/ + PR コメント、+ TEMPLATE.md)
       conversation-context-import/ 揮発層: 文脈の読み込み
-      durable-knowledge-export/   永続層: ブランチを越える知見を wiki/リポジトリ内 docs へ(自作、+ TEMPLATE.md)
+      domain-modeling/            記録層: 用語集と ADR(mattpocock/skills 由来・MIT、+ CONTEXT-FORMAT.md / ADR-FORMAT.md)
+      durable-knowledge-export/   永続層: ブランチを越える知見をリポジトリ外へ(自作、+ TEMPLATE.md)
       library-update-review/      依存更新 PR のレビュー
       grilling/                   一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT)
       unconventional-simplification/ 暗黙の前提を1つずつ外してシンプルな別解を探す
@@ -156,8 +173,15 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
   - `grilling` は [mattpocock/skills](https://github.com/mattpocock/skills) 由来。
     - ライセンスは **MIT**、`skills/grilling/LICENSE` 参照。
     - 上流は英語のみのため英語正本のまま取り込み、日本語ミラー `SKILL-ja.md` を追加した。
+    - 上流の `grill-with-docs`(本文は「`/grilling` を `/domain-modeling` を使って走らせる」の一行)は取り込まず、
+      同じ合成を `grilling` 本体の「固まった端から記録する」規律として持たせてある。
+  - `domain-modeling` も [mattpocock/skills](https://github.com/mattpocock/skills) 由来。
+    - ライセンスは **MIT**、`skills/domain-modeling/LICENSE` 参照。
+    - ADR ディレクトリを上流の `docs/adr/` 決め打ちから解決式に変更した(既存リポジトリの慣習・`.adr-dir` 等を探す)。
+    - supersede 規則、3層の振り分け、`no-neologism` との分担を追記した。
   - `agent-collaboration` の `durable-knowledge-export` は **自作**。
-    - 揮発層(`conversation-context-export`)の対として、ブランチを越える永続知見を、あればGitHub wiki、無ければリポジトリ内 docs(`docs/knowledge/`)へ書き出す。
+    - 揮発層(`conversation-context-export`)・記録層(`domain-modeling`)の対として、
+      ブランチを越える永続知見を**リポジトリの外**(GitHub wiki、または `AGENT_KNOWLEDGE_REPO` が指す knowledge リポジトリ)へ書き出す。
 - **meta/empirical-prompt-tuning**:
   - [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)由来。
   - 同 repo の方針(README)で「`LICENSE.txt` の無い skill は MIT」とされるため **MIT** (`meta/empirical-prompt-tuning/LICENSE` に明記)。

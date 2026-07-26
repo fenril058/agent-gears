@@ -24,8 +24,24 @@ Rules:
 - Do not act on the plan until the user confirms you have reached a shared
   understanding.
 
+## Record what settles, as it settles
+
+A grilling that leaves no trace evaporates when the session ends. So while the interview
+runs, write down the two things that outlive it — via `domain-modeling`, which owns both:
+
+- **A term, the moment it is pinned down** → the `CONTEXT.md` glossary.
+- **A decision that is hard to reverse, surprising without context, and the result of a
+  real trade-off** → an ADR. All three, or skip it; most sessions produce few or none.
+
+Write these inline, not batched at the end. The end is exactly where a long interview
+runs out of room.
+
+Everything else the session produced — the approach, the alternatives you turned down,
+what is left to do — goes to `conversation-context-export` when you finish.
+
 ## Related skills
 
+- **domain-modeling**: the record tier. Owns the glossary and the ADRs this skill feeds.
 - **spec-ambiguity-audit**: audits a written spec for gaps with a cold-reading cheap
   model. Grilling is the interactive counterpart: it resolves the open
   decisions with the user directly.
