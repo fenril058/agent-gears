@@ -1,0 +1,7 @@
+{
+  "name": "project-records",
+  "description": "会話で決まったことを寿命ごとに記録する skill 群: conversation-context-export/import(揮発層: ブランチ単位の文脈)、domain-modeling(記録層: 用語集と ADR)、durable-knowledge-export(永続層: リポジトリ外の wiki / knowledge リポジトリ)。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["context-handoff", "adr", "glossary", "knowledge", "wiki", "documentation"]
+}

@@ -12,26 +12,50 @@
     {
       "name": "context-engineering",
       "source": "context-engineering",
-      "description": "文脈効率・トークン削減のための skill 群: markdown-context(md2idx で部分取得)、fast-search(fastcontext)、model-routing(安価モデルへの委譲)、no-neologism(未定義語の点検)と、委譲先の search / bulk-edit エージェント定義。",
-      "version": "0.1.0",
+      "description": "エージェントがどう読み・探し・委譲されるかを設計する skill 群: markdown-context(mdidx で大きな Markdown を部分取得)、fast-search(fastcontext で広域・意味的な探索)、model-routing(機械的な作業を安価モデルへ委譲)、subagent-consultation(判断をサブエージェントのセカンドオピニオンへ)と、委譲先の search / bulk-edit エージェント定義。shokai/agent-skills(MIT)由来を含む。",
+      "version": "0.2.0",
       "author": { "name": "fenril058" },
-      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown"]
+      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent"]
     },
     {
-      "name": "japanese-writing",
-      "source": "japanese-writing",
-      "description": "日本語の技術文書・書籍原稿の文章規範 skill: japanese-tech-writing(整形・論証・冗長排除の規範)と argument-gap-edit(論証の筋の点検・再配置)。",
+      "name": "agent-instructions",
+      "source": "agent-instructions",
+      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(バイアスを排した実行者に実際に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する)。対で回す。mizchi/skills(MIT)由来を含む。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
-      "keywords": ["writing", "japanese", "technical-writing", "editing"]
+      "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
     },
     {
-      "name": "agent-collaboration",
-      "source": "agent-collaboration",
-      "description": "エージェント協調のための skill 群: subagent-consultation(サブエージェントへのセカンドオピニオン)、sanity-review(対話コンテキスト込みの PR レビュー報告書)、conversation-context-export/import(揮発層: ブランチ単位の文脈引き継ぎ)、durable-knowledge-export(永続層: ブランチを越える知見を wiki/リポジトリ内 docs へ)、library-update-review(依存更新 PR のレビュー)、grilling(一問ずつ推奨案付きの意思決定インタビュー)、unconventional-simplification(暗黙の前提を外すシンプル化)、codepatrol(領域ごとのセキュリティ調査)。一部 shokai/agent-skills・mattpocock/skills(いずれも MIT)由来。",
-      "version": "0.3.0",
+      "name": "critique",
+      "source": "critique",
+      "description": "決める前に手持ちの案を叩く skill 群: grilling(一問ずつ推奨案付きの意思決定インタビュー)、spec-ambiguity-audit(安価モデルの素読みによる仕様書の穴の監査)、unconventional-simplification(暗黙の前提を1つずつ外してシンプルな別解を探す)。計画・仕様・実装のいずれにも当てる。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
+      "version": "0.1.0",
       "author": { "name": "fenril058" },
-      "keywords": ["review", "consultation", "pull-request", "code-review", "context-handoff", "wiki", "subagent"]
+      "keywords": ["critique", "design", "planning", "requirements", "simplification"]
+    },
+    {
+      "name": "writing",
+      "source": "writing",
+      "description": "文章の規範 skill 群: japanese-tech-writing(日本語技術文書の整形・パラグラフライティング・論証の厳密さ・冗長排除)、argument-gap-edit(論証の筋の点検と段落の再配置)、no-neologism(未定義語・勝手な造語を確立した術語へ直す)。前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。k16shikano の gist(public domain)由来を含む。",
+      "version": "0.2.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["writing", "japanese", "technical-writing", "editing", "terminology"]
+    },
+    {
+      "name": "project-records",
+      "source": "project-records",
+      "description": "会話で決まったことを寿命ごとに記録する skill 群。区別は置き場所ではなく更新モデルである: conversation-context-export/import(揮発層: ブランチごとに再生成し commit しない、`.dev/contexts/` + PR コメント)、domain-modeling(記録層: 追記と supersede、`CONTEXT.md` と ADR をコードと一緒に commit)、durable-knowledge-export(永続層: 常に現在状態の living page を GitHub wiki / knowledge リポジトリへ)。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["context-handoff", "adr", "glossary", "knowledge", "wiki", "documentation"]
+    },
+    {
+      "name": "code-review",
+      "source": "code-review",
+      "description": "出来上がったものを検めるレビュー skill 群: sanity-review(対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書)、library-update-review(依存更新 PR のリリースノート分析と過去障害調査)、codepatrol(領域ごとに継続するセキュリティ調査)。shokai/agent-skills(MIT)由来。",
+      "version": "0.1.0",
+      "author": { "name": "fenril058" },
+      "keywords": ["code-review", "pull-request", "security", "dependencies", "audit"]
     }
   ]
 }

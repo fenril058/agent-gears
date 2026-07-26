@@ -63,7 +63,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: python3 plugins/context-engineering/skills/spec-ambiguity-audit/scripts/extract_context_test.py -v
+      # plugin 名をハードコードしない(skill は plugin 間を移動しうる)。
+      # 見つからなければ黙って合格せず落とす。
+      - run: |
+          t="$(find plugins -path '*/spec-ambiguity-audit/scripts/extract_context_test.py' -print -quit)"
+          test -n "$t" || { echo "extract_context_test.py が見つからない" >&2; exit 1; }
+          python3 "$t" -v
 
   nix:
     name: nix flake check
@@ -106,6 +111,8 @@ jobs:
       # 各 plugin.json の name・version・keywords が一致するかを検証する。
       - run: nix shell nixpkgs#jq --command bash scripts/check-distribution.sh
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
+      # 外部由来 skill の LICENSE / NOTICE が PROVENANCE.json の宣言どおり置かれているか。
+      - run: nix shell nixpkgs#jq --command bash scripts/check-licenses.sh
       # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
       - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 

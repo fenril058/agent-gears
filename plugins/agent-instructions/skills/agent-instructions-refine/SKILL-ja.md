@@ -65,7 +65,7 @@ description: CLAUDE.md や AGENTS.md などのエージェント向け指示フ�
 
 ## 併用
 
-- `meta/empirical-prompt-tuning` は指示文の実測 QA ループ(operator 起動)。この skill は直接編集の手順 — スリム化後に [[empirical-prompt-tuning]] を回して、まだ機能することを確かめる。
+- `empirical-prompt-tuning` は指示文の実測 QA ループ(operator 起動)。この skill は直接編集の手順 — スリム化後に [[empirical-prompt-tuning]] を回して、まだ機能することを確かめる。
 - 未定義語の点検は [[no-neologism]] に委譲する。
 
 Anthropic の "Write an effective CLAUDE.md" の指針に基づく

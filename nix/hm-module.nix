@@ -19,20 +19,17 @@ let
   regNames = path: attrNames (filterAttrs (_: t: t == "regular") (builtins.readDir path));
   exists = sub: builtins.pathExists (flakeSrc + "/${sub}");
 
-  # plugins/<plugin>/skills/<name> と meta/<name> を skill として、
+  # plugins/<plugin>/skills/<name> を skill として、
   # plugins/<plugin>/agents/<file> を agent 定義として列挙する。
   # 各エントリは { name(配布先のベース名); sub(repo 内サブパス) }。
   pluginNames = if exists "plugins" then dirNames (flakeSrc + "/plugins") else [ ];
-  metaNames = if exists "meta" then dirNames (flakeSrc + "/meta") else [ ];
 
-  pluginSkillEntries = concatMap
+  skillEntries = concatMap
     (p:
       let sub = "plugins/${p}/skills"; in
       if exists sub then map (s: { name = s; inherit sub; full = "${sub}/${s}"; }) (dirNames (flakeSrc + "/${sub}"))
       else [ ])
     pluginNames;
-  metaSkillEntries = map (m: { name = m; full = "meta/${m}"; }) metaNames;
-  skillEntries = pluginSkillEntries ++ metaSkillEntries;
 
   agentEntries = concatMap
     (p:

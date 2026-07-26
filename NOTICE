@@ -2,35 +2,38 @@ agent-gears
 Copyright (c) 2026 fenril058 (ril)
 
 This product is licensed under the MIT License (see LICENSE). The MIT License
-covers the repository as a whole and all original work in it, including the
-context-engineering plugin, agent-collaboration/durable-knowledge-export,
-cmd/mdidx, and the packaging/distribution machinery (install.sh, nix/, scripts/,
-flake.nix, etc.).
+covers the repository as a whole and all original work in it, including
+project-records/durable-knowledge-export, writing/no-neologism,
+agent-instructions/agent-instructions-refine, the context-engineering skills
+other than subagent-consultation, cmd/mdidx, and the packaging/distribution
+machinery (install.sh, nix/, scripts/, flake.nix, etc.).
 
-The following directories are vendored from third parties. Each retains its own
-license/notice file, which governs that directory. All are MIT or public domain
-and thus compatible with the repository's MIT License; their attribution notices
-are kept as required.
+The skills listed below are derived from third parties. Each retains its own
+license/notice file, which governs it. All are MIT or public domain and thus
+compatible with the repository's MIT License; their attribution notices are kept
+as required. They are vendored and adapted, not tracked upstream.
 
-- plugins/agent-collaboration/
-    subagent-consultation, sanity-review, conversation-context-export,
-    conversation-context-import, library-update-review, codepatrol,
-    unconventional-simplification are derived from shokai/agent-skills (MIT).
-    See plugins/agent-collaboration/LICENSE.
-    grilling and domain-modeling are derived from mattpocock/skills (MIT). See
-    plugins/agent-collaboration/skills/grilling/LICENSE and
-    plugins/agent-collaboration/skills/domain-modeling/LICENSE.
-    Note: durable-knowledge-export in this directory is original work by this
-    repository's author and is covered by the top-level MIT License.
+- Derived from shokai/agent-skills (MIT). Each plugin holding one of these keeps
+  a copy of the license at plugins/<plugin>/LICENSE:
+    plugins/context-engineering/  subagent-consultation
+    plugins/code-review/          sanity-review, library-update-review,
+                                  codepatrol
+    plugins/critique/             unconventional-simplification
+    plugins/project-records/      conversation-context-export,
+                                  conversation-context-import
 
-- plugins/japanese-writing/
+- Derived from mattpocock/skills (MIT), with a per-skill LICENSE:
+    plugins/critique/skills/grilling/
+    plugins/project-records/skills/domain-modeling/
+
+- plugins/writing/
     japanese-tech-writing and argument-gap-edit are based on a gist by
     k16shikano, released as public domain. Attribution is retained for respect
-    and traceability, not obligation. See plugins/japanese-writing/NOTICE.
+    and traceability, not obligation. See plugins/writing/NOTICE.
 
-- meta/empirical-prompt-tuning/
-    Vendored from mizchi/skills. Upstream had no LICENSE.txt; per that repo's
-    policy such skills default to MIT. See meta/empirical-prompt-tuning/LICENSE.
+- plugins/agent-instructions/skills/empirical-prompt-tuning/
+    Derived from mizchi/skills. Upstream had no LICENSE.txt; per that repo's
+    policy such skills default to MIT. See that directory's LICENSE.
 
 - cmd/mdidx/
     A faithful Go reimplementation of oubakiou/md2idx (MIT), byte-compatible

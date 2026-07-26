@@ -1,0 +1,7 @@
+{
+  "name": "code-review",
+  "description": "出来上がったものを検めるレビュー skill 群: sanity-review(対話コンテキスト・PR 概要欄・実装コードの整合性を点検する PR レビュー報告書)、library-update-review(依存更新 PR のレビュー)、codepatrol(領域ごとのセキュリティ調査)。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["code-review", "pull-request", "security", "dependencies", "audit"]
+}

@@ -126,6 +126,20 @@ You are an executor reading <target prompt name> with a blank slate.
 
 The caller extracts the self-report portion from the report and fills the evaluation-axis table by obtaining `tool_uses` / `duration_ms` from the Agent tool's usage meta.
 
+### Pair each checklist item: surface and semantic
+
+Where possible, express each checklist axis as two judgments:
+
+- **Surface**: did a specific token appear in the deliverable? **Always include both the
+  Japanese and English spellings** — a repo whose skills are mostly Japanese loses hits
+  constantly otherwise (`スクレイプ` / `scrape`, `非互換` / `incompatible`, `信頼` /
+  `trust`, `止める` / `stop` / `defer`). One wide alternation per axis.
+- **Semantic**: the same axis judged by meaning (the subagent's own ○ / × / partial).
+
+Surface alone yields false negatives from paraphrase, abbreviation, and language choice.
+When semantic is ○ and surface is ×, **widen the surface pattern** — do not constrain the
+scenario to "use this word", which distorts the skill's natural output.
+
 ## Environment constraints
 
 In environments where dispatching a new subagent is not possible (already running as a subagent, Task tool is disabled, etc.), **do not apply** this skill.
@@ -134,6 +148,40 @@ In environments where dispatching a new subagent is not possible (already runnin
 - **NG**: substitute with a self-reread (bias enters, so you must not trust the evaluation result)
 
 **Structural review mode**: when you want to check only the **consistency and clarity of the description** of the skill / prompt rather than run empirical evaluation, carve it out explicitly as structural review mode. Note clearly in the request prompt to the subagent "this round is structural review mode: text consistency check, not execution". That way the subagent will not trip on the skip behavior in the environment-constraints section and can return a static review. Structural review is an aid to empirical, not a replacement (it cannot be used for consecutive-clear judgment).
+
+### A stuck Execution phase has two causes — separate them
+
+Skills like `fast-search` and `markdown-context` assume real tools run (`mdidx`,
+`fastcontext`, `mq`, web fetches, external CLIs). When Execution comes back stuck, always
+diagnose which of these it is:
+
+- **Environmental** (tool absent, API key unset, network blocked) → **false signal**. Not
+  a defect in the skill. Record it as "eval environment limitation" in the ledger and do
+  not chase it.
+- **Instructional** (the tool is there, but the skill does not make clear what to run or
+  how) → **a real defect**. This is what you are here to fix.
+
+The rule:
+
+- **Set the environment up and let it run.** This is the only legitimate route. Running it
+  yields genuine end-to-end Execution signal — wrong flags, output-format mismatches, the
+  failures that only appear when something actually executes.
+- **If it cannot run, do not evaluate that axis — stop and report.** Never substitute a
+  narration. Asking the subagent to describe the steps lets a plausible-but-wrong
+  procedure pass, producing a fake success that never touched the real tool. This is the
+  same philosophy as the dispatch rule above: report honestly rather than substitute.
+
+On detecting that it cannot run, mark the axis "unevaluated: environment not set up" and
+prompt the user to set it up. For example:
+
+```
+fast-search's Execution axis needs fastcontext to run, but this environment
+has no API key configured, so it cannot.
+→ Axis unevaluated. Configure fastcontext and re-run.
+```
+
+Setting up the environment is the user's responsibility. Papering over the hole with a
+narration, and calling it measured, is the worst outcome.
 
 ## Iteration stopping criteria
 
@@ -145,6 +193,21 @@ In environments where dispatching a new subagent is not possible (already runnin
   - **Overfitting check**: at convergence judgment, add 1 hold-out scenario not used so far and evaluate. If accuracy drops 15 points or more from the recent average, overfitting. Go back to baseline scenario design and add edges.
 - **Divergence (suspect the design)**: if new unclear points do not decrease across 3+ iterations → the design direction of the prompt itself may be wrong. Stop fixing by patches and rewrite the structure
 - **Resource cutoff**: stop when importance and improvement cost no longer balance (the "ship at 80 points" call)
+
+### The four-stage trajectory, as a convergence gauge
+
+A structurally sound skill converges in **3–4 iterations**. Read which stage each
+iteration is in:
+
+| Stage | What it fixes | Signature |
+|---|---|---|
+| 1. Missing structure | a behavior is absent outright (the skill never tells you to do X) | surface **and** semantic both fail; one fix makes the pass rate jump |
+| 2. Judgment width | the skill is right but the surface pattern is too narrow | semantic ○ / surface × on the same axis → widen the regex |
+| 3. Surface spelling | the model used Japanese, a synonym, or an abbreviation the pattern misses | only one trial fails; a spelling miss, not a content miss |
+| 4. Residual | a structural limit of the eval setup (see the Execution stuck rule above), not of the skill | the self-report says "external execution stuck". Record in the ledger and do not chase |
+
+If it does not shrink past 4 iterations, suspect the design per the divergence criterion
+above rather than continuing to patch.
 
 ## Failure pattern ledger
 
@@ -243,3 +306,4 @@ Record and present to the user with the following form at each iteration:
 - `retrospective-codify` — fixating learnings after a task. This skill is during prompt development, retrospective-codify is after a task ends; use them differently
 - `superpowers:dispatching-parallel-agents` — conventions for running multiple scenarios in parallel
 - `waxa-eval` — operating manual for the `waxa` CLI, which automates the eval / iterate loop into an external process with a YAML scenario format and persistent ledger. This skill (empirical-prompt-tuning) covers the **methodology and the in-session Task-tool subagent flow**; `waxa-eval` covers the **CLI operation and YAML authoring**. They are complementary — use empirical for the Iter 0 static check, the `[critical]`-tagged checklist, and `tool_uses`-based skill diagnosis (none of which are accessible to a CLI process); use waxa-eval when persistence, CI repeatability, or external adoption gates are needed.
+- `agent-instructions-refine` — the direct editing procedure for instruction files. That skill slims and rewrites; this one measures whether the result still works. Run them as a pair.

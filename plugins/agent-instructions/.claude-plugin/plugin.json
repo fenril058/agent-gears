@@ -1,0 +1,7 @@
+{
+  "name": "agent-instructions",
+  "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md の圧縮と規則化)、empirical-prompt-tuning(バイアスを排した実行者による両面評価の反復)。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
+}
