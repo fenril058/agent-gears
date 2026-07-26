@@ -1,0 +1,7 @@
+{
+  "name": "critique",
+  "description": "決める前に手持ちの案を叩く skill 群: grilling(一問ずつ推奨案付きの意思決定インタビュー)、spec-ambiguity-audit(安価モデルの素読みによる仕様書の穴の監査)、unconventional-simplification(暗黙の前提を1つずつ外してシンプルな別解を探す)。",
+  "version": "0.1.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["critique", "design", "planning", "requirements", "simplification"]
+}
