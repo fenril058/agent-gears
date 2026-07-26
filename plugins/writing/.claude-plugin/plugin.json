@@ -1,0 +1,7 @@
+{
+  "name": "writing",
+  "description": "文章の規範 skill 群: japanese-tech-writing(日本語技術文書の整形・論証・冗長排除)、argument-gap-edit(論証の筋の点検・再配置)、no-neologism(未定義語・勝手な造語の点検)。前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。",
+  "version": "0.2.0",
+  "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
+  "keywords": ["writing", "japanese", "technical-writing", "editing", "terminology"]
+}

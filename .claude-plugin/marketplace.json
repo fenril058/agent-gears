@@ -34,12 +34,12 @@
       "keywords": ["critique", "design", "planning", "requirements", "simplification"]
     },
     {
-      "name": "japanese-writing",
-      "source": "japanese-writing",
-      "description": "日本語の技術文書・書籍原稿の文章規範 skill: japanese-tech-writing(整形・論証・冗長排除の規範)と argument-gap-edit(論証の筋の点検・再配置)。",
-      "version": "0.1.0",
+      "name": "writing",
+      "source": "writing",
+      "description": "文章の規範 skill 群: japanese-tech-writing(日本語技術文書の整形・パラグラフライティング・論証の厳密さ・冗長排除)、argument-gap-edit(論証の筋の点検と段落の再配置)、no-neologism(未定義語・勝手な造語を確立した術語へ直す)。前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。k16shikano の gist(public domain)由来を含む。",
+      "version": "0.2.0",
       "author": { "name": "fenril058" },
-      "keywords": ["writing", "japanese", "technical-writing", "editing"]
+      "keywords": ["writing", "japanese", "technical-writing", "editing", "terminology"]
     },
     {
       "name": "project-records",
