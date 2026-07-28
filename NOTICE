@@ -35,6 +35,11 @@ as required. They are vendored and adapted, not tracked upstream.
     Derived from mizchi/skills. Upstream had no LICENSE.txt; per that repo's
     policy such skills default to MIT. See that directory's LICENSE.
 
+- plugins/learning/
+    navigating, quizzing, and tutoring are derived from yasunori0418/skills
+    (MIT). They were adapted to use this repository's context-engineering
+    skills. See plugins/learning/LICENSE.
+
 - cmd/mdidx/
     A faithful Go reimplementation of oubakiou/md2idx (MIT), byte-compatible
     with the original. The original's MIT notice is reproduced in

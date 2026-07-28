@@ -58,6 +58,20 @@
         "japanese-tech-writing",
         "argument-gap-edit"
       ]
+    },
+    {
+      "id": "yasunori0418",
+      "name": "yasunori0418/skills",
+      "url": "https://github.com/yasunori0418/skills",
+      "revision": "44297daabb540cdb5290be2798ccc99f9967c7ab",
+      "license": "MIT",
+      "scope": "plugin",
+      "file": "LICENSE",
+      "skills": [
+        "navigating",
+        "quizzing",
+        "tutoring"
+      ]
     }
   ]
 }

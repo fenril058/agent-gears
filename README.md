@@ -14,7 +14,7 @@ Claude には plugin マーケットプレイスとして、Codex / Copilot に�
 ## 内容
 
 このリポジトリは、領域の異なるエージェント向け skill を1か所に束ねて配布する。
-現在は6つの plugin があり、依存の向きで層になっている。
+現在は7つの plugin があり、依存の向きで層になっている。
 
 ```
 critique / project-records / code-review   ← ワークフロー層
@@ -22,6 +22,7 @@ critique / project-records / code-review   ← ワークフロー層
 context-engineering                        ← 基盤層
 agent-instructions                         ← 指示テキスト自体を書き、測る
 writing                                    ← 文章の規範(用語規則は全層から参照)
+learning                                   ← AI支援後の理解を深める
 ```
 
 ### context-engineering (基盤: どう読み・探し・委譲されるか)
@@ -78,6 +79,12 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 - library-update-review: 依存更新 PR のレビューを行う。
 - codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
 
+### learning (AI支援後の理解を深める)
+
+- navigating: ユーザー自身がコードを読み、説明するコードリーディング案内。
+- quizzing: 計画・実装・コードベースの理解を一問ずつ確認する。
+- tutoring: 理解度を確認しながら、1つの概念ずつ段階的に説明する。
+
 ### writing (文章の規範)
 
 - japanese-tech-writing: 日本語の技術文書・書籍原稿の整形・パラグラフライティング・論証の厳密さ・冗長の排除。
@@ -130,6 +137,13 @@ plugins/
       sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
       library-update-review/      依存更新 PR のレビュー
       codepatrol/                 領域ごとのセキュリティ調査(+ CHECKLIST.md / REPORT-TEMPLATE.md / checklist-vs-report.md)
+  learning/                       plugin: AI支援後の理解を深める(yasunori0418/skills 由来・MIT)
+    .claude-plugin/plugin.json
+    LICENSE
+    skills/
+      navigating/                 ユーザー自身が読むコードリーディング案内
+      quizzing/                   一問ずつ行う理解確認
+      tutoring/                   理解度に応じた段階的な個別指導
   writing/                        plugin: 文章の規範(一部 k16shikano の gist 由来・public domain)
     .claude-plugin/plugin.json
     NOTICE
@@ -234,6 +248,10 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
     上流生成の `README.md`(中身は上流からのインストール手順)も削除した。
     畳んだ内容には [waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)(MIT)由来の知見を
     session 内ループ向けに書き直したものを含む。waxa CLI 本体は未導入。
+- **yasunori0418/skills 由来**(`learning` の `navigating` / `quizzing` / `tutoring`):
+  - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
+  - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
+  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `fast-search` / `markdown-context` を使う記述へ変更した。
 
 ## 前提ツール
 
