@@ -1,7 +1,7 @@
 ---
 name: fast-search
 description: コードベースに対する広域・意味的な探索(「どこで何が行われているか」「この機能はどう実装されているか」)が必要なときに使う。単純な文字列一致や既知ファイルの参照ではなく、複数ファイルにまたがる意味的な問いに、fastcontext で少ない手数で答える。
-compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 API_KEY または OPENAI_API_KEY / MODEL / BASE_URL)も要る。どちらも skill には同梱されない。無い場合は Grep/Read のフォールバックへ。入手は https://github.com/microsoft/fastcontext
+compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 FC_API_KEY / FC_MODEL / FC_BASE_URL。旧名も利用可)も要る。どちらも skill には同梱されない。無い場合は Grep/Read のフォールバックへ。入手は https://github.com/microsoft/fastcontext
 ---
 
 # Fast Search (fastcontext)
@@ -15,14 +15,16 @@ compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境�
 [microsoft/fastcontext](https://github.com/microsoft/fastcontext) から導入する。
 PATH に無ければ後述の「フォールバック」を使う。
 
-fastcontext は OpenAI 互換 API をバックエンドにする。次の環境変数が要る。
-未設定だと `Missing credentials` で落ちる。
+fastcontext は OpenAI 互換 API をバックエンドにする。
+次の環境変数を読み、`FC_` 付きの名前を優先し、括弧内の旧名へフォールバックする。
 
-- `API_KEY`: OpenAI 互換エンドポイントの鍵(`OPENAI_API_KEY` でも可)
-- `MODEL`: 使うモデル名
-- `BASE_URL`: エンドポイント URL(OpenAI 本家なら省略可)
+- `FC_API_KEY` (`API_KEY`): OpenAI 互換エンドポイントの鍵
+- `FC_MODEL` (`MODEL`): 使うモデル名
+- `FC_BASE_URL` (`BASE_URL`): エンドポイント URL
 
 鍵は各自の環境で設定する(コミットしない・nix store に置かない)。
+Ollama の OpenAI 互換 API には、空でないダミーの鍵と
+`http://localhost:11434/v1` のようなベース URL を指定する。
 設定済みかは `fastcontext -q "test" --max-turns 1` で確認できる。
 未設定・実行不能のときは下の「フォールバック」に従う。
 
