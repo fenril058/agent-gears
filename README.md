@@ -28,16 +28,16 @@ learning                                   ← AI支援後の理解を深める
 ### context-engineering (基盤: どう読み・探し・委譲されるか)
 
 運用コストの多くは無駄な文脈の読み込みから来る。
-トークン従量課金では、機械的な作業を安価なモデルへ委譲することも費用削減になる。
+独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - fast-search: fastcontext で広域・意味的な探索を少ないトークンで行う。
-- model-routing: 機械的・量的な作業をサブエージェントへ回すときの判断基準と依頼文の書き方。
-  委譲は既定の動作ではなく、ユーザーの依頼または従量課金という条件に加えて、ホストの許可が必要。
+- task-delegation: タスクの独立性に基づく委譲の判断基準と依頼文の書き方。
+  委譲の可否はホストの指示に従い、モデル価格だけで決めない。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 
-後ろ2つは「作業を別のモデル/エージェントに回す」の両輪である。
-委譲する場合は機械的な作業を安価なモデルへ、判断は強いモデルへ、と適用範囲を互いに書き分けている。
+後ろ2つは目的が異なる。
+task-delegation は範囲の定まった作業の委譲を扱い、subagent-consultation は独立した判断を求める相談を扱う。
 
 ### agent-instructions (指示テキスト自体を書き、測る)
 
@@ -107,11 +107,11 @@ plugins/
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       fast-search/       fastcontext での広域・意味的探索
-      model-routing/     条件付きの委譲ポリシー(既定では委譲しない)
+      task-delegation/   タスクの独立性に基づく委譲ポリシー
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
     agents/
       search.md          コードベース探索・調査(Sonnet)
-      bulk-edit.md       機械的・反復的な編集(Haiku)
+      bulk-edit.md       機械的・反復的な編集
   agent-instructions/             plugin: 指示テキスト自体を書き、測る
     .claude-plugin/plugin.json
     skills/
@@ -358,10 +358,9 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
 - **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
 - **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
-- **モデル委譲**: Claude はメインのモデルを自動切替できないため、委譲するときは `model-routing` skill に従い Task/Agent ツールで行う。
-  委譲は既定の動作ではない。
-  依頼されたとき、または従量課金で単価差が効くときに検討し、いずれの場合もホストの指示に従う。
-  Codex も subagent を持つ(`/agent` で確認、定義は `agents_dir` の `*.toml`)ので同じ切り分けが通る。
+- **タスク委譲**: 委譲するときは `task-delegation` skill に従い、タスクの独立性と委譲コストを確認してから Task/Agent ツールを使う。
+  サブエージェントの起動はホストの指示が許可する場合に限る。
+  設計、優先順位、レビュー、最終判断はメインセッションに残す。
   異なるのは定義ファイルの形式と起動手段だけである。
   起動ツールの名前は Codex のビルドによって変わるので、実際の Codex 側から読み取る。
 

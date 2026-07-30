@@ -37,7 +37,7 @@ Ollama の OpenAI 互換 API には、空でないダミーの鍵と
 - 既知ファイル / 単純な文字列・記号の一致 → **Grep / Read**(fastcontext は使わない)。
 - 「どこで認証している?」「この設定はどう読み込まれる?」のような
   複数ファイルにまたがる意味的な問い → **fastcontext**。
-- 探索の結論だけ要る(本文ダンプ不要)で量が多く、**かつ `model-routing` の条件で委譲が許可されている** → `search` サブエージェントへ渡す(依頼文の書き方も同 skill 参照)。
+- 探索の結論だけ要る(本文ダンプ不要)で量が多く、**かつ `task-delegation` の方針で委譲が許可されている** → `search` サブエージェントへ渡す(依頼文の書き方も同 skill 参照)。
 
 ## 使い方
 
@@ -69,7 +69,7 @@ fastcontext -q "設定ファイルの読み込み経路" --citation
 作業を止めず、fastcontext が使えないことを理由に全文 Read で抱え込まない。
 
 - Grep/Glob/Read の組み合わせ。
-  `model-routing` の条件で委譲が許可されているなら Explore サブエージェント。
+  `task-delegation` の方針で委譲が許可されているなら Explore サブエージェント。
 
 ## やらないこと
 

@@ -40,7 +40,7 @@ missing credentials, connection failure, or is otherwise not runnable, follow
 - Known file / simple string or symbol match → **Grep / Read** (don't use fastcontext).
 - Semantic questions that span multiple files, like "where do we authenticate?" or
   "how is this config loaded?" → **fastcontext**.
-- You only need the conclusion of the search (no body dump), there's a lot of it, **and delegation is authorized under the `model-routing` gates** → hand it to the `search` subagent (see that skill for the brief).
+- You only need the conclusion of the search (no body dump), there's a lot of it, **and delegation is authorized under the `task-delegation` policy** → hand it to the `search` subagent (see that skill for the brief).
 
 ## How to use
 
@@ -70,7 +70,7 @@ Don't fall back silently — say in one line why, and name the cause precisely:
 Then substitute the broad, semantic search with the following and carry on.
 Don't block the task, and don't hoard everything via full-text Read just because fastcontext is unavailable.
 
-- A combination of Grep/Glob/Read, or the Explore subagent when delegation is authorized under the `model-routing` gates.
+- A combination of Grep/Glob/Read, or the Explore subagent when delegation is authorized under the `task-delegation` policy.
 
 ## Don't
 

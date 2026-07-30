@@ -105,9 +105,9 @@ independent of yours. Prefer, in this order:
    where something is implemented — rather than judging whether it is right.
 3. **Whatever subagent/task mechanism the host has**, when neither of the above exists.
 
-A consultation is judgment work: run the consultant on a strong model, not a cheap
-one (the cheap-model delegation criteria in the model-routing skill are for
-mechanical work and do not apply to second opinions).
+A consultation is judgment work: use a model capable of that judgment.
+The criteria in the task-delegation skill are for independent work
+and do not apply to second opinions.
 
 A cross-family consultant costs more to use. It cannot see this conversation, its tool
 access and permissions differ, and it may run asynchronously. Write the prompt to stand
@@ -224,7 +224,7 @@ Every consultant is reached through the `Agent` tool, by `subagent_type`:
 - **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`).
   A fresh session with no memory of this conversation.
 
-Do not consult the `bulk-edit` or `search` agents: they are cheap-tier delegates for mechanical work, which is the one thing a second opinion must not be.
+Do not consult the `bulk-edit` or `search` agents: they are task delegates for bounded work, not consultants responsible for an independent judgment.
 
 For the second round, address `SendMessage` to the consultant's ID or name to continue it with its context intact.
 A fresh `Agent` call starts cold.
