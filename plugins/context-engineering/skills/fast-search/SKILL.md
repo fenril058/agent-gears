@@ -38,8 +38,8 @@ missing credentials, connection failure, or is otherwise not runnable, follow
 - Semantic questions that span multiple files, like "where do we authenticate?" or
   "how is this config loaded?" → **fastcontext**.
 - You only need the conclusion of the search (no body dump), there's a lot of it, **and
-  the user asked for the work to be delegated** → hand it to the `search` subagent (see
-  the `model-routing` skill for the brief). Don't spawn one unprompted.
+  delegation is authorized under the `model-routing` gates** → hand it to the `search`
+  subagent (see that skill for the brief).
 
 ## How to use
 
@@ -70,8 +70,8 @@ Then substitute the broad, semantic search with the following and carry on — d
 the task, and don't hoard everything via full-text Read just because fastcontext is
 unavailable.
 
-- A combination of Grep/Glob/Read, or the Explore subagent when the user is fine with a
-  subagent doing the reading.
+- A combination of Grep/Glob/Read, or the Explore subagent when delegation is authorized
+  under the `model-routing` gates.
 
 ## Don't
 

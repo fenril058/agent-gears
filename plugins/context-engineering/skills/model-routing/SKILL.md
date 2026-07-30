@@ -5,8 +5,9 @@ description: Use when handing mechanical, high-volume work (bulk edits, formatti
 
 # Model Routing (delegation policy)
 
-**Delegation is not a default behavior.** Do it when the user asks for it, or when the
-billing model makes the tier split genuinely pay — see the two conditions below.
+**Delegation is not a default behavior.** Consider it when the user asks for it, or when
+the billing model makes the tier split genuinely pay. In either case, the host's
+instructions must authorize the spawn; an economic reason never overrides them.
 
 Two conditions gate the older "delegate whatever can be delegated, to cut tokens" advice:
 
@@ -15,7 +16,8 @@ Two conditions gate the older "delegate whatever can be delegated, to cut tokens
   before self-initiating.
 - The saving assumes the token price differs by tier. On a flat-rate plan the constraint is
   a rate limit, not a price, so a cheaper tier buys nothing and the cold start costs extra.
-  Where usage is metered per token, the saving is real and self-initiating can be worth it.
+  Where usage is metered per token, the saving is real and self-initiating can be worth it
+  when the host permits that behavior.
 
 So the criteria below govern *how* to delegate once delegation is on the table — not
 whether to reach for it on your own.
@@ -55,8 +57,9 @@ Tell the delegate to return the conclusion only, and to read large Markdown by s
 ### Claude Code
 
 Claude Code cannot auto-switch the main session's model from a skill or hook, so the
-delegation is done explicitly via the Task/Agent tool — which is also why it needs the
-user's go-ahead rather than happening silently. This repo ships two delegate
+delegation is done explicitly via the Task/Agent tool. Start it only when the user asked
+for delegation or the host explicitly permits self-initiated delegation under the
+metered-usage condition above. This repo ships two delegate
 agents (defined in `agents/`, placed in `~/.claude/agents/`); call them by name in
 `subagent_type`:
 
