@@ -141,16 +141,15 @@ execution failure (error messages, "could not fetch", "failed", "permission deni
 right information, then decides whether a second round is needed (see section 4, "If you
 detect a subagent execution failure").
 
-Second-round prompt structure:
+Second-round prompt structure.
 
-**Note: the Agent tool is single-shot, so the second-round subagent has no memory of
-the first round. Include all context from scratch.**
+**Continue the same consultant instead of launching a new one.**
+When the host can continue the same consultant with its context intact, send only the delta:
 
-1. Restate the original consultation (background / goal / constraints / evaluation
-   angles, structured, nothing dropped).
-2. Summary of the first-round answer.
-3. The consulting agent's rebuttals / supplements / follow-up questions.
-4. Angles to dig into further.
+1. The consulting agent's rebuttals / supplements / follow-up questions.
+2. Angles to dig into further.
+
+Only when the consultant cannot be continued, restate everything from scratch: the original consultation (background / goal / constraints / evaluation angles, structured, nothing dropped), a summary of the first-round answer, and then the two items above.
 
 Round-trips are 2 at most as a rule. For a third or more, confirm with the user first.
 
@@ -218,21 +217,31 @@ time to the user.
 
 Every consultant is reached through the `Agent` tool, by `subagent_type`:
 
-- **Different family**: `subagent_type: codex:codex-rescue` (Codex / GPT), when the
-  Codex plugin is installed. Give the target worktree's absolute path as `--cwd` in the
-  request text, and read the result back with `/codex:status` and `/codex:result` from
-  that same cwd — a job created with `task --cwd <path>` lives in that workspace's
-  state and cannot be found from another cwd. Do not assume the session's cwd is the
-  target worktree.
-- **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`). A
-  fresh session with no memory of this conversation.
+- **Different family**: `subagent_type: codex:codex-rescue` (Codex / GPT), when the Codex plugin is installed.
+  Give the target worktree's absolute path as `--cwd` in the request text, and read the result back with `/codex:status` and `/codex:result` from that same cwd.
+  A job created with `task --cwd <path>` lives in that workspace's state and cannot be found from another cwd.
+  Do not assume the session's cwd is the target worktree.
+- **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`).
+  A fresh session with no memory of this conversation.
 
-Do not consult the `bulk-edit` or `search` agents: they are cheap-tier delegates for
-mechanical work, which is the one thing a second opinion must not be.
+Do not consult the `bulk-edit` or `search` agents: they are cheap-tier delegates for mechanical work, which is the one thing a second opinion must not be.
+
+For the second round, address `SendMessage` to the consultant's ID or name to continue it with its context intact.
+A fresh `Agent` call starts cold.
 
 ### Codex
 
-Codex has no Agent tool; use its own subagent/session mechanism. If another vendor's
-CLI is installed, that is the different-family consultant. Otherwise run the
-consultation in a fresh session with no project context loaded — independent context,
-shared priors, i.e. tier 2 above.
+Codex has no single tool named `Agent`, but it may expose the subagent workflow through separate operations: spawn a thread, send follow-up work and start a turn, wait for it, list the running threads, and stop one when supported.
+Agent threads run separately, and the parent thread waits for their results and integrates them.
+Builds may also expose agent inspection through `/agent` and definitions through the `agents_dir` config (`$CODEX_HOME/agents/*.toml`).
+
+**Read the tool names off the Codex you are actually running, not off this file.**
+They differ between builds, and similar-looking operations may have different semantics.
+For example, in some builds `followup_task` starts a turn for an idle agent while `send_message` only delivers a message and does not start one.
+Select by the tool description, not by the name.
+
+Spawn the consultant on a strong model.
+For the second round, use the operation that starts or resumes a turn for the same agent.
+Merely delivering a message to an idle agent is not enough.
+If another vendor's CLI is installed, that is the different-family consultant (tier 1).
+A Codex agent thread with no project context loaded is tier 2.

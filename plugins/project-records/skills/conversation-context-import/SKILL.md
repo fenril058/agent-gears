@@ -11,19 +11,11 @@ description: >-
 
 Load past conversation contexts saved in `.dev/contexts/`.
 
-## Procedure
+## Naming convention
 
-### 1. Get the branch name
-
-Run with the Bash tool:
-
-```
-git branch --show-current
-```
-
-### Branch name sanitization
-
-When using the branch name as a filename, replace these characters with `-`:
+The current branch's context lives at `.dev/contexts/{sanitized branch name}.md`. Take the
+branch name from `git branch --show-current`; the sanitized form replaces each of these
+characters with `-`:
 
 ```
 / \ : * ? " < > |
@@ -31,55 +23,17 @@ When using the branch name as a filename, replace these characters with `-`:
 
 Example: `dependabot/npm_and_yarn/feed-5.2.0` → `dependabot-npm_and_yarn-feed-5.2.0`
 
-Below, the sanitized branch name is called the "sanitized branch name".
+## What to load
 
-### 2. Check for files
+List `.dev/contexts/*.md`, then branch on what's there:
 
-Check the files in the `.dev/contexts/` directory.
+- **Only the current branch's file** → load it without asking.
+- **Only other branches' files** → load them all without asking.
+- **Both** → ask with AskUserQuestion which to take: the current branch's file only, or
+  every file in `.dev/contexts/` (list the filenames in the options).
+- **Nothing** → report that no context file was found, and stop.
 
-Search `.dev/contexts/*.md` with the Glob tool (or `find .dev/contexts -name '*.md'` /
-`ls .dev/contexts/` if Glob is unavailable) and determine:
-
-- whether a file with the same name as the current branch
-  (`.dev/contexts/{sanitized branch name}.md`) exists,
-- whether any other files exist.
-
-### 3. Decide what to load
-
-Branch by the file situation:
-
-#### Only the current branch's file exists
-
-Load it without asking.
-
-#### Only other files exist (no current-branch file)
-
-Load all files without asking.
-
-#### Both exist
-
-Ask with the AskUserQuestion tool:
-
-- **Load only the current branch's context**: only `.dev/contexts/{sanitized branch
-  name}.md`.
-- **Load all contexts**: all files in `.dev/contexts/` (list the filenames when
-  presenting).
-
-#### No files exist
-
-Report that no context file was found in `.dev/contexts/` and stop.
-
-### 4. Load and report
-
-Read the target files with the Read tool.
-
-After loading, report to the user which files you loaded:
-
-```
-Loaded the following conversation contexts:
-- `.dev/contexts/feature-a.md`
-- `.dev/contexts/feature-b.md`
-```
+Report which files you loaded.
 
 ## Related skills
 

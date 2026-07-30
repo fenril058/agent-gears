@@ -27,15 +27,17 @@ learning                                   ← AI支援後の理解を深める
 
 ### context-engineering (基盤: どう読み・探し・委譲されるか)
 
-運用コストの多くは、無駄な文脈の読み込みと、安価に回せる作業まで高いモデルで処理することから来る。
+運用コストの多くは無駄な文脈の読み込みから来る。
+トークン従量課金では、機械的な作業を安価なモデルへ委譲することも費用削減になる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - fast-search: fastcontext で広域・意味的な探索を少ないトークンで行う。
-- model-routing: 機械的・量的な作業を安価モデルのサブエージェントへ回す。
+- model-routing: 機械的・量的な作業をサブエージェントへ回すときの判断基準と依頼文の書き方。
+  委譲は既定の動作ではなく、ユーザーの依頼または従量課金という条件に加えて、ホストの許可が必要。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 
 後ろ2つは「作業を別のモデル/エージェントに回す」の両輪である。
-機械的な作業は安価に、判断は強いモデルに、と適用範囲を互いに書き分けている。
+委譲する場合は機械的な作業を安価なモデルへ、判断は強いモデルへ、と適用範囲を互いに書き分けている。
 
 ### agent-instructions (指示テキスト自体を書き、測る)
 
@@ -105,7 +107,7 @@ plugins/
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       fast-search/       fastcontext での広域・意味的探索
-      model-routing/     安価モデルのサブエージェントへの委譲ポリシー
+      model-routing/     条件付きの委譲ポリシー(既定では委譲しない)
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
     agents/
       search.md          コードベース探索・調査(Sonnet)
@@ -295,7 +297,8 @@ Codex の `skill-installer` で GitHub の skill ディレクトリを `~/.agent
 install-skill-from-github.py --repo fenril058/agent-gears --path plugins/context-engineering/skills/markdown-context
 ```
 
-(`agents/` は Claude 固有のため Codex では扱わない。)
+(`agents/` の定義は Claude Code 形式(`.md`)なので Codex へは配布しない。
+Codex にも agent はあるが定義は `$CODEX_HOME/agents/*.toml` 形式で、現状同梱していない。)
 
 ### 3. 自分の環境 — home-manager(クロスエージェント宣言配布)
 
@@ -323,7 +326,7 @@ Claude を plugin 経由にするなら `claude.enable = false` にして重複�
 | `codex.enable` | `true` | `~/.agents/skills` と `~/.codex/AGENTS.md` へ Codex 向けファイルを配布 |
 | `copilot.enable` | `true` | `~/.copilot` へ配布(GitHub Copilot) |
 | `rules.enable` | `true` | 共通ルールとエージェント固有ルールを対応する instruction file として配布 |
-| `agentDefs.enable` | `true` | `plugins/*/agents/*.md` を `~/.claude/agents` へ配布(Claude 固有) |
+| `agentDefs.enable` | `true` | `plugins/*/agents/*.md` を `~/.claude/agents` へ配布(Claude Code 形式) |
 | `tools.enable` | `true` | mdidx バイナリを `home.packages` に入れて PATH へ通す(`markdown-context` 用) |
 
 - skill の **追加・削除** の反映には flake 更新 + `home-manager switch` が要る
@@ -355,9 +358,12 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
 - **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
 - **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
-- **モデル委譲**: agent 定義(`model:`)は Claude 固有。Claude はメインのモデルを自動切替
-  できないため、`model-routing` skill に従い Task/Agent ツールで安価サブエージェントへ委譲する。
-  Codex は本 skill の方針 + Codex 自身のモデル設定で同等を達成する。
+- **モデル委譲**: Claude はメインのモデルを自動切替できないため、委譲するときは `model-routing` skill に従い Task/Agent ツールで行う。
+  委譲は既定の動作ではない。
+  依頼されたとき、または従量課金で単価差が効くときに検討し、いずれの場合もホストの指示に従う。
+  Codex も subagent を持つ(`/agent` で確認、定義は `agents_dir` の `*.toml`)ので同じ切り分けが通る。
+  異なるのは定義ファイルの形式と起動手段だけである。
+  起動ツールの名前は Codex のビルドによって変わるので、実際の Codex 側から読み取る。
 
 ## 新しい skill を足すとき
 
