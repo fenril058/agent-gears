@@ -141,16 +141,22 @@ execution failure (error messages, "could not fetch", "failed", "permission deni
 right information, then decides whether a second round is needed (see section 4, "If you
 detect a subagent execution failure").
 
-Second-round prompt structure:
+Second-round prompt structure.
 
-**Note: the Agent tool is single-shot, so the second-round subagent has no memory of
-the first round. Include all context from scratch.**
+**Continue the same consultant instead of launching a new one.** On Claude Code,
+`SendMessage` addressed to the consultant's ID or name resumes it with its context
+intact; a fresh `Agent` call starts cold. On Codex, the build's follow-up-input tool does
+the same for an agent thread. When you can continue, the second round only needs the
+delta:
 
-1. Restate the original consultation (background / goal / constraints / evaluation
-   angles, structured, nothing dropped).
-2. Summary of the first-round answer.
-3. The consulting agent's rebuttals / supplements / follow-up questions.
-4. Angles to dig into further.
+1. The consulting agent's rebuttals / supplements / follow-up questions.
+2. Angles to dig into further.
+
+Only when the consultant cannot be continued (the host has no continuation mechanism, or
+the consultant is a separate CLI in a fresh process), restate everything from scratch —
+the original consultation (background / goal / constraints / evaluation angles,
+structured, nothing dropped), a summary of the first-round answer, and then the two items
+above.
 
 Round-trips are 2 at most as a rule. For a third or more, confirm with the user first.
 
@@ -232,7 +238,20 @@ mechanical work, which is the one thing a second opinion must not be.
 
 ### Codex
 
-Codex has no Agent tool; use its own subagent/session mechanism. If another vendor's
-CLI is installed, that is the different-family consultant. Otherwise run the
-consultation in a fresh session with no project context loaded — independent context,
-shared priors, i.e. tier 2 above.
+Codex has no single tool named `Agent`, but it has the same subagent capability spread
+over a family of tools: spawn a subagent thread, send it follow-up input, wait for it,
+list the running threads, close it. Agent threads run in parallel and the parent thread
+waits for their results and integrates them. Running threads are inspected and switched
+with `/agent`, and agents are defined under the `agents_dir` config
+(`$CODEX_HOME/agents/*.toml`), with per-agent model overrides where the build enables
+them.
+
+**Read the tool names off the Codex you are actually running, not off this file.** They
+differ between builds — `spawn_agent` / `send_input` / `resume_agent` / `wait_agent` /
+`close_agent` in some, `followup_task` / `send_message` / `interrupt_agent` in others.
+The capability is what's stable; the names are not.
+
+So the whole procedure above carries over: spawn the consultant on a strong model, and
+use whatever follow-up-input tool the build exposes for the second round instead of
+restating everything. If another vendor's CLI is installed, that is the different-family
+consultant (tier 1); a Codex agent thread with no project context loaded is tier 2.

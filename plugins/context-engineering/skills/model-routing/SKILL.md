@@ -1,54 +1,47 @@
 ---
 name: model-routing
-description: Use when you want to save tokens by delegating high-volume but low-judgment work (bulk edits, formatting, boilerplate replacement) or broad search / investigation to a cheaper-model subagent. Keeps design decisions and reasoning on the strong main model and pushes mechanical, repetitive work down to a cheaper model. Defines the criteria for what to delegate.
+description: Use when handing mechanical, high-volume work (bulk edits, formatting, boilerplate replacement) or a broad read-heavy investigation to a cheaper-model subagent — whether the user asked for the delegation, or usage is metered per token so the tier split actually pays. Defines what may be delegated, what must stay on the main session, and how to write the brief, plus when delegation does not pay off at all.
 ---
 
 # Model Routing (delegation policy)
 
-The most effective lever for cutting tokens is to delegate the work that *can* be
-delegated to a cheaper model.
+**Delegation is not a default behavior.** Do it when the user asks for it, or when the
+billing model makes the tier split genuinely pay — see the two conditions below.
 
-## General policy
+Two conditions gate the older "delegate whatever can be delegated, to cut tokens" advice:
 
-Think in capability tiers, not in specific model names:
+- Hosts increasingly discourage unprompted subagent spawning, because a spawn starts cold
+  and re-derives context the main session already holds. Check the host's own instructions
+  before self-initiating.
+- The saving assumes the token price differs by tier. On a flat-rate plan the constraint is
+  a rate limit, not a price, so a cheaper tier buys nothing and the cold start costs extra.
+  Where usage is metered per token, the saving is real and self-initiating can be worth it.
 
-- **Strong tier (keep on the main session)**: design decisions, reasoning, resolving
-  ambiguity, weighing trade-offs, final review. Lowering capability here degrades quality.
-- **Cheap tier (delegate to a subagent)**: mechanical, high-volume work, and broad
-  read-heavy search / investigation. Quality is not capability-bound here, so paying for
-  the strong tier is waste.
+So the criteria below govern *how* to delegate once delegation is on the table — not
+whether to reach for it on your own.
 
-The shape is always the same: **keep heavy thinking on the strong model and push
-mechanical, high-volume work out to a cheaper subagent.** The per-platform mechanics
-(how a subagent is launched, whether the model can be switched mid-session) differ —
-see *Platform implementations* below.
-
-## Delegation criteria
-
-Delegate when:
+## What may be delegated
 
 - The work can be specified in one sentence and correctness can be judged mechanically.
 - It's a cross-file search but all you want is the conclusion (location / summary).
 - It's repetition of the same operation, in volume.
 
-Keep on the main session when:
+## What stays on the main session
 
 - You're still deciding *what* to do (design, direction).
 - The cost of failure is high and the judgment needs contextual nuance.
-- It's short and the delegation overhead would exceed the work itself.
+- It's short and the delegation overhead would exceed the work itself. Don't delegate a
+  trivial task just because it's "mechanical".
+- A second opinion. That is judgment work and belongs on a strong model — see
+  `subagent-consultation`; never route it to a cheap-tier delegate.
 
-When both signals fire (e.g. mechanical but low-volume), keep it on the main session if
-the delegation overhead (writing the brief, launching, collecting the result) exceeds the
-actual work. Don't delegate trivial tasks just because they're "mechanical".
+## Writing the brief
 
-## Context minimization
+Delegation keeps the read-heavy intermediate context out of the main session only if the
+delegate returns the conclusion, not a transcript of what it read.
 
-Delegation cuts tokens twice: the cheaper tier does the work, *and* the read-heavy
-intermediate context stays out of the main session. To get the second saving, the
-delegate must return only the conclusion — not a transcript of what it read.
-
-When delegating, always fill in these three. Otherwise the delegate fills the gaps at its
-own discretion and the result drifts:
+Always fill in these three. Otherwise the delegate fills the gaps at its own discretion
+and the result drifts:
 
 - **Scope**: what / which set of files to handle. Write the exclusions too.
 - **Expected deliverable**: what should exist when it's done.
@@ -62,7 +55,8 @@ Tell the delegate to return the conclusion only, and to read large Markdown by s
 ### Claude Code
 
 Claude Code cannot auto-switch the main session's model from a skill or hook, so the
-delegation is done explicitly via the Task/Agent tool. This repo ships two delegate
+delegation is done explicitly via the Task/Agent tool — which is also why it needs the
+user's go-ahead rather than happening silently. This repo ships two delegate
 agents (defined in `agents/`, placed in `~/.claude/agents/`); call them by name in
 `subagent_type`:
 
@@ -88,6 +82,9 @@ Example brief (investigation to `search`):
 
 ### Codex
 
-Agent definitions (`model:`) are Claude Code specific. On Codex, follow this skill's
-*General policy* and *Delegation criteria*, and use Codex's own model setting (`/model`
-etc.) to split heavy vs. light work.
+Codex has the same shape under different names, so the tier split works there too. Agents
+are defined under the `agents_dir` config (`$CODEX_HOME/agents/*.toml`) rather than
+`agents/*.md`, launched with a spawn-subagent tool rather than the Agent tool, and
+inspected with `/agent`; per-agent model overrides exist where the build enables them.
+Tool names vary between builds — read them off your Codex, not off this file. Only the
+`model:` frontmatter key itself is Claude Code specific.

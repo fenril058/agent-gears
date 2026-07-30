@@ -1,7 +1,7 @@
 ---
 name: fast-search
 description: コードベースに対する広域・意味的な探索(「どこで何が行われているか」「この機能はどう実装されているか」)が必要なときに使う。単純な文字列一致や既知ファイルの参照ではなく、複数ファイルにまたがる意味的な問いに、fastcontext で少ない手数で答える。
-compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 FC_API_KEY / FC_MODEL / FC_BASE_URL。旧名も利用可)も要る。どちらも skill には同梱されない。無い場合は Grep/Read のフォールバックへ。入手は https://github.com/microsoft/fastcontext
+compatibility: fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 FC_API_KEY / FC_MODEL / FC_BASE_URL。旧名も利用可)も要る。どちらも skill には同梱されない。無い場合は設定不備として報告してから Grep/Read のフォールバックへ。入手は https://github.com/microsoft/fastcontext
 ---
 
 # Fast Search (fastcontext)
@@ -33,8 +33,9 @@ Ollama の OpenAI 互換 API には、空でないダミーの鍵と
 - 既知ファイル / 単純な文字列・記号の一致 → **Grep / Read**(fastcontext は使わない)。
 - 「どこで認証している?」「この設定はどう読み込まれる?」のような
   複数ファイルにまたがる意味的な問い → **fastcontext**。
-- 探索の結論だけ要る(本文ダンプ不要)で量が多い → `search` サブエージェントに委譲
-  (`model-routing` skill 参照)。委譲すればメインの文脈を汚さず安価に回せる。
+- 探索の結論だけ要る(本文ダンプ不要)で量が多く、**かつユーザーが委譲を求めた** →
+  `search` サブエージェントへ渡す(依頼文の書き方は `model-routing` skill 参照)。
+  求められていないのに自分から立てない。
 
 ## 使い方
 
@@ -52,11 +53,17 @@ fastcontext -q "設定ファイルの読み込み経路" --citation
 
 ## フォールバック(fastcontext が使えないとき)
 
-fastcontext が未設定 / 実行不能(`Missing credentials` 等)のときは、広域・意味的な
-探索を次で代替する。fastcontext の不在を理由に全文 Read で抱え込まない。
+黙って代替に落ちない。理由を1行で述べ、原因を切り分けて名指しする。
 
-- Explore サブエージェント(読み取り中心の広域探索)、または Grep/Glob/Read の組み合わせ。
-- 結論だけ要る・量が多いなら `search` サブエージェントへ委譲(`model-routing` skill)。
+- **CLI か認証情報が無い**(command not found、`Missing credentials`):
+  設定不備であり、想定される状態ではない。そう報告して環境を直せるようにする。
+- **それ以外の理由で実行に失敗した**(接続拒否、タイムアウト、エンドポイント停止):
+  設定不備と断定せず、原因未確認の実行失敗として報告する。設定自体は正しいかもしれない。
+
+そのうえで広域・意味的な探索を次で代替して作業は続ける。
+作業を止めず、fastcontext が使えないことを理由に全文 Read で抱え込まない。
+
+- Grep/Glob/Read の組み合わせ。サブエージェントに読ませてよいなら Explore サブエージェント。
 
 ## やらないこと
 
