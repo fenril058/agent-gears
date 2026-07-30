@@ -32,7 +32,8 @@ learning                                   ← AI支援後の理解を深める
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - fast-search: fastcontext で広域・意味的な探索を少ないトークンで行う。
-- model-routing: 機械的・量的な作業をサブエージェントへ回すときの判断基準と依頼文の書き方。委譲は既定の動作ではなく、ユーザーの依頼または従量課金という条件に加えて、ホストの許可が必要。
+- model-routing: 機械的・量的な作業をサブエージェントへ回すときの判断基準と依頼文の書き方。
+  委譲は既定の動作ではなく、ユーザーの依頼または従量課金という条件に加えて、ホストの許可が必要。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 
 後ろ2つは「作業を別のモデル/エージェントに回す」の両輪である。
@@ -357,12 +358,11 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
 - **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
 - **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
-- **モデル委譲**: Claude はメインのモデルを自動切替できないため、委譲するときは
-  `model-routing` skill に従い Task/Agent ツールで行う。
+- **モデル委譲**: Claude はメインのモデルを自動切替できないため、委譲するときは `model-routing` skill に従い Task/Agent ツールで行う。
   委譲は既定の動作ではない。
   依頼されたとき、または従量課金で単価差が効くときに検討し、いずれの場合もホストの指示に従う。
-  Codex も subagent を持つ(`/agent` で確認、定義は `agents_dir` の `*.toml`)ので
-  同じ切り分けが通る。異なるのは定義ファイルの形式と起動手段だけである。
+  Codex も subagent を持つ(`/agent` で確認、定義は `agents_dir` の `*.toml`)ので同じ切り分けが通る。
+  異なるのは定義ファイルの形式と起動手段だけである。
   起動ツールの名前は Codex のビルドによって変わるので、実際の Codex 側から読み取る。
 
 ## 新しい skill を足すとき
