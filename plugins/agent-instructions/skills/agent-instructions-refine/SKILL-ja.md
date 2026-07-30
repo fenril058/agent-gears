@@ -45,7 +45,7 @@ description: CLAUDE.md や AGENTS.md などのエージェント向け指示フ�
 2. **分類**: 各行を上の判定基準で仕分ける — 残す(不変則・広く適用・導けない)/ skill か `@` ファイルへ移す / hook へ転換 / 削除(導ける・陳腐・コード矛盾・重複)。
 3. **書き直し**: 残すものを:
    - 命令形・具体・検証可能(「X を変えたら Y も変える」。「X に気をつける」は不可)。
-   - 未定義語・勝手造語を排除 — [[no-neologism]] を併用。
+   - 未定義語・勝手造語を排除し、確立した術語を使う。
    - 一文一行・段落間は空行。
    - トピックで節分けし、短い見出しを付ける。
    - 強調(IMPORTANT / YOU MUST)は、実際に無視される少数の規則にだけ使う。全部が叫べば何も効かない。
@@ -66,7 +66,8 @@ description: CLAUDE.md や AGENTS.md などのエージェント向け指示フ�
 ## 併用
 
 - `empirical-prompt-tuning` は指示文の実測 QA ループ(operator 起動)。この skill は直接編集の手順 — スリム化後に [[empirical-prompt-tuning]] を回して、まだ機能することを確かめる。
-- 未定義語の点検は [[no-neologism]] に委譲する。
+- 編集中は、未定義語を避ける常時ルールを適用する。
+  用語だけを詳しく監査する必要がある場合に限り [[no-neologism]] を起動する。
 
 Anthropic の "Write an effective CLAUDE.md" の指針に基づく
 (<https://code.claude.com/docs/en/best-practices>)。
