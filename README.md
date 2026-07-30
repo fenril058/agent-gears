@@ -91,9 +91,10 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 - japanese-tech-writing: 日本語の技術文書・書籍原稿の整形・パラグラフライティング・論証の厳密さ・冗長の排除。
 - argument-gap-edit: 論証の筋を点検し、段落を再配置する。
-- no-neologism: 未定義語・勝手な造語を確立した術語へ直す。
+- no-neologism: 未定義語・勝手な造語を確立した術語へ直す、必要時の用語監査。
 
-前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。
+前2つは日本語原稿向け、no-neologism は散文・コード・回答の用語監査を明示的に行うときに使う。
+勝手な造語を避ける原則自体は常時ルールで適用し、通常の執筆だけを理由に no-neologism を起動しない。
 `no-neologism` が扱うのは分野の術語であり、プロジェクト内部の語彙は `project-records` の `domain-modeling` が扱う。
 
 ## 構成

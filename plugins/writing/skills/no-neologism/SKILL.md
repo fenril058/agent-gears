@@ -1,6 +1,6 @@
 ---
 name: no-neologism
-description: Use when checking prose, code, or answers for undefined terms or ad-hoc coinages and fixing them to established terminology. Before giving a concept your own name, confirm whether an accepted term exists in the field; if you must introduce a new term, define it at first use. Apply this alongside writing and revising Japanese technical documents.
+description: Audit terminology in prose, code, or answers and replace undefined terms or ad-hoc coinages with established terminology. Use when the user explicitly requests a terminology audit, when a draft appears to introduce coined or undefined terms, or when choosing among competing technical terms or translations. Do not invoke for ordinary writing merely to enforce the always-on rule against ad-hoc coinages.
 ---
 
 # No Neologism (checking for undefined terms / ad-hoc coinages)

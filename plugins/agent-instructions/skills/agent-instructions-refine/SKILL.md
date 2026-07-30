@@ -43,7 +43,7 @@ If not, cut it. That single question drives every keep/cut decision below.
 2. **Classify** each line with the test above, sorting into: keep (invariant, broad, non-derivable) / move to a skill or `@`-file / convert to a hook / delete (derivable, outdated, contradicted by code, duplicated).
 3. **Rewrite** what stays:
    - Imperative, specific, testable ("when you change X, also change Y" — not "be careful with X").
-   - No undefined terms or ad-hoc coinages — apply [[no-neologism]].
+   - No undefined terms or ad-hoc coinages; use established terminology.
    - One sentence per line; blank line between paragraphs.
    - Group by topic with short headers.
    - Reserve emphasis (IMPORTANT / YOU MUST) for the few rules that actually get
@@ -65,7 +65,8 @@ When unsure, flag it for the user instead of dropping it. A missing safeguard is
 
 - `empirical-prompt-tuning` is the measured QA loop for instruction text (operator-triggered).
   This skill is the direct editing procedure — run [[empirical-prompt-tuning]] afterward to verify the slimmed file still works.
-- Undefined-term checking is delegated to [[no-neologism]].
+- Apply the always-on rule against undefined terms while editing.
+  Invoke [[no-neologism]] only when the task calls for a dedicated terminology audit.
 
 Based on Anthropic's "Write an effective CLAUDE.md" guidance
 (<https://code.claude.com/docs/en/best-practices>).
