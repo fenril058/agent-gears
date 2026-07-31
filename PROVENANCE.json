@@ -15,6 +15,7 @@
       "scope": "plugin",
       "file": "LICENSE",
       "skills": [
+        "codex-consultation",
         "subagent-consultation",
         "sanity-review",
         "library-update-review",

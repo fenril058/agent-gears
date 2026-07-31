@@ -12,10 +12,10 @@
     {
       "name": "context-engineering",
       "source": "context-engineering",
-      "description": "エージェントがどう読み・探し・委譲されるかを設計する skill 群: markdown-context(mdidx で大きな Markdown を部分取得)、fast-search(fastcontext で広域・意味的な探索)、model-routing(機械的な作業を安価モデルへ委譲)、subagent-consultation(判断をサブエージェントのセカンドオピニオンへ)と、委譲先の search / bulk-edit エージェント定義。shokai/agent-skills(MIT)由来を含む。",
-      "version": "0.2.0",
+      "description": "エージェントがどう読み・探し・委譲・相談されるかを設計する skill 群: markdown-context(mdidx で大きな Markdown を部分取得)、fast-search(fastcontext で広域・意味的な探索)、task-delegation(独立した作業の委譲)、subagent-consultation(セカンドオピニオンの進行)、codex-consultation(Claude CodeからCodexへ相談する実行adapter)と、委譲先の search / bulk-edit エージェント定義。shokai/agent-skills(MIT)由来を含む。",
+      "version": "0.3.0",
       "author": { "name": "fenril058" },
-      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent"]
+      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent", "codex"]
     },
     {
       "name": "agent-instructions",

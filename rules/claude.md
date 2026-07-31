@@ -4,6 +4,8 @@
 
 - 委譲を始める前に対象 worktree の絶対パスを確定し、ジョブの完了まで保持する。
 - `codex:codex-rescue` に書き込み作業を委譲するときは、その絶対パスを依頼文の `--cwd` に指定する。
+- reviewや診断でもtest、build、lint、再現commandを実行する可能性があれば、`codex:codex-rescue` に `--write` を指定する。
+- 検証のためのwrite capabilityとtracked source fileの変更許可を区別し、修正を依頼していない場合はsourceを変更しないよう依頼文で制約する。
 - `codex:codex-rescue` は依頼文から `--cwd` を取り除き、`codex-companion.mjs task --cwd <絶対パス>` の runtime option として渡す。
 - Claude セッションの cwd と対象 worktree が同じだと仮定しない。
 
