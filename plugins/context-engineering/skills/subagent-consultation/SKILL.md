@@ -217,17 +217,22 @@ time to the user.
 
 Every consultant is reached through the `Agent` tool, by `subagent_type`:
 
-- **Different family**: `subagent_type: codex:codex-rescue` (Codex / GPT), when the Codex plugin is installed.
-  Give the target worktree's absolute path as `--cwd` in the request text, and read the result back with `/codex:status` and `/codex:result` from that same cwd.
-  A job created with `task --cwd <path>` lives in that workspace's state and cannot be found from another cwd.
-  Do not assume the session's cwd is the target worktree.
+- **Different family**: use `codex-consultation` (Codex / GPT), when that skill and the Codex plugin are installed.
+  This skill owns prompt design and synthesis; `codex-consultation` is only the
+  Codex-specific execution adapter. Supply it with the complete prompt, the target
+  worktree's absolute path, whether tests/builds/diagnostics may be required, whether
+  remote information is required, and whether this is a fresh or continued round.
 - **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`).
   A fresh session with no memory of this conversation.
 
 Do not consult the `bulk-edit` or `search` agents: they are task delegates for bounded work, not consultants responsible for an independent judgment.
 
-For the second round, address `SendMessage` to the consultant's ID or name to continue it with its context intact.
-A fresh `Agent` call starts cold.
+For a same-family consultant, address `SendMessage` to the consultant's ID or name
+for the second round. A fresh `Agent` call starts cold.
+
+For Codex, call `codex-consultation` again as a continuation. It resumes the same
+persistent Codex thread even if Claude invokes a fresh wrapper agent. Send only the
+delta described in section 3.
 
 ### Codex
 

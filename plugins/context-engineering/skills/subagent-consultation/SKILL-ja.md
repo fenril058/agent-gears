@@ -190,18 +190,23 @@ subagentが何らかの失敗をしたパターンを認識したら、次回以
 
 相談先はすべて `Agent` ツールの `subagent_type` で指定して呼ぶ:
 
-- **別ファミリ**: `subagent_type: codex:codex-rescue`(Codex / GPT)。Codex plugin が導入されている場合に使える。
-  対象 worktree の絶対パスを依頼文の `--cwd` に指定し、結果は同じ cwd から `/codex:status` と `/codex:result` で受け取る。
-  `task --cwd <path>` で作ったジョブはその workspace の state に保存され、別の cwd からは検索できない。
-  セッションの cwd が対象 worktree と同じだと仮定しないこと。
+- **別ファミリ**: `codex-consultation` skillとCodex pluginが導入されている場合、
+  `codex-consultation` を使う(Codex / GPT)。
+  prompt設計と回答の統合はこのskillが担当し、`codex-consultation` はCodex固有の実行だけを担当する。
+  完結したprompt、対象worktreeの絶対path、test/build/診断が必要になり得るか、remote情報が必要か、
+  新規roundか継続roundかを渡す。
 - **同ファミリ**: `subagent_type: general-purpose` に `model: opus`(または `fable`)。
   この会話の記憶を持たない新しいセッションになる。
 
 `bulk-edit` / `search` agent には相談しない。
 両者は範囲の定まった作業の委譲先であり、独立した判断を担う相談先ではない。
 
-2往復目は、相談先の ID か名前を指定した `SendMessage` で同じ相談先を継続する。
-`Agent` を呼び直すと cold start になる。
+同ファミリの相談先では、2往復目は相談先のIDか名前を指定した `SendMessage` で継続する。
+`Agent` を呼び直すとcold startになる。
+
+Codexでは、`codex-consultation` を継続として再度呼ぶ。
+Claude側で新しいwrapper agentを呼んでも、同じpersistent Codex threadをresumeする。
+セクション3で定めた差分だけを送る。
 
 ### Codex
 

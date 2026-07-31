@@ -35,6 +35,7 @@ learning                                   ← AI支援後の理解を深める
 - task-delegation: タスクの独立性に基づく委譲の判断基準と依頼文の書き方。
   委譲の可否はホストの指示に従い、モデル価格だけで決めない。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
+- codex-consultation: Claude CodeでCodexを相談先に選んだときのpersistent thread、権限、結果回収を扱う実行adapter。
 
 後ろ2つは目的が異なる。
 task-delegation は範囲の定まった作業の委譲を扱い、subagent-consultation は独立した判断を求める相談を扱う。
@@ -110,6 +111,7 @@ plugins/
       fast-search/       fastcontext での広域・意味的探索
       task-delegation/   タスクの独立性に基づく委譲ポリシー
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
+      codex-consultation/  Claude CodeからCodexへ相談する実行adapter
     agents/
       search.md          コードベース探索・調査(Sonnet)
       bulk-edit.md       機械的・反復的な編集
@@ -218,16 +220,16 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
 - **writing**(`japanese-tech-writing` / `argument-gap-edit`):
   - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。
   - ライセンスは[実質 public domain](https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d571a936063)。
-- **shokai/agent-skills 由来**(`context-engineering` の `subagent-consultation`、`code-review` の `sanity-review` / `library-update-review` / `codepatrol`、`critique` の `unconventional-simplification`、`project-records` の `conversation-context-export` / `conversation-context-import`):
+- **shokai/agent-skills 由来**(`context-engineering` の `subagent-consultation` / `codex-consultation`、`code-review` の `sanity-review` / `library-update-review` / `codepatrol`、`critique` の `unconventional-simplification`、`project-records` の `conversation-context-export` / `conversation-context-import`):
   - [shokai/agent-skills](https://github.com/shokai/agent-skills) 由来。
     - ライセンスは **MIT**。該当 skill を持つ plugin それぞれの `LICENSE` に複製してある。
     - 英語化のうえ取り込んだ。
-    - upstream の `codex-consultation`(Codex CLI 相談)は取り込んでいない。
-      Codex は独立した skill ではなく `subagent-consultation` が選ぶ相談先の一つとして扱う(Claude Code では `subagent_type: codex:codex-rescue`)。
-      相談プロトコルを二重に持たずに済み、呼び出し側は相談先を知らなくてよい。
+    - `subagent-consultation` は相談の設計・往復判断・回答統合を担当する。
+      `codex-consultation` は、Claude CodeでCodexを選んだ場合のpersistent thread、sandbox capability、cwd、結果回収だけを担当する実行adapterとして取り込んだ。
+      呼び出し側は引き続き `subagent-consultation` だけを呼び、相談先を知らなくてよい。
     - `sanity-review` の外部 Agent 相談は `subagent-consultation` →(失敗時)main 単独の 2 段フォールバックに書き換えてある。
       相談先の種類(別モデルファミリか同ファミリか)は手順ごとに `Args:` で指定する。
-    - `unconventional-simplification` / `codepatrol` の外部 Agent 相談も `codex-consultation` を外し `subagent-consultation` に書き換えてある。
+    - `unconventional-simplification` / `codepatrol` の外部Agent相談は `subagent-consultation` を呼ぶ。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
 - **mattpocock/skills 由来**:
   - `critique` の `grilling`。
