@@ -86,6 +86,19 @@ If the rescue agent starts a background job, retrieve it from the same cwd with
 `/codex:status` and `/codex:result`. Do not treat a successful enqueue operation as
 the consultation answer.
 
+## Handle timeouts
+
+For a bounded foreground consultation, give the rescue agent's Bash invocation a
+timeout of at least 900 seconds when the host supports tool-call timeouts.
+
+Use background execution from the start for repository-wide investigation,
+substantial tests or builds, or any consultation likely to exceed that bound.
+
+If a foreground invocation times out, do not immediately start another Codex task.
+First query `/codex:status` from the same cwd. Retrieve the existing result if the
+job completed, or continue waiting if it is still running. Retry only when no job
+exists or the existing job definitively failed.
+
 ## Continue the same Codex consultant
 
 For a second round, invoke the rescue agent with `--resume` from the same absolute
