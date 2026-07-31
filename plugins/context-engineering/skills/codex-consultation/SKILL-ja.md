@@ -80,6 +80,19 @@ rescue agentがbackground jobを開始した場合、同じcwdから `/codex:sta
 `/codex:result` で結果を取得する。
 enqueueの成功を相談回答として扱わない。
 
+## timeoutの処理
+
+範囲の定まったforeground相談では、hostがtool callのtimeoutを指定できる場合、
+rescue agentのBash呼び出しに900秒以上のtimeoutを設定する。
+
+repository全体の調査、大規模なtestやbuild、または900秒を超える可能性がある相談は、
+最初からbackgroundで実行する。
+
+foreground呼び出しがtimeoutしても、すぐに別のCodex taskを開始しない。
+まず同じcwdから `/codex:status` を確認する。
+既存jobが完了していれば結果を取得し、実行中なら待機を続ける。
+jobが存在しないか、既存jobが明確に失敗した場合だけ再実行する。
+
 ## 同じCodex相談先の継続
 
 2往復目は、同じ絶対cwdからrescue agentを `--resume` 付きで呼ぶ。
