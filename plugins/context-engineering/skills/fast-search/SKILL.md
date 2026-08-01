@@ -56,6 +56,15 @@ fastcontext -q "the load path of the config file" --citation
 
 Use `--max-turns N` to bound a long search, `--verbose` to trace behavior.
 
+### Long-running commands
+
+`fastcontext` may spend more than 30 seconds running local-model inference.
+If the execution tool indicates that the process is still running, do not interpret
+empty output as an empty search result.
+Use the tool's continuation or polling mechanism until it reports completion.
+While the command remains active, report progress to the user at least once every 60
+seconds.
+
 ## Fallback (when fastcontext is unavailable)
 
 Don't fall back silently — say in one line why, and name the cause precisely:
