@@ -14,7 +14,7 @@
 - 大きな Markdown を理由なく全文読みしない。
   索引から必要な節だけ取る(`markdown-context` skill / `mdidx`)。
 - 自然言語でしか表せない未知の挙動・症状から、複数領域にまたがる候補箇所を絞る場合だけ
-  `fastcontext`(`fast-search` skill)を使う。
+  `fastcontext`(`locate-implementation` skill)を使う。
   既知ファイル・既知シンボル・小規模探索・設計判断・issue の優先順位づけには使わない。
 
 ## 検証

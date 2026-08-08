@@ -1,5 +1,5 @@
 ---
-name: fast-search
+name: locate-implementation
 description: 自然言語で示された具体的な挙動や症状について、リポジトリ固有の用語・シンボル・パスが不明で、実装が複数の領域にまたがると見込まれるときに、候補ファイルと行範囲を特定する。この限定的なコード位置探索にだけ fastcontext を使う。既知ファイル・既知シンボル・小規模な探索・アーキテクチャや設計の分析・issue の優先順位づけ・リポジトリ外の根拠が必要な問いには使わない。
 compatibility: >-
   fastcontext CLI が PATH に必要で、OpenAI 互換 API(環境変数 FC_API_KEY / FC_MODEL / FC_BASE_URL。旧名も利用可)も要る。
@@ -8,7 +8,7 @@ compatibility: >-
   入手は https://github.com/microsoft/fastcontext
 ---
 
-# Fast Search (fastcontext)
+# Locate Implementation (fastcontext)
 
 `fastcontext` を、読み取り専用かつ時間を制限したコード位置探索に使う。
 メインエージェントが確認する候補ファイルと行範囲だけを返させ、設計や最終判断を委ねない。

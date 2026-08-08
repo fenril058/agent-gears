@@ -1,5 +1,5 @@
 ---
-name: fast-search
+name: locate-implementation
 description: Locate candidate implementation files and line ranges for a concrete behavior or symptom described in natural language when the repository terminology, symbols, and paths are unknown and the code likely spans multiple subsystems. Use fastcontext only for this bounded repository-location task. Do not use it for known files or symbols, small searches, architecture or design analysis, issue prioritization, or questions requiring non-repository evidence.
 compatibility: >-
   Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars FC_API_KEY, FC_MODEL, FC_BASE_URL; legacy names are also supported).
@@ -7,7 +7,7 @@ compatibility: >-
   Install from https://github.com/microsoft/fastcontext.
 ---
 
-# Fast Search (fastcontext)
+# Locate Implementation (fastcontext)
 
 Use `fastcontext` as a bounded, read-only locator.
 Return candidate files and line ranges for the main agent to verify; do not delegate design or final judgment to it.

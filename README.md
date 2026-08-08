@@ -31,7 +31,7 @@ learning                                   ← AI支援後の理解を深める
 独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
-- fast-search: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
+- locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - task-delegation: タスクの独立性に基づく委譲の判断基準と依頼文の書き方。
   委譲の可否はホストの指示に従い、モデル価格だけで決めない。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
@@ -108,7 +108,7 @@ plugins/
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
-      fast-search/       fastcontext で未知の挙動・症状の候補箇所を絞る
+      locate-implementation/  fastcontext で未知の挙動・症状の候補箇所を絞る
       task-delegation/   タスクの独立性に基づく委譲ポリシー
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
       codex-consultation/  Claude CodeからCodexへ相談する実行adapter
@@ -256,14 +256,14 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
 - **yasunori0418/skills 由来**(`learning` の `navigating` / `quizzing` / `tutoring`):
   - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
   - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
-  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `fast-search` / `markdown-context` を使う記述へ変更した。
+  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `locate-implementation` / `markdown-context` を使う記述へ変更した。
 
 ## 前提ツール
 
 - [fastcontext](https://github.com/microsoft/fastcontext) — 未知の挙動・症状に関係する候補箇所の探索。
   - OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` / `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。
   - 鍵はコミットせず各自設定する。
-  - 未設定時は `fast-search` skill のフォールバック(Explore / Grep+Read)で代替。
+  - 未設定時は `locate-implementation` skill のフォールバック(Explore / Grep+Read)で代替。
 - mdidx — Markdown を索引+節に変換。本リポジトリ同梱の Go 実装。
   - [oubakiou/md2idx](https://github.com/oubakiou/md2idx)(MIT)の忠実な再実装で、出力はバイト互換。Node ランタイム/npm 依存を持たない単一バイナリ。
   - 導入は次のいずれか。いずれも Nix が prebuilt の Go コンパイラを store に取得してビルドするため、システムへ go を入れる必要はない。
