@@ -1,6 +1,6 @@
 ---
 name: fast-search
-description: Use when you need broad, semantic search over a codebase ("where is X done", "how is this feature implemented"). For semantic questions that span multiple files — not simple string matches or references to a known file — answer them in few steps with fastcontext.
+description: Locate candidate implementation files and line ranges for a concrete behavior or symptom described in natural language when the repository terminology, symbols, and paths are unknown and the code likely spans multiple subsystems. Use fastcontext only for this bounded repository-location task. Do not use it for known files or symbols, small searches, architecture or design analysis, issue prioritization, or questions requiring non-repository evidence.
 compatibility: >-
   Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars FC_API_KEY, FC_MODEL, FC_BASE_URL; legacy names are also supported).
   Neither is bundled with the skill; if either is missing, report it as a setup gap and then fall back to Grep/Read.
@@ -9,80 +9,94 @@ compatibility: >-
 
 # Fast Search (fastcontext)
 
-Answer broad "where / what" questions with `fastcontext` instead of brute-force
-full-text Grep. For semantic questions, find the relevant spots in few steps.
+Use `fastcontext` as a bounded, read-only locator.
+Return candidate files and line ranges for the main agent to verify; do not delegate design or final judgment to it.
 
-## Prerequisites (one-time setup)
+## Eligibility gate
 
-The `fastcontext` CLI is not bundled with this skill. Install it from
-[microsoft/fastcontext](https://github.com/microsoft/fastcontext); if it isn't on PATH,
-use the "Fallback" below.
+Run `fastcontext` only when all of these are true:
 
-fastcontext is backed by an OpenAI-compatible API. It reads the following environment
-variables. The `FC_` names are preferred; the names in parentheses are legacy
-fallbacks.
+- The request names a concrete behavior, failure symptom, or execution path in natural language.
+- Repository-specific identifiers, symbols, and paths are not yet known, and one or two targeted Grep searches are unlikely to locate the path.
+- The implementation likely crosses multiple files or subsystems.
+- The useful result is a compact list of candidate files and line ranges.
+- The repository is large or unfamiliar enough that delegated exploration can keep substantial intermediate reads out of the main context.
 
-- `FC_API_KEY` (`API_KEY`): key for the OpenAI-compatible endpoint
-- `FC_MODEL` (`MODEL`): the model name to use
-- `FC_BASE_URL` (`BASE_URL`): the endpoint URL
+Otherwise use Grep, Glob, and direct reads.
 
-Set the key in your own environment (don't commit it, don't put it in the nix store).
-For Ollama's OpenAI-compatible API, use a non-empty dummy key and a base URL such as
-`http://localhost:11434/v1`.
+Never use `fastcontext` for:
 
-Check availability by actually running `fastcontext -q "test" --max-turns 1` instead
-of inferring it only from legacy environment-variable names. If the command reports
-missing credentials, connection failure, or is otherwise not runnable, follow
-"Fallback" below.
+- a known file, symbol, error string, or other exact search term;
+- architecture mapping, design evaluation, feasibility analysis, or issue prioritization;
+- repository-wide status or quality assessment;
+- questions that depend on issues, web pages, runtime state, logs, or other non-repository evidence;
+- a small repository or a question answerable in one or two direct search/read steps.
 
-## When to use which
+## Setup
 
-- Known file / simple string or symbol match → **Grep / Read** (don't use fastcontext).
-- Semantic questions that span multiple files, like "where do we authenticate?" or
-  "how is this config loaded?" → **fastcontext**.
-- You only need the conclusion of the search (no body dump), there's a lot of it, **and delegation is authorized under the `task-delegation` policy** → hand it to the `search` subagent (see that skill for the brief).
+`fastcontext` uses an OpenAI-compatible API and reads these variables, preferring the `FC_` names:
 
-## How to use
+- `FC_API_KEY` (`API_KEY`)
+- `FC_MODEL` (`MODEL`)
+- `FC_BASE_URL` (`BASE_URL`)
+
+Keep credentials outside the repository and the Nix store.
+For Ollama, use a non-empty dummy key and a base URL such as `http://localhost:11434/v1`.
+
+During initial setup, verify the real endpoint once with `fastcontext -q "test" --max-turns 1`.
+Do not repeat this probe before normal searches, and never start it while another `fastcontext` process is running.
+
+## Query narrowly
+
+Name the behavior, boundary, or symptom and ask only for candidate locations.
+Use `--citation` and default to `--max-turns 1`.
 
 ```bash
-fastcontext -q "where is the auth token validated"
+fastcontext -q "Trace an edit rejected with HTTP 409 from the client request through conflict recovery, including its tests." --citation --max-turns 1
 ```
 
-When you only want the citations (file / location):
+Do not ask it to map a whole architecture, rank work, or recommend a design.
 
-```bash
-fastcontext -q "the load path of the config file" --citation
+## Enforce a wall-clock budget
+
+Give the search at most 90 seconds of wall-clock time.
+`--max-turns` bounds agent turns, not elapsed time.
+Use the execution environment's continuation and termination mechanisms; after the budget, stop the process and use the fallback.
+
+Preserve the complete execution result until the process finishes:
+
+- If the runner returns a continuation or session handle, retain and surface it; never project only stdout and discard the handle.
+- Poll the handle until an exit status arrives or the 90-second budget expires.
+- Do not interpret empty stdout as an empty search result while a handle says the process is still running.
+- Report "no results" only after a successful completed process returns empty output.
+- Do not run multiple `fastcontext` processes concurrently against the same local model.
+
+For Codex wrappers, emit the continuation handle as well as stdout:
+
+```javascript
+text(result.output);
+if (result.session_id) text(`SESSION_ID=${result.session_id}`);
 ```
 
-Use `--max-turns N` to bound a long search, `--verbose` to trace behavior.
+If the process remains active near 60 seconds, give the user a brief progress update.
 
-### Long-running commands
+## Verify and return
 
-`fastcontext` may spend more than 30 seconds running local-model inference.
-If the execution tool indicates that the process is still running, do not interpret
-empty output as an empty search result.
-Use the tool's continuation or polling mechanism until it reports completion.
-While the command remains active, report progress to the user at least once every 60
-seconds.
+Read the cited files before relying on the result.
+Return only:
 
-## Fallback (when fastcontext is unavailable)
+- the candidate implementation path or behavior summary;
+- supporting `path:line` citations;
+- a short note about gaps or uncertain candidates.
 
-Don't fall back silently — say in one line why, and name the cause precisely:
+## Fallback
 
-- **The CLI or the credentials are absent** (command not found, `Missing credentials`):
-  a setup gap, not an expected state.
-  Report it as such, so the user can fix the environment.
-- **The run failed for some other reason** (connection refused, timeout, an endpoint that's down):
-  report it as an unconfirmed failure, not as a misconfiguration.
-  The setup may well be fine.
+State the reason in one line, then continue with targeted Grep, Glob, and reads.
+Use an Explore subagent only when delegation is authorized.
 
-Then substitute the broad, semantic search with the following and carry on.
-Don't block the task, and don't hoard everything via full-text Read just because fastcontext is unavailable.
+Distinguish these cases:
 
-- A combination of Grep/Glob/Read, or the Explore subagent when delegation is authorized under the `task-delegation` policy.
-
-## Don't
-
-- Don't run fastcontext for a question that's answered by reading a single file.
-- Don't take fastcontext's results at face value; before editing, actually Read the
-  relevant file to confirm.
+- Missing CLI or credentials: report a setup gap.
+- Connection refusal or endpoint failure: report an unconfirmed execution failure, not a configuration conclusion.
+- More than 90 seconds: report that the search exceeded its wall-clock budget.
+- Completed with no output: report an empty result only after confirming successful completion.

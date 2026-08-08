@@ -31,7 +31,7 @@ learning                                   ← AI支援後の理解を深める
 独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
-- fast-search: fastcontext で広域・意味的な探索を少ないトークンで行う。
+- fast-search: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - task-delegation: タスクの独立性に基づく委譲の判断基準と依頼文の書き方。
   委譲の可否はホストの指示に従い、モデル価格だけで決めない。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
@@ -108,7 +108,7 @@ plugins/
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
-      fast-search/       fastcontext での広域・意味的探索
+      fast-search/       fastcontext で未知の挙動・症状の候補箇所を絞る
       task-delegation/   タスクの独立性に基づく委譲ポリシー
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
       codex-consultation/  Claude CodeからCodexへ相談する実行adapter
@@ -260,7 +260,7 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
 
 ## 前提ツール
 
-- [fastcontext](https://github.com/microsoft/fastcontext) — 広域・意味的探索。
+- [fastcontext](https://github.com/microsoft/fastcontext) — 未知の挙動・症状に関係する候補箇所の探索。
   - OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` / `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。
   - 鍵はコミットせず各自設定する。
   - 未設定時は `fast-search` skill のフォールバック(Explore / Grep+Read)で代替。
