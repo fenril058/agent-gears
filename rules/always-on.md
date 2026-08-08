@@ -13,8 +13,9 @@
 
 - 大きな Markdown を理由なく全文読みしない。
   索引から必要な節だけ取る(`markdown-context` skill / `mdidx`)。
-- コードベースの広域・意味的な探索は全文 Grep の総当たりでなく `fastcontext`(`fast-search` skill)。
-  既知ファイルや単純な文字列・シンボル一致など、1〜2手の Grep で答えが出るものは除く。
+- 自然言語でしか表せない未知の挙動・症状から、複数領域にまたがる候補箇所を絞る場合だけ
+  `fastcontext`(`locate-implementation` skill)を使う。
+  既知ファイル・既知シンボル・小規模探索・設計判断・issue の優先順位づけには使わない。
 
 ## 検証
 

@@ -151,7 +151,7 @@ In environments where dispatching a new subagent is not possible (already runnin
 
 ### A stuck Execution phase has two causes — separate them
 
-Skills like `fast-search` and `markdown-context` assume real tools run (`mdidx`,
+Skills like `locate-implementation` and `markdown-context` assume real tools run (`mdidx`,
 `fastcontext`, `mq`, web fetches, external CLIs). When Execution comes back stuck, always
 diagnose which of these it is:
 
@@ -175,7 +175,7 @@ On detecting that it cannot run, mark the axis "unevaluated: environment not set
 prompt the user to set it up. For example:
 
 ```
-fast-search's Execution axis needs fastcontext to run, but this environment
+locate-implementation's Execution axis needs fastcontext to run, but this environment
 has no API key configured, so it cannot.
 → Axis unevaluated. Configure fastcontext and re-run.
 ```

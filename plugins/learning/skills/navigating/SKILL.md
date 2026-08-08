@@ -13,7 +13,7 @@ Let the user do the reading; never explain code they have not read yet.
 
 First investigate the scope.
 Read a small scope, such as a recent diff or plan, directly.
-For broad semantic exploration across a large or unfamiliar codebase, use `fast-search`.
+Use `locate-implementation` only to find candidate files and line ranges for a concrete behavior or symptom when repository identifiers are unknown and the implementation likely spans multiple subsystems.
 For large Markdown documents, use `markdown-context`.
 Use the appropriate browsing tools for external documentation.
 

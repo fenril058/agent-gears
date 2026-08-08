@@ -151,7 +151,7 @@ semantic が ○ で surface が × のときは **判定文言(surface 側)を�
 
 ### Execution の stuck は 2 種類 — 実行できるなら実行させる
 
-`fast-search` / `markdown-context` は実ツール(`mdidx` / `fastcontext` / `mq`、Web 取得、
+`locate-implementation` / `markdown-context` は実ツール(`mdidx` / `fastcontext` / `mq`、Web 取得、
 外部 CLI)の実行を前提にする。評価で Execution が stuck になったら、原因を必ず切り分ける。
 
 - **環境起因**(ツールが無い・API キー未設定・ネットワーク禁止)→ **false signal**。
@@ -170,7 +170,7 @@ semantic が ○ で surface が × のときは **判定文言(surface 側)を�
 実行不能を検出したら、当該軸を「環境未整備で未評価」と明示し、ユーザーに環境整備を促す。例:
 
 ```
-fast-search の Execution 軸は fastcontext の実行が必要だが、
+locate-implementation の Execution 軸は fastcontext の実行が必要だが、
 この環境では API_KEY 未設定で動かせない。
 → この軸は未評価。fastcontext を設定して再実行してほしい。
 ```
