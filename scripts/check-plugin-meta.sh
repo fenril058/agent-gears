@@ -24,11 +24,24 @@ if [ "$mp_names" != "$fs_names" ]; then
 fi
 
 # 各プラグインの name / version / keywords 一致。source からディレクトリを引く。
+# source の相対パスは marketplace のルート(このリポジトリのルート)基準で解決される。
+# Claude Code の schema は "./" 始まりの相対パスしか受け付けない(z.string().startsWith("./"))。
+# "./" が無いと一覧表示は通るのに plugin install が
+# `This plugin's marketplace entry is invalid: source: Invalid input` で落ちる。
+# metadata.pluginRoot は schema にはあるが解決時に使われないので、source に plugins/ を含める。
 n="$(jq '.plugins | length' "$mp")"
 for i in $(seq 0 $((n - 1))); do
   name="$(jq -r ".plugins[$i].name" "$mp")"
   src="$(jq -r ".plugins[$i].source" "$mp")"
-  pj="plugins/$src/.claude-plugin/plugin.json"
+  case "$src" in
+  ./*) ;;
+  *)
+    echo "NG: $name の source は \"./\" 始まりの相対パスである必要がある(source=$src)" >&2
+    fail=1
+    continue
+    ;;
+  esac
+  pj="$src/.claude-plugin/plugin.json"
   if [ ! -f "$pj" ]; then
     echo "NG: $pj が無い(marketplace source=$src)" >&2
     fail=1

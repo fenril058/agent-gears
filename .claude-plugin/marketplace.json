@@ -5,13 +5,10 @@
     "email": "fenril.nh@gmail.com"
   },
   "description": "トークン削減と効率的なエージェント運用のための skill / agent 群(Claude Code・Codex 共用)",
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
   "plugins": [
     {
       "name": "context-engineering",
-      "source": "context-engineering",
+      "source": "./plugins/context-engineering",
       "description": "エージェントがどう読み・探し・委譲・相談されるかを設計する skill 群: markdown-context(mdidx で大きな Markdown を部分取得)、locate-implementation(未知の挙動・症状から候補箇所を限定探索)、task-delegation(独立した作業の委譲)、subagent-consultation(セカンドオピニオンの進行)、codex-consultation(Claude CodeからCodexへ相談する実行adapter)と、委譲先の search / bulk-edit エージェント定義。shokai/agent-skills(MIT)由来を含む。",
       "version": "0.3.0",
       "author": { "name": "fenril058" },
@@ -19,7 +16,7 @@
     },
     {
       "name": "agent-instructions",
-      "source": "agent-instructions",
+      "source": "./plugins/agent-instructions",
       "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(バイアスを排した実行者に実際に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する)。対で回す。mizchi/skills(MIT)由来を含む。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
@@ -27,7 +24,7 @@
     },
     {
       "name": "critique",
-      "source": "critique",
+      "source": "./plugins/critique",
       "description": "決める前に手持ちの案を叩く skill 群: grilling(一問ずつ推奨案付きの意思決定インタビュー)、spec-ambiguity-audit(安価モデルの素読みによる仕様書の穴の監査)、unconventional-simplification(暗黙の前提を1つずつ外してシンプルな別解を探す)。計画・仕様・実装のいずれにも当てる。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
@@ -35,7 +32,7 @@
     },
     {
       "name": "writing",
-      "source": "writing",
+      "source": "./plugins/writing",
       "description": "文章の規範 skill 群: japanese-tech-writing(日本語技術文書の整形・パラグラフライティング・論証の厳密さ・冗長排除)、argument-gap-edit(論証の筋の点検と段落の再配置)、no-neologism(未定義語・勝手な造語を確立した術語へ直す)。前2つは日本語原稿向け、no-neologism は散文・コード・回答に共通で当てる。k16shikano の gist(public domain)由来を含む。",
       "version": "0.2.0",
       "author": { "name": "fenril058" },
@@ -43,7 +40,7 @@
     },
     {
       "name": "project-records",
-      "source": "project-records",
+      "source": "./plugins/project-records",
       "description": "会話で決まったことを寿命ごとに記録する skill 群。区別は置き場所ではなく更新モデルである: conversation-context-export/import(揮発層: ブランチごとに再生成し commit しない、`.dev/contexts/` + PR コメント)、domain-modeling(記録層: 追記と supersede、`CONTEXT.md` と ADR をコードと一緒に commit)、durable-knowledge-export(永続層: 常に現在状態の living page を GitHub wiki / knowledge リポジトリへ)。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
@@ -51,7 +48,7 @@
     },
     {
       "name": "code-review",
-      "source": "code-review",
+      "source": "./plugins/code-review",
       "description": "出来上がったものを検めるレビュー skill 群: sanity-review(対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書)、library-update-review(依存更新 PR のリリースノート分析と過去障害調査)、codepatrol(領域ごとに継続するセキュリティ調査)。shokai/agent-skills(MIT)由来。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
@@ -59,7 +56,7 @@
     },
     {
       "name": "learning",
-      "source": "learning",
+      "source": "./plugins/learning",
       "description": "AI支援で生じた理解不足を解消する skill 群: navigating(ユーザー自身が読むコード案内)、quizzing(一問ずつ行う理解確認)、tutoring(理解度に応じた段階的な個別指導)。yasunori0418/skills(MIT)由来。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },

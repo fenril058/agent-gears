@@ -15,6 +15,10 @@
 - plugin の `name`/`version`/`keywords` は `marketplace.json` と各 `plugin.json` に重複。
   一致は CI の `scripts/check-plugin-meta.sh` が検証する。
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
+  `marketplace.json` の `source` は `"./plugins/<name>"` 形式で書く。
+  Claude Code は `"./"` 始まりの相対パスしか受け付けず、`"<name>"` だと一覧表示は通るのに
+  `plugin install` が `source: Invalid input` で落ちる。
+  `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
