@@ -20,6 +20,14 @@
   `plugin install` が `source: Invalid input` で落ちる。
   `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
+- skill の eval corpus は `plugins/<plugin>/skills/<skill>/evals/cases.json`。
+  形式定義は `agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md` ただ1つ。
+  CI の `scripts/check-evals.sh` が schema・`[critical]` の存在・結果ファイルの
+  success/accuracy の検算まで見る(未知フィールドは失格)。
+  case id と requirement id は既存の結果から参照されるのでリネームしない。text だけ直す。
+  host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
+  `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
+  LLM を呼ぶ評価自体は CI に入れない。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。
