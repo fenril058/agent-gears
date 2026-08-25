@@ -15,6 +15,11 @@
 # 未知フィールドは失格にする。これは厳しさのためではなく、host/model をまたいだ
 # 総合スコアのような集約フィールドが schema の議論を経ずに紛れ込むのを防ぐため。
 #
+# 結果ファイルを検証するときは、参照先 corpus も併せて検証する。corpus を信用して
+# しまうと、[critical] が1つも無い corpus を指した run で「全要件 fail なのに
+# success=true」が合格する(空虚な真)。この不変条件がこの検証の存在理由なので、
+# 参照先を検証しない経路を残さない。
+#
 # 使い方:
 #   bash scripts/check-evals.sh                  # plugins/ 配下の cases.json を全部
 #   bash scripts/check-evals.sh <file>...        # 指定ファイル(.schema で振り分け)
@@ -77,11 +82,12 @@ read -r -d '' JQ_CASES <<'JQ' || true
   unknown("$"; ["schema", "skill", "notes", "cases"]),
   (if .schema != $schema then ["$.schema: must be \"\($schema)\""] else [] end),
   str("$"; .; "skill"),
-  (if (.skill | type) == "string" and .skill != $dir
+  (if $dir != "" and (.skill | type) == "string" and .skill != $dir
    then ["$.skill: \"\(.skill)\" does not match the skill directory \"\($dir)\""] else [] end),
   optstr("$"; .; "notes"),
   (if (.cases | type) != "array" then ["$.cases: must be an array"]
-   elif (.cases | length) == 0 then ["$.cases: must not be empty"]
+   elif (.cases | length) < 2
+   then ["$.cases: needs at least 2 scenarios (SKILL.md: \"One scenario overfits. Minimum 2, ideally 3.\")"]
    else [
      dups("$.cases"; [.cases[].id | select(type == "string")]; "case id"),
      (.cases | to_entries | map(
@@ -96,7 +102,8 @@ read -r -d '' JQ_CASES <<'JQ' || true
          optstr($p; $c; "notes"),
          strArray($p; $c; "tags"),
          (if ($c.requirements | type) != "array" then ["\($p).requirements: must be an array"]
-          elif ($c.requirements | length) == 0 then ["\($p).requirements: must not be empty"]
+          elif ($c.requirements | length) < 3 or ($c.requirements | length) > 7
+          then ["\($p).requirements: must hold 3 to 7 items (SKILL.md, Baseline preparation), found \($c.requirements | length)"]
           else [
             dups("\($p).requirements"; [$c.requirements[].id | select(type == "string")]; "requirement id"),
             (if [$c.requirements[] | select(.critical == true)] | length == 0
@@ -132,6 +139,10 @@ read -r -d '' JQ_RUN <<'JQ' || true
   optstr("$"; .; "started_at"),
   optstr("$"; .; "notes"),
 
+  # eval-render.sh --result-stub の未記入マーカー。埋めないまま合格させない。
+  ([paths(strings) as $q | select(getpath($q) == "REPLACE-ME")
+    | "$." + ($q | map(tostring) | join(".")) + ": still the REPLACE-ME placeholder from --result-stub"]),
+
   obj("$"; .; "corpus"),
   (if (.corpus | type) == "object" then
     [ (.corpus | unknown("$.corpus"; ["skill", "path", "digest"])),
@@ -148,7 +159,7 @@ read -r -d '' JQ_RUN <<'JQ' || true
   (if (.host | type) == "object" then
     [ (.host | unknown("$.host"; ["id", "model", "version"])),
       str("$.host"; .host; "id"),
-      optstr("$.host"; .host; "model"),
+      str("$.host"; .host; "model"),
       optstr("$.host"; .host; "version")
     ] | flatten else [] end),
 
@@ -194,8 +205,9 @@ read -r -d '' JQ_RUN <<'JQ' || true
          (if ($t | has("token_usage") | not) then []
           elif ($t.token_usage | type) != "object" then ["\($p).token_usage: must be an object"]
           else [ ($t.token_usage | unknown("\($p).token_usage"; ["input", "output", "cache_read", "cache_write", "total"])),
-                 [ $t.token_usage | to_entries[] | select((.value | type) != "number")
-                   | "\($p).token_usage.\(.key): must be a number" ] ] | flatten end),
+                 [ $t.token_usage | to_entries[]
+                   | select((.value | type) != "number" or (.value | floor) != .value or .value < 0)
+                   | "\($p).token_usage.\(.key): must be a non-negative integer" ] ] | flatten end),
          (if ($t | has("issues") | not) then []
           elif ($t.issues | type) != "array" then ["\($p).issues: must be an array"]
           else ($t.issues | to_entries | map(
@@ -265,7 +277,12 @@ report() { # report <file> <errors-json>
 check_cases() {
   local file="$1" dir errs
   # plugins/<plugin>/skills/<skill>/evals/cases.json の <skill>。
-  dir="$(basename "$(dirname "$(dirname "$file")")")"
+  # 正規レイアウト上のファイルでないと <skill> を名乗れないので、そのときだけ
+  # 突き合わせる(temp ディレクトリ等から検証したときの偽陽性を出さない)。
+  dir=""
+  case "$file" in
+  */skills/*/evals/cases.json) dir="$(basename "$(dirname "$(dirname "$file")")")" ;;
+  esac
   errs="$(jq -c --arg schema "$CASES_SCHEMA" --arg dir "$dir" "$JQ_LIB $JQ_CASES" "$file")"
   report "$file" "$errs"
   # surface パターンは ERE。コンパイルできないものはここで落とす(grep は
@@ -283,12 +300,21 @@ check_cases() {
 }
 
 check_run() {
-  local file="$1" corpus digest errs
+  local file="$1" corpus digest errs before
   corpus="$(jq -r '.corpus.path // empty' "$file")"
   if [ -z "$corpus" ] || [ ! -f "$corpus" ]; then
     echo "NG: $file" >&2
     echo "  - \$.corpus.path: \"${corpus:-<missing>}\" does not resolve to a corpus file (results cannot be validated without it)" >&2
     fail=1
+    return 0
+  fi
+  # 参照先 corpus を先に検証する。ここを飛ばすと [critical] が1つも無い corpus を
+  # 指すことで success の判定を空虚に真にできる。
+  before="$fail"
+  check_cases "$corpus"
+  n_corpus=$((n_corpus - 1)) # run の巻き添えで corpus を二重に数えない
+  if [ "$fail" != "$before" ]; then
+    echo "  ^ the corpus referenced by $file is invalid; its results are not trustworthy" >&2
     return 0
   fi
   digest="sha256:$(sha256sum "$corpus" | cut -d' ' -f1)"
@@ -325,16 +351,29 @@ check_file() {
 if [ "$#" -gt 0 ]; then
   for f in "$@"; do
     if [ ! -f "$f" ]; then
-      echo "NG: $f が無い" >&2
+      echo "NG: $f does not exist" >&2
       fail=1
       continue
     fi
     check_file "$f"
   done
 else
+  # evals/ の中身は cases.json 1枚だけ。綴り違い(case.json)、退避ファイル
+  # (cases.json.bak)、想定外の階層(evals/nested/cases.json)を黙って未検証に
+  # しない。check-licenses.sh / check-plugin-meta.sh と同じく、期待集合と実集合を
+  # 突き合わせる。
   while IFS= read -r f; do
+    case "$f" in
+    plugins/*/skills/*/evals/cases.json) ;;
+    *)
+      echo "NG: $f" >&2
+      echo "  - unexpected file under evals/; the corpus must be exactly <skill>/evals/cases.json" >&2
+      fail=1
+      continue
+      ;;
+    esac
     check_file "$f"
-  done < <(find plugins -mindepth 5 -maxdepth 5 -type f -path '*/skills/*/evals/cases.json' | sort)
+  done < <(find plugins -path '*/skills/*/evals/*' -type f | sort)
 fi
 
 if [ "$fail" = 0 ]; then
