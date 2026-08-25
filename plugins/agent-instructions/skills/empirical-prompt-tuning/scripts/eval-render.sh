@@ -147,7 +147,9 @@ if [ "$stub" = 1 ]; then
         trial: 1,
         success: false,
         accuracy: 0,
-        requirements: [$c.requirements[] | {id: .id, verdict: "fail"}],
+        requirements: [$c.requirements[]
+          | {id: .id, verdict: "fail"}
+            + (if .surface then {surface: "miss"} else {} end)],
         issues: [],
         discretionary: [],
         unevaluated: []
@@ -166,11 +168,21 @@ if [ "$part" = "judgment" ]; then
 
 <paste the executor's full output here>
 
+## Observed tool calls
+
+<paste the tool-call transcript here, or write "not captured">
+
+## File changes observed
+
+<paste the created / modified / deleted paths here, or write "none observed" / "not captured">
+
 DELIVERABLE
   printf '## Requirements checklist\n\n'
   jq -r '.requirements | to_entries[]
     | "\(.key + 1). \(if .value.critical then "[critical] " else "" end)`\(.value.id)` — \(.value.text)"
-      + (if .value.surface then "\n   - surface pattern (informational, judge meaning too): /\(.value.surface)/" else "" end)' <<<"$c"
+      + (if .value.surface then "\n   - surface pattern (informational, judge meaning too): /\(.value.surface)/" else "" end)
+      + (if (.value.evidence // "deliverable") != "deliverable"
+         then "\n   - judge from: \(.value.evidence) — the deliverable alone cannot settle this item" else "" end)' <<<"$c"
   printf '\n'
   cat <<'RULES'
 ## Judgment rules
@@ -181,7 +193,13 @@ Defined in empirical-prompt-tuning, "Workflow 4 / Instruction-side measurements"
 - Where a surface pattern is given, judge the surface (did the token appear) and the
   meaning separately. Semantic pass with surface miss means the pattern is too narrow —
   report it, do not fail the item for spelling.
-- Do not reward intent. Grade only what the deliverable actually does.
+- Do not reward intent. Grade only what actually happened.
+- **A claim is not evidence.** For an item marked `judge from: tool-calls` or
+  `judge from: file-state`, the deliverable saying it read a file, wrote a glossary entry,
+  or created an ADR proves nothing. Judge it from the observed tool calls or file changes.
+- If the evidence an item needs was not captured, do not guess and do not give it the
+  benefit of the doubt. Report `unjudgeable — <what was missing>` for that item; the caller
+  records it under `unevaluated` instead of inventing a verdict.
 
 ## Report structure
 

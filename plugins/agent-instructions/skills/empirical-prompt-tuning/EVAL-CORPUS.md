@@ -43,7 +43,29 @@ So `eval-render.sh` splits the two:
 | `--part` | Contains | Given to |
 |---|---|---|
 | `execution` (default) | target prompt, scenario, user message, self-report structure | a fresh executor |
-| `judgment` | scenario, user message, the deliverable, the checklist, the judgment rules | a separate evaluator that did not produce the deliverable |
+| `judgment` | scenario, user message, the deliverable, **the observed tool calls and file changes**, the checklist, the judgment rules | a separate evaluator that did not produce the deliverable |
+
+### The judge needs evidence, not claims
+
+Some requirements cannot be settled from the deliverable at all.
+"Looked the fact up instead of asking" and "wrote the glossary entry now" are statements about what the executor *did*, and an executor that writes "I recorded this as an ADR" without creating a file is indistinguishable, on output alone, from one that did.
+
+So the judgment prompt carries two evidence slots the caller fills in — the tool-call transcript and the observed file changes — and instructs the judge that a claim is not evidence.
+Capturing them is host-specific, which is why the corpus does not describe how; it only declares, per requirement, what kind of observation the item needs:
+
+```json
+{"id": "facts-self-served", "critical": true, "text": "...", "evidence": "tool-calls"}
+```
+
+`evidence` is `deliverable` (the default, omit it), `tool-calls`, or `file-state`.
+When the evidence an item needs was not captured, the judge reports it as unjudgeable and the caller records it under `unevaluated` — it never becomes a `pass` by default.
+
+### Scenarios describe the world, not the expected behaviour
+
+A scenario states where the executor is and what has already happened.
+It must not state what a good answer looks like, because the baseline arm reads the same scenario: describing "the interview needs facts from the repo, and decisions from the user" hands the baseline the very distinction `facts-self-served` is testing.
+Expected behaviour belongs in requirements, which the executor never sees.
+The target skill's name is withheld for the same reason.
 
 This differs from the inline subagent invocation contract in `SKILL.md`, where the executor receives the checklist and self-reports achievement against it.
 That contract is for measuring one instruction's clarity, where the executor's own reading of the requirements is part of the signal.
@@ -98,6 +120,7 @@ Abridged for readability: a real corpus needs at least 2 cases and 3 to 7 requir
 | `requirements` | **3 to 7 items**, per `SKILL.md`'s Baseline preparation |
 | `requirements[].id` | unique within the case; results report verdicts by this id |
 | `requirements[].critical` | required boolean. At least one `true` per case, or the success judgment is vacuous |
+| `requirements[].evidence` | optional. `deliverable` (default) / `tool-calls` / `file-state` — what the runner must capture for the judge to settle this item |
 | `requirements[].surface` | optional **ERE** (not PCRE — `\d` and `\w` do not mean what you expect) for the surface half of the surface/semantic pair. Include both the Japanese and English spellings in one alternation |
 
 Requirement text is written in English, matching the English-canonical rule for instructions.
@@ -143,6 +166,7 @@ That is deliberate — giving the combination its own file means there is nowher
 - The referenced corpus is validated too. Without that, a run pointing at a corpus with no `[critical]` requirement would make `success` vacuously true and a fully-failed run would validate as a success.
 - **`host.model` is required.** If the host does not report one, write an explicit marker such as `"unknown"` — but a run whose model is unknown cannot be used for candidate comparison, because two runs from different models would both read as "unknown" and their difference would be invisible. That is precisely the confusion this format exists to prevent.
 - `host.version` is optional. So are `tool_uses`, `duration_ms`, `retries`, and `token_usage` — not every host reports them. `token_usage` is recorded only where the host provides it; its absence is not a failure.
+- A requirement whose corpus entry declares a `surface` pattern must report `surface: hit|miss` in the result. Otherwise the surface half of the surface/semantic pair could be dropped wholesale while the run still validated.
 - `issues[].phase` is one of `understanding` / `planning` / `execution` / `formatting`, the trace phases from `SKILL.md`.
 - `unevaluated` carries the honest-reporting escape hatch from `SKILL.md`: an axis that could not be measured is named here rather than narrated into a fake pass.
 - `success` and `accuracy` are derived from the verdicts, not asserted independently:

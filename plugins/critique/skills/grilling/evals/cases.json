@@ -1,14 +1,14 @@
 {
   "schema": "agent-gears/eval-cases@1",
   "skill": "grilling",
-  "notes": "Regression corpus for the four behaviours grilling is responsible for: one question per turn, a recommendation attached to it, facts looked up instead of asked, and settled terms/decisions recorded inline. Requirement text is English (instruction side); prompts are Japanese because that is what the user actually types.",
+  "notes": "Regression corpus for the four behaviours the skill is responsible for: one question per turn, a recommendation attached to it, facts looked up instead of asked, and settled terms/decisions recorded inline. Scenarios describe world state and conversation history only — never the expected behaviour, which lives in requirements so the baseline arm cannot read it off the prompt. Requirement text is English (instruction side); prompts are Japanese because that is what the user actually types. `evidence` names what the runner must capture for that item to be judgeable.",
   "cases": [
     {
       "id": "storage-choice-median",
       "tags": [
         "median"
       ],
-      "scenario": "The user is at the start of a greenfield service and wants the storage choice stress-tested before any implementation. Nothing about the choice is discoverable from the environment: every open item is a decision the user has to make. The executor produces the first turn of that interview and stops there, because there is no user available to answer.",
+      "scenario": "The user is at the start of a greenfield service. No code is written, no schema exists, and no storage is provisioned. Nothing about the choice is recorded anywhere in the environment. No user is available to answer, so produce your response and stop.",
       "prompt": "新しいサービスのデータストアを Postgres にするか DynamoDB にするか決めたい。実装に入る前に叩いてほしい。",
       "requirements": [
         {
@@ -25,7 +25,8 @@
         {
           "id": "no-implementation",
           "critical": true,
-          "text": "The executor does not act on the plan: no schema, no code, no migration, and no final storage verdict announced before the user has answered."
+          "text": "The executor does not act on the plan: no schema, no code, no migration, and no final storage verdict announced before the user has answered.",
+          "evidence": "file-state"
         },
         {
           "id": "asks-a-decision",
@@ -44,13 +45,14 @@
       "tags": [
         "edge"
       ],
-      "scenario": "The session is running inside a checkout of this repository (agent-gears). The user wants to be interviewed about adding one new skill. Some of what the interview needs is a fact already written down in the repo — which plugins exist, where a skill directory goes, which CI checks a new skill has to pass. The rest — which plugin the new skill belongs to, how wide its scope should be — is the user's decision. The executor produces the first turn of that interview and stops.",
+      "scenario": "The session is running inside a checkout of this repository (agent-gears), whose files are readable. The user has settled nothing about the new skill yet. No user is available to answer, so produce your response and stop.",
       "prompt": "この repo に新しい skill を1つ足したい。どこに置くかも含めて要件を詰めたい。",
       "requirements": [
         {
           "id": "facts-self-served",
           "critical": true,
-          "text": "The executor looks the discoverable repository facts up itself (reads README/AGENTS.md, lists plugins/) instead of asking the user for them. Asking the user 'which plugins do you have?' is a failure."
+          "text": "The executor looks the discoverable repository facts up itself (actually reading README/AGENTS.md or listing plugins/) instead of asking the user for them. A claim in the output that it 'checked the repo' does not count without a matching tool call.",
+          "evidence": "tool-calls"
         },
         {
           "id": "one-question",
@@ -72,7 +74,8 @@
         {
           "id": "no-files-created",
           "critical": false,
-          "text": "No skill directory or SKILL.md is created before the user has confirmed a shared understanding."
+          "text": "No skill directory or SKILL.md is created before the user has confirmed a shared understanding.",
+          "evidence": "file-state"
         }
       ]
     },
@@ -81,20 +84,22 @@
       "tags": [
         "edge"
       ],
-      "scenario": "An interview is already in progress, in a repository that has no CONTEXT.md glossary and no ADR directory yet. Two things have just settled in the conversation. (1) Terminology: the user and the executor agreed that in this project a 'run' means one execution of the whole corpus against a single host+model pair, and that a single scenario execution is a 'trial' — the two words had been used interchangeably until now. (2) A decision: results will be stored one file per host+model rather than in a single combined table, because the team expects the same change to help one model and hurt another, and a combined table would average that away. Reversing it later means rewriting every stored result. Several branches of the interview are still open (retention period, whether trials are stored individually or summarised).",
+      "scenario": "A conversation with the user is already in progress, in a repository that has no CONTEXT.md glossary and no ADR directory yet. Two things have just settled. (1) Terminology: the user and you agreed that in this project a 'run' means one execution of the whole corpus against a single host+model pair, and that a single scenario execution is a 'trial' — the two words had been used interchangeably until now. (2) A decision: results will be stored one file per host+model rather than in a single combined table, because the team expects the same change to help one model and hurt another, and a combined table would average that away. Reversing it later means rewriting every stored result. Several questions raised earlier are still unresolved (retention period, whether trials are stored individually or summarised). No user is available to answer, so produce your response and stop.",
       "prompt": "そこは合意でいい。続けて。",
       "requirements": [
         {
           "id": "term-recorded-now",
           "critical": true,
-          "text": "The settled terminology (run vs trial) is written to the glossary during this turn, not deferred to the end of the interview.",
-          "surface": "CONTEXT\\.md|用語集|glossary|domain-modeling"
+          "text": "The settled terminology (run vs trial) is written to the glossary during this turn, not deferred to the end of the interview. A statement that it was written does not count; the file must actually change.",
+          "surface": "CONTEXT\\.md|用語集|glossary|domain-modeling",
+          "evidence": "file-state"
         },
         {
           "id": "adr-recorded-now",
           "critical": true,
-          "text": "The per-host+model storage decision is recorded as an ADR during this turn, and the executor shows it clears all three bars (hard to reverse, surprising without context, a real trade-off) rather than writing an ADR reflexively.",
-          "surface": "ADR|adr|Architecture Decision"
+          "text": "The per-host+model storage decision is recorded as an ADR during this turn, and the executor shows it clears all three bars (hard to reverse, surprising without context, a real trade-off) rather than writing an ADR reflexively. A statement that it was written does not count; the file must actually change.",
+          "surface": "ADR|adr|Architecture Decision",
+          "evidence": "file-state"
         },
         {
           "id": "interview-continues",

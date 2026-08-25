@@ -113,7 +113,11 @@ read -r -d '' JQ_CASES <<'JQ' || true
             ($c.requirements | to_entries | map(
               .key as $j | .value as $r | "\($p).requirements[\($j)]" as $rp |
               [
-                ($r | unknown($rp; ["id", "critical", "text", "surface"])),
+                ($r | unknown($rp; ["id", "critical", "text", "surface", "evidence"])),
+                (if ($r | has("evidence") | not) then []
+                 elif (["deliverable", "tool-calls", "file-state"] | index($r.evidence) | not)
+                 then ["\($rp).evidence: must be one of deliverable / tool-calls / file-state"]
+                 else [] end),
                 str($rp; $r; "id"),
                 str($rp; $r; "text"),
                 (if ($r | has("critical") | not) then ["\($rp): missing \"critical\""]
@@ -252,10 +256,14 @@ read -r -d '' JQ_RUN <<'JQ' || true
                else
                  ([$case.requirements[] | select(.critical == true) | .id]) as $crit |
                  ($t.requirements | map({key: .id, value: .verdict}) | from_entries) as $v |
+                 ($t.requirements | map({key: .id, value: .}) | from_entries) as $byReq |
+                 ([$case.requirements[] | select(has("surface")) | .id]) as $needSurface |
                  ([$crit[] | select($v[.] != "pass")] | length == 0) as $expectSuccess |
                  (([$t.requirements[] | if .verdict == "pass" then 1 elif .verdict == "partial" then 0.5 else 0 end] | add)
                    / ($t.requirements | length)) as $expectAcc |
-                 [ (if ($t.success | type) == "boolean" and $t.success != $expectSuccess
+                 [ [ $needSurface[] | select($byReq[.] | has("surface") | not)
+                     | "\($p).requirements: \(.) declares a surface pattern in the corpus, so its result must report surface: hit|miss" ],
+                   (if ($t.success | type) == "boolean" and $t.success != $expectSuccess
                     then ["\($p).success: \($t.success) but [critical] verdicts say \($expectSuccess) (success is true only when every critical requirement is pass)"]
                     else [] end),
                    (if ($t.accuracy | type) == "number" and (($t.accuracy - $expectAcc) | fabs) > 0.000001

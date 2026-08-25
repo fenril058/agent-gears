@@ -99,7 +99,7 @@ There is no combined score, because the same edit can help one model and hurt an
 The JSON writes verdicts as `pass` / `fail` / `partial`; those are this skill's `○` / `×` / partial under different spellings.
 
 **Corpus runs invert one rule of the invocation contract below: the executor is not shown the checklist.**
-It receives the scenario, the user message, and the candidate instruction only, and a separate evaluator grades the deliverable afterwards.
+It receives the scenario, the user message, and the candidate instruction only, and a separate evaluator grades the deliverable afterwards — together with the tool calls and file changes the runner observed, because requirements about what the executor *did* cannot be settled from its output, where an unperformed action and a claimed one look identical.
 The inline contract hands the executor the checklist because its own reading of the requirements is part of the signal when you are measuring one instruction's clarity.
 A baseline comparison cannot afford that: an executor handed "ask exactly one question, attach a recommendation" will do exactly that with no skill at all, and the measured uplift collapses to zero.
 

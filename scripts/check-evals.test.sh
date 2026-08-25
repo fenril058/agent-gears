@@ -287,6 +287,42 @@ jq '.host.id = "REPLACE-ME"' "$tmp/run.json" >"$tmp/run-ph.json"
 ng "host.id が未記入のまま" "$tmp/run-ph.json" \
   '$.host.id: still the REPLACE-ME placeholder from --result-stub'
 
+# --- 観測証拠と surface ------------------------------------------------------
+# 実行時の振る舞いでしか判定できない要件は、採点プロンプトに判定元が出ていなければ
+# judge が成果物の自己申告を証拠として受け取ってしまう。
+judg2="$(bash "$RENDER" --corpus "$CORPUS" --case repo-facts-looked-up-edge --part judgment)"
+n=$((n + 1))
+if ! printf '%s' "$judg2" | grep -qF 'judge from: tool-calls'; then
+  echo "NG: [採点プロンプト] に judge from: tool-calls が出ていない" >&2
+  fail=1
+fi
+n=$((n + 1))
+if ! printf '%s' "$judg2" | grep -qF 'A claim is not evidence.'; then
+  echo "NG: [採点プロンプト] に自己申告禁止の規則が無い" >&2
+  fail=1
+fi
+for slot in 'Observed tool calls' 'File changes observed'; do
+  n=$((n + 1))
+  if ! printf '%s' "$judg2" | grep -qF "$slot"; then
+    echo "NG: [採点プロンプト] に観測欄 '$slot' が無い" >&2
+    fail=1
+  fi
+done
+# 実行プロンプト側には観測欄も判定元も出さない(実行者に採点軸を教えない)。
+exec2="$(bash "$RENDER" --corpus "$CORPUS" --case repo-facts-looked-up-edge)"
+absent "実行プロンプトに判定元" "judge from:" "$exec2"
+absent "実行プロンプトに観測欄" "Observed tool calls" "$exec2"
+
+jq '.cases[0].requirements[0].evidence = "vibes"' "$CORPUS" >"$tmp/ev.json"
+ng "evidence の値が不正" "$tmp/ev.json" \
+  '$.cases[0].requirements[0].evidence: must be one of deliverable / tool-calls / file-state'
+
+# corpus に surface があるのに結果が報告しないと、surface 測定を丸ごと落とせる。
+jq '.results[0].requirements = [.results[0].requirements[] | del(.surface)]' \
+  "$tmp/run.json" >"$tmp/run-nosurface.json"
+ng "surface の報告漏れ" "$tmp/run-nosurface.json" \
+  '$.results[0].requirements: recommendation-attached declares a surface pattern in the corpus, so its result must report surface: hit|miss'
+
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"
 fi
