@@ -205,9 +205,13 @@ read -r -d '' JQ_RUN <<'JQ' || true
          (if ($t | has("trial") | not) then ["\($p): missing \"trial\""]
           elif ($t.trial | type) != "number" or ($t.trial | floor) != $t.trial or $t.trial < 1
           then ["\($p).trial: must be an integer >= 1"] else [] end),
-         (if ($t.success | type) != "boolean" then ["\($p).success: must be a boolean"] else [] end),
-         (if ($t.accuracy | type) != "number" or $t.accuracy < 0 or $t.accuracy > 1
-          then ["\($p).accuracy: must be a number in [0, 1]"] else [] end),
+         (if ($t.success | type) != "boolean" and $t.success != null
+          then ["\($p).success: must be a boolean, or null when a [critical] requirement is unevaluated"]
+          else [] end),
+         (if $t.accuracy == null then []
+          elif ($t.accuracy | type) != "number" or $t.accuracy < 0 or $t.accuracy > 1
+          then ["\($p).accuracy: must be a number in [0, 1], or null when every requirement is unevaluated"]
+          else [] end),
          nonNegInt($p; $t; "tool_uses"),
          nonNegInt($p; $t; "duration_ms"),
          nonNegInt($p; $t; "retries"),
@@ -240,9 +244,13 @@ read -r -d '' JQ_RUN <<'JQ' || true
               [ ($r | unknown($rp; ["id", "verdict", "surface", "note"])),
                 str($rp; $r; "id"),
                 str($rp; $r; "verdict"),
-                (if ($r.verdict | type) == "string"
-                    and (["pass", "fail", "partial"] | index($r.verdict) | not)
-                 then ["\($rp).verdict: must be one of pass / fail / partial"] else [] end),
+                (($r.verdict) as $vd
+                 | if ($vd | type) == "string"
+                      and (["pass", "fail", "partial", "unevaluated"] | index($vd) | not)
+                   then ["\($rp).verdict: must be one of pass / fail / partial / unevaluated"] else [] end),
+                (if $r.verdict == "unevaluated" and (($r.note // "") | length) == 0
+                 then ["\($rp): verdict is unevaluated, so \"note\" must say what evidence was missing"]
+                 else [] end),
                 (if ($r | has("surface") | not) then []
                  elif (["hit", "miss"] | index($r.surface) | not)
                  then ["\($rp).surface: must be \"hit\" or \"miss\""] else [] end),
@@ -258,16 +266,23 @@ read -r -d '' JQ_RUN <<'JQ' || true
                  ($t.requirements | map({key: .id, value: .verdict}) | from_entries) as $v |
                  ($t.requirements | map({key: .id, value: .}) | from_entries) as $byReq |
                  ([$case.requirements[] | select(has("surface")) | .id]) as $needSurface |
-                 ([$crit[] | select($v[.] != "pass")] | length == 0) as $expectSuccess |
-                 (([$t.requirements[] | if .verdict == "pass" then 1 elif .verdict == "partial" then 0.5 else 0 end] | add)
-                   / ($t.requirements | length)) as $expectAcc |
+                 ([$crit[] | select($v[.] == "unevaluated")] | length > 0) as $critUnjudged |
+                 ([$t.requirements[] | select(.verdict != "unevaluated")]) as $judged |
+                 (if $critUnjudged then null
+                  else ([$crit[] | select($v[.] != "pass")] | length == 0) end) as $expectSuccess |
+                 (if ($judged | length) == 0 then null
+                  else (([$judged[] | if .verdict == "pass" then 1 elif .verdict == "partial" then 0.5 else 0 end] | add)
+                        / ($judged | length)) end) as $expectAcc |
                  [ [ $needSurface[] | select($byReq[.] | has("surface") | not)
                      | "\($p).requirements: \(.) declares a surface pattern in the corpus, so its result must report surface: hit|miss" ],
-                   (if ($t.success | type) == "boolean" and $t.success != $expectSuccess
-                    then ["\($p).success: \($t.success) but [critical] verdicts say \($expectSuccess) (success is true only when every critical requirement is pass)"]
+                   (if $t.success != $expectSuccess
+                    then ["\($p).success: \($t.success) but the verdicts say \($expectSuccess) (success is true only when every critical requirement is pass, and null when any of them is unevaluated)"]
                     else [] end),
-                   (if ($t.accuracy | type) == "number" and (($t.accuracy - $expectAcc) | fabs) > 0.000001
-                    then ["\($p).accuracy: \($t.accuracy) but the verdicts compute to \($expectAcc) (pass=1, partial=0.5, fail=0)"]
+                   (if $expectAcc == null then
+                      (if $t.accuracy != null
+                       then ["\($p).accuracy: \($t.accuracy) but every requirement is unevaluated, so accuracy must be null"] else [] end)
+                    elif ($t.accuracy | type) == "number" and (($t.accuracy - $expectAcc) | fabs) > 0.000001
+                    then ["\($p).accuracy: \($t.accuracy) but the verdicts compute to \($expectAcc) (pass=1, partial=0.5, fail=0; unevaluated items are excluded from the denominator)"]
                     else [] end) ] | flatten
                end)
             end)

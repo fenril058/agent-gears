@@ -161,13 +161,13 @@ ok "全 pass の結果" "$tmp/run.json"
 jq '.results[0].requirements[0].verdict = "fail" | .results[0].accuracy = 0.8' \
   "$tmp/run.json" >"$tmp/run-crit.json"
 ng "[critical] 失敗なのに success=true" "$tmp/run-crit.json" \
-  '$.results[0].success: true but [critical] verdicts say false (success is true only when every critical requirement is pass)'
+  '$.results[0].success: true but the verdicts say false (success is true only when every critical requirement is pass, and null when any of them is unevaluated)'
 
 # partial は 0.5 点。5項目中4 pass + 1 partial なら 0.9 でなければならない。
 # 完全一致で照合するので、重みを変えると必ず落ちる。
 jq '.results[0].requirements[4].verdict = "partial"' "$tmp/run.json" >"$tmp/run-acc.json"
 ng "partial を数え損ねた accuracy" "$tmp/run-acc.json" \
-  '$.results[0].accuracy: 1 but the verdicts compute to 0.9 (pass=1, partial=0.5, fail=0)'
+  '$.results[0].accuracy: 1 but the verdicts compute to 0.9 (pass=1, partial=0.5, fail=0; unevaluated items are excluded from the denominator)'
 
 jq '.corpus.digest = "sha256:0000"' "$tmp/run.json" >"$tmp/run-digest.json"
 ng "corpus digest のずれ" "$tmp/run-digest.json" \
@@ -322,6 +322,65 @@ jq '.results[0].requirements = [.results[0].requirements[] | del(.surface)]' \
   "$tmp/run.json" >"$tmp/run-nosurface.json"
 ng "surface の報告漏れ" "$tmp/run-nosurface.json" \
   '$.results[0].requirements: recommendation-attached declares a surface pattern in the corpus, so its result must report surface: hit|miss'
+
+# --- 判定不能(unevaluated)-------------------------------------------------
+# 採点側が「証拠が無いので判定できない」と言えることと、それを result schema が
+# 受け取れることは別。受け取れないと、偽の pass/fail を書くしかなくなる。
+jq '.results[0].requirements[0].verdict = "unevaluated"
+    | .results[0].requirements[0].note = "tool-call transcript not captured"
+    | .results[0].success = null
+    | .results[0].accuracy = 1' "$tmp/run.json" >"$tmp/run-unev.json"
+ok "critical が未判定なら success=null / accuracy は残りで計算" "$tmp/run-unev.json"
+
+jq '.results[0].requirements[0].verdict = "unevaluated"
+    | .results[0].requirements[0].note = "n"
+    | .results[0].success = true' "$tmp/run.json" >"$tmp/run-unev-true.json"
+ng "critical が未判定なのに success=true" "$tmp/run-unev-true.json" \
+  '$.results[0].success: true but the verdicts say null (success is true only when every critical requirement is pass, and null when any of them is unevaluated)'
+
+jq '.results[0].requirements[0].verdict = "unevaluated"
+    | .results[0].success = null | .results[0].accuracy = 1' "$tmp/run.json" >"$tmp/run-unev-nonote.json"
+ng "未判定なのに理由が無い" "$tmp/run-unev-nonote.json" \
+  '$.results[0].requirements[0]: verdict is unevaluated, so "note" must say what evidence was missing'
+
+# 未判定は accuracy の分母から外れる。5件中1件が未判定で残り4件 pass なら 1。
+jq '.results[0].requirements[0].verdict = "unevaluated"
+    | .results[0].requirements[0].note = "n"
+    | .results[0].success = null | .results[0].accuracy = 0.8' "$tmp/run.json" >"$tmp/run-unev-acc.json"
+ng "未判定を分母に残した accuracy" "$tmp/run-unev-acc.json" \
+  '$.results[0].accuracy: 0.8 but the verdicts compute to 1 (pass=1, partial=0.5, fail=0; unevaluated items are excluded from the denominator)'
+
+jq '.results[0].requirements = [.results[0].requirements[] | .verdict = "unevaluated" | .note = "n"]
+    | .results[0].success = null | .results[0].accuracy = null' "$tmp/run.json" >"$tmp/run-allunev.json"
+ok "全件未判定なら accuracy=null" "$tmp/run-allunev.json"
+
+jq '.results[0].requirements = [.results[0].requirements[] | .verdict = "unevaluated" | .note = "n"]
+    | .results[0].success = null | .results[0].accuracy = 0' "$tmp/run.json" >"$tmp/run-allunev-num.json"
+ng "全件未判定なのに accuracy に数値" "$tmp/run-allunev-num.json" \
+  '$.results[0].accuracy: 0 but every requirement is unevaluated, so accuracy must be null'
+
+# --- baseline を default より狭めない ---------------------------------------
+# repo の文書を読む行動そのものを禁じると、それを測っている要件の uplift が膨らむ。
+base2="$(bash "$RENDER" --corpus "$CORPUS" --case repo-facts-looked-up-edge --candidate without-skill)"
+for banned in 'instruction file' 'reference document' 'Do not load'; do
+  absent "baseline プロンプトの過剰な禁止" "$banned" "$base2"
+done
+
+# verdict の enum。ここが空回りすると任意の文字列が verdict として通る。
+jq '.results[0].requirements[0].verdict = "totally-bogus"
+    | .results[0].success = false | .results[0].accuracy = 0.8' "$tmp/run.json" >"$tmp/run-bogus.json"
+ng "verdict が enum 外" "$tmp/run-bogus.json" \
+  '$.results[0].requirements[0].verdict: must be one of pass / fail / partial / unevaluated'
+
+# 証拠の粒度。path 一覧やツール名だけでは「何が書かれたか」を問う要件を判定できない。
+judg3="$(bash "$RENDER" --corpus "$CORPUS" --case record-what-settles-edge --part judgment)"
+for phrase in 'A bare list of tool names is not enough' 'AND the relevant content or diff'; do
+  n=$((n + 1))
+  if ! printf '%s' "$judg3" | grep -qF "$phrase"; then
+    echo "NG: [採点プロンプト] に証拠の粒度指定が無い: $phrase" >&2
+    fail=1
+  fi
+done
 
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"

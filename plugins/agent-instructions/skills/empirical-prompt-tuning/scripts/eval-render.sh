@@ -170,11 +170,16 @@ if [ "$part" = "judgment" ]; then
 
 ## Observed tool calls
 
-<paste the tool-call transcript here, or write "not captured">
+<paste the tool-call transcript here: for each call, the tool name, the target path or
+command, and the result. A bare list of tool names is not enough to settle an item.
+Write "not captured" if the runner did not record it.>
 
 ## File changes observed
 
-<paste the created / modified / deleted paths here, or write "none observed" / "not captured">
+<paste each created / modified / deleted path AND the relevant content or diff. A path
+list alone settles only "was anything written"; items about what was written need the
+content. Write "none observed" if nothing changed, or "not captured" if the runner did
+not record it.>
 
 DELIVERABLE
   printf '## Requirements checklist\n\n'
@@ -221,7 +226,14 @@ if [ "$candidate" = "with-skill" ]; then
 else
   # baseline では対象 skill の名前も出さない。名指しすると executor に候補の正体を
   # 教えることになり、host 側の skill 自動読み込みを誘発しうる。
-  target="None. This is the baseline run: no instruction is provided. Handle the scenario however you would by default. Do not load or consult any optional skill, instruction file, or reference document beyond what this prompt contains."
+  #
+  # ただし禁止をこれ以上広げない。「instruction file を読むな」まで書くと、
+  # repository の文書を読む行動そのもの(facts-self-served が測っている当のもの)を
+  # 封じてしまい、比較が «with skill» 対 «default» ではなく
+  # «with skill» 対 «default から repo 探索を奪ったもの» になる。uplift が
+  # 人工的に膨らむ方向の汚染である。skill を渡さないことは runner の仕事で、
+  # prompt 側は名指ししないことだけを引き受ける。
+  target="None. No target-specific instruction is provided for this scenario. Work as you normally would, using whatever the environment makes available to you."
 fi
 
 printf 'You are an executor handling the scenario below with a blank slate.\n\n'
