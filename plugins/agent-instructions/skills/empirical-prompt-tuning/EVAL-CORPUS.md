@@ -58,7 +58,12 @@ Capturing them is host-specific, which is why the corpus does not describe how; 
 ```
 
 `evidence` is `deliverable` (the default, omit it), `tool-calls`, or `file-state`.
-When the evidence an item needs was not captured, the judge reports it as unjudgeable and the caller records it under `unevaluated` — it never becomes a `pass` by default.
+When the evidence an item needs was not captured, the judge reports it as unjudgeable and the caller records that requirement with `"verdict": "unevaluated"` and a `note` saying what was missing.
+It never becomes a `pass` by default.
+
+Evidence has to be specific enough to settle the item.
+A list of tool *names* does not show which file was read; a list of changed *paths* shows that something was written but not what, so an item like "the settled term is in the glossary" needs the content, not just the path.
+The prompt asks for the target path or command and the result for each tool call, and the path plus the relevant content or diff for each change.
 
 ### Scenarios describe the world, not the expected behaviour
 
@@ -169,12 +174,18 @@ That is deliberate — giving the combination its own file means there is nowher
 - A requirement whose corpus entry declares a `surface` pattern must report `surface: hit|miss` in the result. Otherwise the surface half of the surface/semantic pair could be dropped wholesale while the run still validated.
 - `issues[].phase` is one of `understanding` / `planning` / `execution` / `formatting`, the trace phases from `SKILL.md`.
 - `unevaluated` carries the honest-reporting escape hatch from `SKILL.md`: an axis that could not be measured is named here rather than narrated into a fake pass.
-- `success` and `accuracy` are derived from the verdicts, not asserted independently:
+- `verdict` is `pass` / `fail` / `partial` / `unevaluated`. `success` and `accuracy` are derived from the verdicts, not asserted independently:
 
 ```text
 success  = every [critical] requirement is pass
-accuracy = (pass + 0.5 * partial) / requirement count
+         = null, when any [critical] requirement is unevaluated
+accuracy = (pass + 0.5 * partial) / (requirements that are not unevaluated)
+         = null, when every requirement is unevaluated
 ```
+
+`unevaluated` is the requirement-level counterpart of the run-level `unevaluated` list: the item was not measured, so it is neither a success nor a failure.
+It requires a `note` naming the missing evidence, it is excluded from the accuracy denominator rather than scored as zero, and a `[critical]` item left unevaluated makes `success` unknowable — `null`, not `false`.
+A run carrying any `unevaluated` verdict is not comparable to one that measured that item.
 
 `scripts/check-evals.sh` recomputes both and rejects the file if the stored values disagree.
 It also rejects the `REPLACE-ME` placeholders that `--result-stub` emits, so a skeleton cannot pass validation as though it were a completed run.
@@ -188,6 +199,10 @@ The two arms of a comparison. Which arm is "the candidate" is a property of the 
 |---|---|---|
 | `with-skill` | the skill was given to the executor | required — which revision (`git:<sha>`, or a working-tree marker) |
 | `without-skill` | the skill was withheld; the model's default behaviour | not allowed |
+
+The baseline prompt withholds the skill and its name, and stops there.
+It must not forbid anything the model would ordinarily do — telling it not to read instruction files or reference documents would suppress exactly the repository exploration that `facts-self-served`-style requirements measure, turning the comparison into *with skill* against *default minus repo exploration* and inflating the uplift.
+Withholding the skill itself is the runner's job at the host boundary.
 
 Both baselines fall out of this without more machinery:
 
