@@ -208,8 +208,15 @@ Defined in empirical-prompt-tuning, "Workflow 4 / Instruction-side measurements"
 
 ## Report structure
 
-For each requirement id, one line: `<id>: pass|partial|fail (surface: hit|miss) — reason`.
-Then, if any item is not `pass`, one line naming which `[critical]` item dropped.
+For each requirement id, one line: `<id>: pass|partial|fail|unevaluated (surface: hit|miss) — reason`.
+
+`unevaluated` is not a verdict about the work — it means the evidence needed to judge the
+item was not available. Use it only for that, and make the reason name the missing
+evidence ("no tool-call transcript", "file contents not captured"). Never use it to avoid
+a hard call on evidence you do have.
+
+Then, if any item is not `pass`, one line naming which `[critical]` item dropped or went
+unevaluated.
 
 Do not compute success or accuracy. The caller derives both from your verdicts.
 RULES

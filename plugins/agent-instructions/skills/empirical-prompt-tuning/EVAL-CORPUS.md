@@ -3,10 +3,15 @@
 `empirical-prompt-tuning` measures an instruction by running it, but a measurement that lives only in the conversation cannot be repeated.
 This file defines the on-disk form of that measurement, so the same scenarios and the same fixed checklist can be re-run later, against a different host, a different model, or a different revision of the skill.
 
-Nothing here changes the evaluation semantics.
+The evaluation semantics are unchanged.
 The checklist, the `[critical]` rule, and the accuracy formula are the ones defined in `SKILL.md`; this is only their persistent encoding.
-Two spellings differ: `SKILL.md` writes verdicts as `○ / × / partial`, and the JSON writes them as `pass` / `fail` / `partial`.
-They are the same three values.
+`SKILL.md` writes verdicts as `○ / × / partial`; the JSON writes the same three as `pass` / `fail` / `partial`.
+
+The one addition is not a fourth verdict.
+`unevaluated` records that the item could not be measured at all — an out-of-band state saying *no measurement exists*, not a judgement about the work.
+An in-session run never needs it, because the operator sees whether the evidence was there.
+A stored run does: the file outlives the session that produced it, and "we could not tell" has to survive as itself rather than collapsing into a `fail`.
+Everywhere a measurement does exist, the three values and the formula are exactly `SKILL.md`'s.
 
 ## Layering
 

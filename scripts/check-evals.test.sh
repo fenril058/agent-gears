@@ -382,6 +382,36 @@ for phrase in 'A bare list of tool names is not enough' 'AND the relevant conten
   fi
 done
 
+# --- core metric を落とせないこと -------------------------------------------
+# 全 pass の run でも accuracy を null にしたり消したりできると、
+# 「全件未判定のときだけ null」という形式定義と矛盾し、主要指標を丸ごと失える。
+jq '.results[0].accuracy = null' "$tmp/run.json" >"$tmp/run-accnull.json"
+ng "判定済みなのに accuracy=null" "$tmp/run-accnull.json" \
+  '$.results[0].accuracy: null but 5 requirement(s) were judged, so accuracy must be the number 1'
+
+jq 'del(.results[0].accuracy)' "$tmp/run.json" >"$tmp/run-accdel.json"
+ng "accuracy フィールドの欠落" "$tmp/run-accdel.json" \
+  '$.results[0]: missing "accuracy"'
+
+jq 'del(.results[0].success)' "$tmp/run.json" >"$tmp/run-sucdel.json"
+ng "success フィールドの欠落" "$tmp/run-sucdel.json" \
+  '$.results[0]: missing "success"'
+
+# critical が未判定で expected が null のときも、欠落と明示 null を区別する。
+jq '.results[0].requirements[0].verdict = "unevaluated"
+    | .results[0].requirements[0].note = "n"
+    | del(.results[0].success) | .results[0].accuracy = 1' "$tmp/run.json" >"$tmp/run-sucdel2.json"
+ng "expected=null でも success の欠落は許さない" "$tmp/run-sucdel2.json" \
+  '$.results[0]: missing "success"'
+
+# 採点プロンプトの出力契約が unevaluated を許していないと、strict な evaluator ほど
+# 「証拠が無ければ unevaluated と報告せよ」という直前の指示と矛盾する。
+n=$((n + 1))
+if ! printf '%s' "$judg2" | grep -qF 'pass|partial|fail|unevaluated'; then
+  echo "NG: [採点プロンプト] の出力契約が unevaluated を許していない" >&2
+  fail=1
+fi
+
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"
 fi

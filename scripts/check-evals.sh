@@ -205,10 +205,12 @@ read -r -d '' JQ_RUN <<'JQ' || true
          (if ($t | has("trial") | not) then ["\($p): missing \"trial\""]
           elif ($t.trial | type) != "number" or ($t.trial | floor) != $t.trial or $t.trial < 1
           then ["\($p).trial: must be an integer >= 1"] else [] end),
-         (if ($t.success | type) != "boolean" and $t.success != null
+         (if ($t | has("success") | not) then ["\($p): missing \"success\""]
+          elif ($t.success | type) != "boolean" and $t.success != null
           then ["\($p).success: must be a boolean, or null when a [critical] requirement is unevaluated"]
           else [] end),
-         (if $t.accuracy == null then []
+         (if ($t | has("accuracy") | not) then ["\($p): missing \"accuracy\""]
+          elif $t.accuracy == null then []
           elif ($t.accuracy | type) != "number" or $t.accuracy < 0 or $t.accuracy > 1
           then ["\($p).accuracy: must be a number in [0, 1], or null when every requirement is unevaluated"]
           else [] end),
@@ -281,7 +283,9 @@ read -r -d '' JQ_RUN <<'JQ' || true
                    (if $expectAcc == null then
                       (if $t.accuracy != null
                        then ["\($p).accuracy: \($t.accuracy) but every requirement is unevaluated, so accuracy must be null"] else [] end)
-                    elif ($t.accuracy | type) == "number" and (($t.accuracy - $expectAcc) | fabs) > 0.000001
+                    elif ($t.accuracy | type) != "number"
+                    then ["\($p).accuracy: \($t.accuracy) but \($judged | length) requirement(s) were judged, so accuracy must be the number \($expectAcc)"]
+                    elif (($t.accuracy - $expectAcc) | fabs) > 0.000001
                     then ["\($p).accuracy: \($t.accuracy) but the verdicts compute to \($expectAcc) (pass=1, partial=0.5, fail=0; unevaluated items are excluded from the denominator)"]
                     else [] end) ] | flatten
                end)
