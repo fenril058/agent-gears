@@ -8,8 +8,15 @@
 # 実在するか・[critical] 要件が最低1つあるか、である。
 #
 # 結果ファイル側では empirical-prompt-tuning の判定規則そのものを検算する:
-#   success  = [critical] 要件が全て pass のときだけ true
-#   accuracy = (pass + 0.5 * partial) / 要件数
+#   success  = false([critical] に fail か partial が1つでもあるとき)
+#            = null (fail は無いが [critical] に未判定があるとき)
+#            = true ([critical] 要件が全て pass のとき)
+#   accuracy = (pass + 0.5 * partial) / 未判定を除いた要件数
+#            = null(全要件が未判定のとき)
+#
+# 観測できた失敗は、別の項目が測れなかったことでは覆らない(順序に意味がある)。
+# 未判定(unevaluated)は第四の判定ではなく「測定が存在しない」ことを表す枠外の
+# 状態で、accuracy の分母から外れる。0 点として数えない。
 # 判定規則を人手で書き写す運用だと、ここがずれても誰も気づかない。
 #
 # 未知フィールドは失格にする。これは厳しさのためではなく、host/model をまたいだ
