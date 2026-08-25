@@ -116,9 +116,10 @@ c="$(jq -c --arg id "$case_id" '.cases[] | select(.id == $id)' "$corpus")"
 # check-evals.sh はリポジトリルートで解決するので、絶対パスや呼び出し元相対の
 # パスを書くと、別ディレクトリから render した結果が検証できなくなる。
 corpus_ref() {
-  local abs root
-  abs="$(cd "$(dirname "$corpus")" && pwd)/$(basename "$corpus")"
-  root="$(cd "$(dirname "$abs")" && git rev-parse --show-toplevel 2>/dev/null || true)"
+  local dir abs root
+  dir="$(cd "$(dirname "$corpus")" && pwd)"
+  abs="$dir/$(basename "$corpus")"
+  root="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)"
   if [ -n "$root" ] && [ "${abs#"$root"/}" != "$abs" ]; then
     printf '%s' "${abs#"$root"/}"
   else

@@ -45,6 +45,12 @@
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「skill の eval corpus」「配布方法」「新しい skill を足すとき」。
 
+shellcheck:
+
+- CI の shellcheck は ubuntu 同梱版、ローカルの `nix shell nixpkgs#shellcheck` は別バージョン。
+  info レベルの指摘(SC2015 等)が食い違い、ローカルで通っても CI で落ちることがある。
+  `A && B || C` のような曖昧な構文を避けて書けば、どちらでも通る。
+
 コード整形(treefmt):
 
 - フォーマッタの唯一の定義は `treefmt.nix`。`nix fmt` で一括整形、`nix flake check` の
