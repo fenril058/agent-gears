@@ -21,12 +21,18 @@
   `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
 - skill の eval corpus は `plugins/<plugin>/skills/<skill>/evals/cases.json`。
-  形式定義は `agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md` ただ1つ。
+  形式定義は `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md` ただ1つ。
   CI の `scripts/check-evals.sh` が schema・`[critical]` の存在・結果ファイルの
   success/accuracy の検算まで見る(未知フィールドは失格)。
+  結果ファイルを検証するときは参照先 corpus も検証する。`[critical]` ゼロの corpus を
+  指すと success の判定が空虚に真になるので、この経路を塞いだままにする。
   case id と requirement id は既存の結果から参照されるのでリネームしない。text だけ直す。
+  **実行プロンプトに requirements を入れない。** baseline(skill なし)に checklist を
+  見せると、それをそのまま実装できてしまい uplift がゼロに潰れる。採点は
+  `eval-render.sh --part judgment` で別 evaluator が行う。
   host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
   `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
+  `host.model` は必須。取得できない host では `"unknown"` と明記し、その run は比較に使わない。
   LLM を呼ぶ評価自体は CI に入れない。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
@@ -37,7 +43,7 @@
   複数 plugin に分散するので、skill を動かしたら移動先への複製と移動元の残骸に注意。
   宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
 
-手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
+手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「skill の eval corpus」「配布方法」「新しい skill を足すとき」。
 
 コード整形(treefmt):
 

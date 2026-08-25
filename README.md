@@ -119,15 +119,12 @@ plugins/
     .claude-plugin/plugin.json
     skills/
       agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
-      empirical-prompt-tuning/    指示の実測 QA ループ(mizchi/skills 由来・MIT)
-        EVAL-CORPUS.md            永続 eval corpus / 実行結果の形式定義
-        scripts/eval-render.sh    corpus の1 case を executor プロンプトへ展開(host 非依存)
+      empirical-prompt-tuning/    指示の実測 QA ループ(mizchi/skills 由来・MIT、+ EVAL-CORPUS.md / scripts/eval-render.sh)
   critique/                       plugin: 決める前に案を叩く
     .claude-plugin/plugin.json
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
-      grilling/          一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT)
-        evals/cases.json 永続 eval corpus(この skill の regression 用)
+      grilling/          一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT、+ evals/cases.json)
       spec-ambiguity-audit/  安価モデルに仕様書を素読みさせ、疑問点を機械的フィルタで検証する監査
       unconventional-simplification/ 暗黙の前提を1つずつ外してシンプルな別解を探す
   project-records/                plugin: 決めたことを寿命ごとに記録する
@@ -226,11 +223,17 @@ Claude Code / Codex / Copilot のどれで実行するかは corpus に書かず
 比較の単位は `(case, host, model, candidate)` で、**host/model をまたいだ総合スコアは作らない**。
 同じ修正が或るモデルでは改善、別のモデルでは悪化しうるため、平均するとその regression が消えるからである。
 
+**実行プロンプトに requirements を入れない。**
+skill を渡さない baseline に checklist を見せると、それをそのまま実装できてしまい、
+「この skill に存在価値があるか」を測れなくなる。
+採点は成果物を見た別の evaluator が `--part judgment` のプロンプトで行う。
+
 - 形式の定義と手順: `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md`
-- 1 case を executor プロンプトへ展開: `.../empirical-prompt-tuning/scripts/eval-render.sh`
+- 実行 / 採点 / 結果雛形の生成: `.../empirical-prompt-tuning/scripts/eval-render.sh`
 - 決定的な検証: `bash scripts/check-evals.sh`(CI の `consistency` job が実行)
   JSON/schema の妥当性、参照先 skill・case の実在、`[critical]` 要件が最低1つあること、
-  結果ファイルなら success / accuracy が verdict と一致することまで見る。
+  シナリオが2件以上で要件が3〜7項目であること、結果ファイルなら参照先 corpus の妥当性と
+  success / accuracy が verdict と一致することまで見る。
 - LLM を呼ぶ評価そのものは CI の必須ジョブにしない。手で回す。
 
 `cases.json` の case id と requirement id は、既に記録した結果から参照される。

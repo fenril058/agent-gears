@@ -96,11 +96,19 @@ plugins/<plugin>/skills/<skill>/evals/cases.json
 この corpus が持つのは、この skill がステップ 1 で既に固定しているもの — シナリオと、`[critical]` タグ付きのチェックリスト — そのものである。
 別セッション・別 host・別 model が、そのまま拾って使える形にしてあるだけである。
 
-結果は `(corpus, host, model, candidate)` ごとに書く。総合スコアは作らない。
+結果は `(corpus, host, model, **candidate**)` ごとに書く。
+candidate とは実行者に何を渡したかであり、或る revision の skill か、あるいは何も渡さない（baseline）かのどちらかである。
+総合スコアは作らない。
 同じ修正が或るモデルでは改善、別のモデルでは悪化になりうるので、平均するとそれが消える。
+JSON 側の verdict は `pass` / `fail` / `partial` と綴る。この skill の `○` / `×` / partial と同じものである。
+
+**corpus 実行では、後述の起動契約のうち1点が逆になる。実行者にチェックリストを見せない。**
+実行者が受け取るのは scenario、user message、candidate の指示だけで、採点は成果物を見た別の evaluator が後から行う。
+インラインの起動契約が実行者にチェックリストを渡すのは、1つの指示の明確さを測るときには実行者自身の要件の読み取りが信号の一部だからである。
+baseline 比較ではそれが許されない。「質問は一問だけ」「推奨案を添えろ」と渡された実行者は、skill が無くてもそのとおりに振る舞うので、測れる uplift がゼロに潰れる。
 
 形式の定義はこのファイルの隣の `EVAL-CORPUS.md`。
-`scripts/eval-render.sh` が 1 case を後述の executor プロンプトへ展開し、リポジトリ直下の `scripts/check-evals.sh` が corpus と結果ファイルを検証する（success と accuracy を verdict から計算し直すので、判定の書き写し間違いは信用されずに落ちる）。
+`scripts/eval-render.sh` が実行プロンプト・採点プロンプト・結果の雛形を出し、リポジトリ直下の `scripts/check-evals.sh` が corpus と結果ファイルを検証する（success と accuracy を verdict から計算し直すので、判定の書き写し間違いは信用されずに落ちる）。
 
 corpus を回す手順自体は変わらず、この skill のループである（試行ごとに新規 executor を dispatch する）。
 corpus は、毎回その場で作り直すべきでない部分を取り除くだけのものである。

@@ -94,10 +94,17 @@ plugins/<plugin>/skills/<skill>/evals/cases.json
 ```
 
 That corpus holds the same things this skill already fixes in step 1 — the scenarios, and the checklist with its `[critical]` tags — in a form a later session, a different host, or a different model can pick up unchanged.
-Results are written per `(corpus, host, model, candidate)`; there is no combined score, because the same edit can help one model and hurt another, and an average would hide that.
+Results are written per `(corpus, host, model, **candidate**)`, where the candidate is what the executor was given: the skill at some revision, or nothing at all (the baseline).
+There is no combined score, because the same edit can help one model and hurt another, and an average would hide that.
+The JSON writes verdicts as `pass` / `fail` / `partial`; those are this skill's `○` / `×` / partial under different spellings.
+
+**Corpus runs invert one rule of the invocation contract below: the executor is not shown the checklist.**
+It receives the scenario, the user message, and the candidate instruction only, and a separate evaluator grades the deliverable afterwards.
+The inline contract hands the executor the checklist because its own reading of the requirements is part of the signal when you are measuring one instruction's clarity.
+A baseline comparison cannot afford that: an executor handed "ask exactly one question, attach a recommendation" will do exactly that with no skill at all, and the measured uplift collapses to zero.
 
 `EVAL-CORPUS.md`, next to this file, is the format reference.
-`scripts/eval-render.sh` turns one case into the executor prompt below, and `scripts/check-evals.sh` at the repo root validates a corpus or a result file (it recomputes success and accuracy from the verdicts, so a mis-transcribed judgment is caught rather than trusted).
+`scripts/eval-render.sh` renders the execution prompt, the judgment prompt, and the result skeleton; `scripts/check-evals.sh` at the repo root validates a corpus or a result file (it recomputes success and accuracy from the verdicts, so a mis-transcribed judgment is caught rather than trusted).
 
 Running the corpus is still this skill's loop: a fresh executor per trial, dispatched per the rules above.
 The corpus only removes the part that should not be improvised each time.
