@@ -161,7 +161,7 @@ ok "全 pass の結果" "$tmp/run.json"
 jq '.results[0].requirements[0].verdict = "fail" | .results[0].accuracy = 0.8' \
   "$tmp/run.json" >"$tmp/run-crit.json"
 ng "[critical] 失敗なのに success=true" "$tmp/run-crit.json" \
-  '$.results[0].success: true but the verdicts say false (success is true only when every critical requirement is pass, and null when any of them is unevaluated)'
+  '$.results[0].success: true but the verdicts say false (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)'
 
 # partial は 0.5 点。5項目中4 pass + 1 partial なら 0.9 でなければならない。
 # 完全一致で照合するので、重みを変えると必ず落ちる。
@@ -336,7 +336,7 @@ jq '.results[0].requirements[0].verdict = "unevaluated"
     | .results[0].requirements[0].note = "n"
     | .results[0].success = true' "$tmp/run.json" >"$tmp/run-unev-true.json"
 ng "critical が未判定なのに success=true" "$tmp/run-unev-true.json" \
-  '$.results[0].success: true but the verdicts say null (success is true only when every critical requirement is pass, and null when any of them is unevaluated)'
+  '$.results[0].success: true but the verdicts say null (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)'
 
 jq '.results[0].requirements[0].verdict = "unevaluated"
     | .results[0].success = null | .results[0].accuracy = 1' "$tmp/run.json" >"$tmp/run-unev-nonote.json"
@@ -411,6 +411,29 @@ if ! printf '%s' "$judg2" | grep -qF 'pass|partial|fail|unevaluated'; then
   echo "NG: [採点プロンプト] の出力契約が unevaluated を許していない" >&2
   fail=1
 fi
+
+# --- 既知の failure は unevaluated に隠れない -------------------------------
+# critical A=fail / B=unevaluated のとき、A が観測できている以上「全 critical が
+# pass」は論理的に不可能なので success は確定して false。ここを
+# 「unevaluated が1つでもあれば null」で先に判定すると、既知の失敗が消える。
+mix='.results[0].requirements[0].verdict = "fail"
+     | .results[0].requirements[2].verdict = "unevaluated"
+     | .results[0].requirements[2].note = "file-state not captured"
+     | .results[0].accuracy = 0.75'
+jq "$mix | .results[0].success = null" "$tmp/run.json" >"$tmp/run-mix-null.json"
+ng "既知の critical fail が unevaluated に隠れる" "$tmp/run-mix-null.json" \
+  '$.results[0].success: null but the verdicts say false (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)'
+
+jq "$mix | .results[0].success = false" "$tmp/run.json" >"$tmp/run-mix-false.json"
+ok "fail + unevaluated 混在なら success=false" "$tmp/run-mix-false.json"
+
+# partial も「pass でない」ので同じ扱い。
+jq '.results[0].requirements[0].verdict = "partial"
+    | .results[0].requirements[2].verdict = "unevaluated"
+    | .results[0].requirements[2].note = "n"
+    | .results[0].success = null | .results[0].accuracy = 0.875' "$tmp/run.json" >"$tmp/run-mix-part.json"
+ng "critical partial が unevaluated に隠れる" "$tmp/run-mix-part.json" \
+  '$.results[0].success: null but the verdicts say false (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)'
 
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"

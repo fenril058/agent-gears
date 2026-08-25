@@ -182,14 +182,18 @@ That is deliberate — giving the combination its own file means there is nowher
 - `verdict` is `pass` / `fail` / `partial` / `unevaluated`. `success` and `accuracy` are derived from the verdicts, not asserted independently:
 
 ```text
-success  = every [critical] requirement is pass
-         = null, when any [critical] requirement is unevaluated
+success  = false, as soon as any [critical] requirement is fail or partial
+         = null,  when no [critical] has failed but at least one is unevaluated
+         = true,  when every [critical] requirement is pass
 accuracy = (pass + 0.5 * partial) / (requirements that are not unevaluated)
          = null, when every requirement is unevaluated
 ```
 
+The order matters. A failure that was actually observed is not undone by some *other* item going unmeasured: once one `[critical]` is `fail`, "every critical is pass" is already impossible, so `success` is settled at `false`. `null` is reserved for the case where the unmeasured item is the only thing standing between the run and a `true`.
+
 `unevaluated` is the requirement-level counterpart of the run-level `unevaluated` list: the item was not measured, so it is neither a success nor a failure.
-It requires a `note` naming the missing evidence, it is excluded from the accuracy denominator rather than scored as zero, and a `[critical]` item left unevaluated makes `success` unknowable — `null`, not `false`.
+It requires a `note` naming the missing evidence, and it is excluded from the accuracy denominator rather than scored as zero.
+A `[critical]` item left unevaluated makes `success` unknowable — `null`, not `false` — but only while no other `[critical]` has already failed.
 A run carrying any `unevaluated` verdict is not comparable to one that measured that item.
 
 `scripts/check-evals.sh` recomputes both and rejects the file if the stored values disagree.

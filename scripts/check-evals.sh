@@ -268,17 +268,19 @@ read -r -d '' JQ_RUN <<'JQ' || true
                  ($t.requirements | map({key: .id, value: .verdict}) | from_entries) as $v |
                  ($t.requirements | map({key: .id, value: .}) | from_entries) as $byReq |
                  ([$case.requirements[] | select(has("surface")) | .id]) as $needSurface |
+                 ([$crit[] | select($v[.] == "fail" or $v[.] == "partial")] | length > 0) as $critFailed |
                  ([$crit[] | select($v[.] == "unevaluated")] | length > 0) as $critUnjudged |
                  ([$t.requirements[] | select(.verdict != "unevaluated")]) as $judged |
-                 (if $critUnjudged then null
-                  else ([$crit[] | select($v[.] != "pass")] | length == 0) end) as $expectSuccess |
+                 (if $critFailed then false
+                  elif $critUnjudged then null
+                  else true end) as $expectSuccess |
                  (if ($judged | length) == 0 then null
                   else (([$judged[] | if .verdict == "pass" then 1 elif .verdict == "partial" then 0.5 else 0 end] | add)
                         / ($judged | length)) end) as $expectAcc |
                  [ [ $needSurface[] | select($byReq[.] | has("surface") | not)
                      | "\($p).requirements: \(.) declares a surface pattern in the corpus, so its result must report surface: hit|miss" ],
                    (if $t.success != $expectSuccess
-                    then ["\($p).success: \($t.success) but the verdicts say \($expectSuccess) (success is true only when every critical requirement is pass, and null when any of them is unevaluated)"]
+                    then ["\($p).success: \($t.success) but the verdicts say \($expectSuccess) (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)"]
                     else [] end),
                    (if $expectAcc == null then
                       (if $t.accuracy != null
