@@ -48,7 +48,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: shellcheck -x -P SCRIPTDIR install.sh scripts/*.sh scripts/lib/*.sh
+      # skill 同梱のスクリプトも対象にする。plugin 名はハードコードしない
+      # (skill は plugin 間を移動しうる)。
+      - run: |
+          mapfile -t skill_sh < <(find plugins -path '*/skills/*/scripts/*.sh' | sort)
+          shellcheck -x -P SCRIPTDIR install.sh scripts/*.sh scripts/lib/*.sh "${skill_sh[@]}"
       # tolerable()(check-skill-spec.sh の skills-ref 出力パース)の単体テスト。
       # skills-ref を呼ばないので nix 不要、この job だけで完結する。
       - run: bash scripts/check-skill-spec-tolerable.test.sh
@@ -119,6 +123,11 @@ jobs:
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
       # 外部由来 skill の LICENSE / NOTICE が PROVENANCE.json の宣言どおり置かれているか。
       - run: nix shell nixpkgs#jq --command bash scripts/check-licenses.sh
+      # skill 併置の eval corpus(evals/cases.json)の schema 検証。
+      # LLM を呼ぶ評価そのものは必須ジョブにしない。ここは決定的な検査だけ。
+      # 併せて検証側の単体テスト(壊れた corpus / 結果を本当に落とすか)も回す。
+      - run: nix shell nixpkgs#jq --command bash scripts/check-evals.sh
+      - run: nix shell nixpkgs#jq --command bash scripts/check-evals.test.sh
       # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
       - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 

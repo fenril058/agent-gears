@@ -29,6 +29,7 @@ When not to use:
 1. **Baseline preparation**: Fix the target prompt and prepare the following two things.
    - **Evaluation scenarios**, 2 to 3 kinds (1 median + 1 to 2 edge). Realistic tasks that assume actual situations where the target prompt would apply.
    - **Requirements checklist** (for computing accuracy). For each scenario, enumerate 3 to 7 items the deliverable must satisfy. Accuracy % = items satisfied / total items. Fix this in advance (do not move it afterward).
+   - When the target is a skill in this repository, do not invent the scenarios in the conversation: load them from that skill's `evals/cases.json`, or write them there first. See "Persistent eval corpus" below.
 2. **Bias-free read**: Have a "blank-slate" executor read the instruction. **Dispatch a new subagent** via the Task tool. Do not substitute with a self-reread (it is structurally impossible to view text you just wrote objectively). When running multiple scenarios in parallel, place multiple Agent invocations within a single message. For how to handle environments where dispatch is unavailable, see the "Environment constraints" section.
 3. **Execution**: Hand the subagent a prompt that follows the **subagent invocation contract** described below, and have it execute the scenario. The executor produces an implementation or output and returns a self-report at the end.
 4. **Two-sided evaluation**: Record the following from the returned results.
@@ -82,6 +83,32 @@ Fix → effect is not linear. Pre-estimation can play out in the following 3 pat
 - **Zero-shoot** (estimate > 0, actual = 0): a fix inferred from the axis name did not reach any of the judgment wording. "Axis names and judgment wording are different things."
 
 To stabilize this, **before applying the diff, have the subagent verbalize "which judgment wording this fix satisfies"**. Estimation accuracy does not come out unless you tie things at the threshold-wording level. When adding a new evaluation axis, also concretize the judgment criteria for each point down to the threshold-wording level (at a granularity the subagent can judge, such as "all explicit" or "full text of a minimum working configuration" — so it knows what constitutes 2 points).
+
+## Persistent eval corpus
+
+Scenarios and a checklist that exist only in the conversation cannot be re-run.
+For a skill in this repository, keep them on disk instead:
+
+```text
+plugins/<plugin>/skills/<skill>/evals/cases.json
+```
+
+That corpus holds the same things this skill already fixes in step 1 — the scenarios, and the checklist with its `[critical]` tags — in a form a later session, a different host, or a different model can pick up unchanged.
+Results are written per `(corpus, host, model, **candidate**)`, where the candidate is what the executor was given: the skill at some revision, or nothing at all (the baseline).
+There is no combined score, because the same edit can help one model and hurt another, and an average would hide that.
+The JSON writes verdicts as `pass` / `fail` / `partial`; those are this skill's `○` / `×` / partial under different spellings.
+It adds one out-of-band state, `unevaluated`, for an item whose evidence was never captured — not a fourth verdict but the absence of a measurement, kept distinct from `×` so a stored run cannot record "we could not tell" as a failure. It is excluded from the accuracy denominator, and a `[critical]` item left unevaluated makes success unknowable rather than false — unless another `[critical]` already failed, in which case the observed failure settles it.
+
+**Corpus runs invert one rule of the invocation contract below: the executor is not shown the checklist.**
+It receives the scenario, the user message, and the candidate instruction only, and a separate evaluator grades the deliverable afterwards — together with the tool calls and file changes the runner observed, because requirements about what the executor *did* cannot be settled from its output, where an unperformed action and a claimed one look identical.
+The inline contract hands the executor the checklist because its own reading of the requirements is part of the signal when you are measuring one instruction's clarity.
+A baseline comparison cannot afford that: an executor handed "ask exactly one question, attach a recommendation" will do exactly that with no skill at all, and the measured uplift collapses to zero.
+
+`EVAL-CORPUS.md`, next to this file, is the format reference.
+`scripts/eval-render.sh` renders the execution prompt, the judgment prompt, and the result skeleton; `scripts/check-evals.sh` at the repo root validates a corpus or a result file (it recomputes success and accuracy from the verdicts, so a mis-transcribed judgment is caught rather than trusted).
+
+Running the corpus is still this skill's loop: a fresh executor per trial, dispatched per the rules above.
+The corpus only removes the part that should not be improvised each time.
 
 ## Subagent invocation contract
 

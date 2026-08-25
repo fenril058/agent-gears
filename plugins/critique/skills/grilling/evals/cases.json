@@ -1,0 +1,129 @@
+{
+  "schema": "agent-gears/eval-cases@1",
+  "skill": "grilling",
+  "notes": "Regression corpus for the four behaviours the skill is responsible for: one question per turn, a recommendation attached to it, facts looked up instead of asked, and settled terms/decisions recorded inline. Scenarios describe world state and conversation history only — never the expected behaviour, which lives in requirements so the baseline arm cannot read it off the prompt. Requirement text is English (instruction side); prompts are Japanese because that is what the user actually types. `evidence` names what the runner must capture for that item to be judgeable.",
+  "cases": [
+    {
+      "id": "storage-choice-median",
+      "tags": [
+        "median"
+      ],
+      "scenario": "The user is at the start of a greenfield service. No code is written, no schema exists, and no storage is provisioned. Nothing about the choice is recorded anywhere in the environment. No user is available to answer, so produce your response and stop.",
+      "prompt": "新しいサービスのデータストアを Postgres にするか DynamoDB にするか決めたい。実装に入る前に叩いてほしい。",
+      "requirements": [
+        {
+          "id": "one-question",
+          "critical": true,
+          "text": "The turn puts exactly one question to the user. Two or more questions asked in the same turn is a failure, including a main question with sub-questions bundled under it."
+        },
+        {
+          "id": "recommendation-attached",
+          "critical": true,
+          "text": "The question carries the executor's own recommended answer, not a neutral menu of options.",
+          "surface": "推奨|おすすめ|勧め|recommend|recommendation|My recommendation"
+        },
+        {
+          "id": "no-implementation",
+          "critical": true,
+          "text": "The executor does not act on the plan: no schema, no code, no migration, and no final storage verdict announced before the user has answered.",
+          "evidence": "file-state"
+        },
+        {
+          "id": "asks-a-decision",
+          "critical": false,
+          "text": "What is asked is a decision only the user can make (access patterns, consistency needs, operational constraints), not a fact the executor could have looked up."
+        },
+        {
+          "id": "interview-continues",
+          "critical": false,
+          "text": "The turn is framed as the first of several — the executor waits for the answer and signals that further branches remain, rather than treating one question as the whole interview."
+        }
+      ]
+    },
+    {
+      "id": "repo-facts-looked-up-edge",
+      "tags": [
+        "edge"
+      ],
+      "scenario": "The session is running inside a checkout of this repository (agent-gears), whose files are readable. The user has settled nothing about the new skill yet. No user is available to answer, so produce your response and stop.",
+      "prompt": "この repo に新しい skill を1つ足したい。どこに置くかも含めて要件を詰めたい。",
+      "requirements": [
+        {
+          "id": "facts-self-served",
+          "critical": true,
+          "text": "The executor looks the discoverable repository facts up itself (actually reading README/AGENTS.md or listing plugins/) instead of asking the user for them. A claim in the output that it 'checked the repo' does not count without a matching tool call.",
+          "evidence": "tool-calls"
+        },
+        {
+          "id": "one-question",
+          "critical": true,
+          "text": "Exactly one question is put to the user, and it is a decision the repository cannot answer on its own."
+        },
+        {
+          "id": "recommendation-attached",
+          "critical": true,
+          "text": "The question carries the executor's own recommended answer.",
+          "surface": "推奨|おすすめ|勧め|recommend|recommendation|My recommendation"
+        },
+        {
+          "id": "recommendation-grounded",
+          "critical": false,
+          "text": "The recommendation cites something actually read from the repository — a real plugin name or a real path — rather than a generic principle.",
+          "surface": "plugins/|context-engineering|agent-instructions|critique|project-records|code-review|learning|writing"
+        },
+        {
+          "id": "no-files-created",
+          "critical": false,
+          "text": "No skill directory or SKILL.md is created before the user has confirmed a shared understanding.",
+          "evidence": "file-state"
+        }
+      ]
+    },
+    {
+      "id": "record-what-settles-edge",
+      "tags": [
+        "edge"
+      ],
+      "scenario": "A conversation with the user is already in progress, in a repository that has no CONTEXT.md glossary and no ADR directory yet. Two things have just settled. (1) Terminology: the user and you agreed that in this project a 'run' means one execution of the whole corpus against a single host+model pair, and that a single scenario execution is a 'trial' — the two words had been used interchangeably until now. (2) A decision: results will be stored one file per host+model rather than in a single combined table, because the team expects the same change to help one model and hurt another, and a combined table would average that away. Reversing it later means rewriting every stored result. Several questions raised earlier are still unresolved (retention period, whether trials are stored individually or summarised). No user is available to answer, so produce your response and stop.",
+      "prompt": "そこは合意でいい。続けて。",
+      "requirements": [
+        {
+          "id": "term-recorded-now",
+          "critical": true,
+          "text": "The settled terminology (run vs trial) is written to the glossary during this turn, not deferred to the end of the interview. A statement that it was written does not count; the file must actually change.",
+          "surface": "CONTEXT\\.md|用語集|glossary|domain-modeling",
+          "evidence": "file-state"
+        },
+        {
+          "id": "adr-recorded-now",
+          "critical": true,
+          "text": "The per-host+model storage decision is recorded as an ADR during this turn, and the executor shows it clears all three bars (hard to reverse, surprising without context, a real trade-off) rather than writing an ADR reflexively. A statement that it was written does not count; the file must actually change.",
+          "surface": "ADR|adr|Architecture Decision",
+          "evidence": "file-state"
+        },
+        {
+          "id": "interview-continues",
+          "critical": true,
+          "text": "The interview continues in the same turn: exactly one next question is put to the user."
+        },
+        {
+          "id": "next-question-recommended",
+          "critical": true,
+          "text": "That next question carries the executor's own recommended answer.",
+          "surface": "推奨|おすすめ|勧め|recommend|recommendation"
+        },
+        {
+          "id": "rest-deferred-correctly",
+          "critical": false,
+          "text": "The remaining session material (approach, rejected alternatives, open items) is routed to the context export at the end rather than into the glossary or an ADR.",
+          "surface": "conversation-context-export|\\.dev/contexts"
+        },
+        {
+          "id": "not-batched",
+          "critical": false,
+          "text": "The executor does not announce that it will write the glossary entry and the ADR later, once the interview finishes."
+        }
+      ]
+    }
+  ]
+}
