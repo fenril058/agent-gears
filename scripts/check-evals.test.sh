@@ -65,6 +65,42 @@ ng() {
   fi
 }
 
+# ng_scan <label> <走査ルート> <期待する診断行> — 引数なし実行(走査モード)で失格するはず。
+ng_scan() {
+  local out
+  n=$((n + 1))
+  if out="$(EVALS_SCAN_ROOT="$2" bash "$CHECK" 2>&1)"; then
+    echo "NG: [$1] は失格するはずが合格した" >&2
+    fail=1
+    return 0
+  fi
+  if ! printf '%s\n' "$out" | grep -qxF "  - $3"; then
+    echo "NG: [$1] の診断行が想定と違う" >&2
+    echo "  期待(完全一致): $3" >&2
+    printf '%s\n' "$out" >&2
+    fail=1
+  fi
+}
+
+# ok_scan <label> <走査ルート> — 引数なし実行で合格するはず。
+ok_scan() {
+  local out
+  n=$((n + 1))
+  if out="$(EVALS_SCAN_ROOT="$2" bash "$CHECK" 2>&1)"; then return 0; fi
+  echo "NG: [$1] は合格するはずが失格した" >&2
+  printf '%s\n' "$out" >&2
+  fail=1
+}
+
+# absent <label> <文字列> <本文> — 本文に現れてはいけない。
+absent() {
+  n=$((n + 1))
+  if printf '%s' "$3" | grep -qiF -- "$2"; then
+    echo "NG: [$1] に \"$2\" が漏れている" >&2
+    fail=1
+  fi
+}
+
 # --- corpus ---------------------------------------------------------------
 ok "同梱の corpus" "$CORPUS"
 
@@ -177,6 +213,79 @@ jq --arg p "$badc" --arg d "sha256:$(sha256sum "$badc" | cut -d' ' -f1)" \
   "$tmp/run.json" >"$tmp/run-badcorpus.json"
 ng "不正な corpus を参照する run" "$tmp/run-badcorpus.json" \
   '$.cases[0].requirements: at least one requirement must have "critical": true (otherwise the success judgment is vacuous)'
+
+# --- 実行プロンプトの隔離 -------------------------------------------------
+# ここが漏れると baseline が checklist をそのまま実装でき、uplift が測れなくなる。
+# skill 名も出さない(候補の正体を教えると host 側の skill 自動読み込みを誘発しうる)。
+skill_name="$(jq -r '.skill' "$CORPUS")"
+while IFS= read -r cid; do
+  for cand in with-skill without-skill; do
+    prompt="$(bash "$RENDER" --corpus "$CORPUS" --case "$cid" --candidate "$cand")"
+    while IFS= read -r rid; do
+      absent "実行プロンプト($cid/$cand)に要件 id" "$rid" "$prompt"
+    done < <(jq -r --arg c "$cid" '.cases[] | select(.id == $c) | .requirements[].id' "$CORPUS")
+    while IFS= read -r rtext; do
+      absent "実行プロンプト($cid/$cand)に要件本文" "${rtext:0:40}" "$prompt"
+    done < <(jq -r --arg c "$cid" '.cases[] | select(.id == $c) | .requirements[].text' "$CORPUS")
+  done
+  # baseline は対象 skill を名指ししない。with-skill は SKILL.md を読ませる必要があるので対象外。
+  base="$(bash "$RENDER" --corpus "$CORPUS" --case "$cid" --candidate without-skill)"
+  absent "baseline プロンプト($cid)に skill 名" "$skill_name" "$base"
+done < <(jq -r '.cases[].id' "$CORPUS")
+
+# 採点プロンプト側には要件が載っていなければ意味がない(隔離のやりすぎ検出)。
+judg="$(bash "$RENDER" --corpus "$CORPUS" --case storage-choice-median --part judgment)"
+n=$((n + 1))
+if ! printf '%s' "$judg" | grep -qF 'one-question'; then
+  echo "NG: [採点プロンプト] に要件が載っていない" >&2
+  fail=1
+fi
+
+# --- 走査モード(evals/ の中身) -------------------------------------------
+scan="$tmp/scan"
+mkdir -p "$scan/p/skills/grilling/evals"
+cp "$CORPUS" "$scan/p/skills/grilling/evals/cases.json"
+ok_scan "正規レイアウトの走査" "$scan"
+
+cp "$CORPUS" "$scan/p/skills/grilling/evals/cases.json.bak"
+ng_scan "evals/ 直下の退避ファイル" "$scan" \
+  'unexpected file under evals/; the corpus must be exactly <skill>/evals/cases.json'
+rm -f "$scan/p/skills/grilling/evals/cases.json.bak"
+
+ln -s cases.json "$scan/p/skills/grilling/evals/cases.json.link"
+ng_scan "evals/ 直下の symlink" "$scan" \
+  'symlinks are not allowed under evals/; the corpus must be a regular file'
+rm -f "$scan/p/skills/grilling/evals/cases.json.link"
+
+mkdir -p "$scan/p/skills/grilling/evals/nested/evals"
+cp "$CORPUS" "$scan/p/skills/grilling/evals/nested/evals/cases.json"
+ng_scan "深すぎる evals/" "$scan" \
+  'evals/ must sit at <plugin>/skills/<skill>/evals, not nested deeper'
+rm -rf "$scan/p/skills/grilling/evals/nested"
+
+ok_scan "掃除後は再び合格" "$scan"
+
+# --- corpus の上限・制御文字 ----------------------------------------------
+jq '.cases[0].requirements = [.cases[0].requirements[0]] + .cases[0].requirements
+    + [.cases[0].requirements[1,2]]' "$CORPUS" >"$tmp/many-reqs.json" 2>/dev/null || true
+jq '.cases[0].requirements = (.cases[0].requirements + .cases[0].requirements)
+    | .cases[0].requirements = [.cases[0].requirements[] | .] ' "$CORPUS" |
+  jq '.cases[0].requirements = (.cases[0].requirements | to_entries | map(.value.id = "r\(.key)" | .value))' \
+    >"$tmp/many-reqs.json"
+ng "要件が8項目以上" "$tmp/many-reqs.json" \
+  '$.cases[0].requirements: must hold 3 to 7 items (SKILL.md, Baseline preparation), found 10'
+
+jq '.cases[0].requirements[0].surface = "a\u0000b"' "$CORPUS" >"$tmp/cntrl.json"
+ng "surface に制御文字" "$tmp/cntrl.json" \
+  '$.cases[0].requirements[0].surface: must not contain control characters'
+
+# REPLACE-ME は雛形が出すフィールドだけを見る。corpus 側の id 等は巻き込まない。
+jq '.cases[0].requirements[0].id = "REPLACE-ME"' "$CORPUS" >"$tmp/rid.json"
+ok "corpus の id が REPLACE-ME(予約していない名前空間)" "$tmp/rid.json"
+
+jq '.host.id = "REPLACE-ME"' "$tmp/run.json" >"$tmp/run-ph.json"
+ng "host.id が未記入のまま" "$tmp/run-ph.json" \
+  '$.host.id: still the REPLACE-ME placeholder from --result-stub'
 
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"

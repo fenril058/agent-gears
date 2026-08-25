@@ -34,6 +34,10 @@ This matters most for the baseline arm — the `without-skill` side of the compa
 If the checklist reaches the executor, a `without-skill` run is handed the skill's core expectations ("ask exactly one question", "attach a recommended answer", "do not start implementing") and can simply implement them.
 The baseline then scores like the skill, measured uplift collapses toward zero, and the comparison says nothing about whether the skill is worth having.
 
+The baseline prompt also withholds the skill's **name**.
+Naming it tells the executor what the candidate is, and on a host that can load skills on its own it may cue exactly the discovery the baseline is supposed to exclude.
+Withholding the skill at the host boundary — not loading it into the executor's session in the first place — is the runner's job; the prompt can only avoid pointing at it.
+
 So `eval-render.sh` splits the two:
 
 | `--part` | Contains | Given to |
@@ -52,7 +56,9 @@ plugins/<plugin>/skills/<skill>/evals/cases.json   the corpus, committed
 .dev/evals/<skill>/<host>/<model>/<run-id>.json    results, not committed (.dev/ is gitignored)
 ```
 
-`evals/` holds exactly one file, `cases.json`; the validator rejects anything else under it, so a misspelled `case.json` or a leftover `cases.json.bak` cannot sit there unvalidated.
+`evals/` holds exactly one file, `cases.json`, as a regular file.
+The validator rejects anything else under it — a misspelled `case.json`, a leftover `cases.json.bak`, a symlink, or an `evals/` directory nested at the wrong depth — so none of them can sit there unvalidated.
+Discovery is NUL-delimited and checks path components by count, because a shell glob's `*` crosses `/` and a newline in a directory name splits a newline-delimited list.
 
 The corpus travels with the skill, so it is symlinked to `~/.claude/skills/<skill>/evals/` along with everything else in the directory.
 Whether any host loads or is influenced by files a skill directory happens to contain is **unverified** — it has not been tested on Claude Code, Codex, or Copilot.
@@ -79,6 +85,8 @@ No problem has been observed, but do not treat that as a guarantee.
   ]
 }
 ```
+
+Abridged for readability: a real corpus needs at least 2 cases and 3 to 7 requirements each, per the rules below.
 
 | Field | Rule |
 |---|---|
@@ -130,7 +138,7 @@ That is deliberate — giving the combination its own file means there is nowher
 }
 ```
 
-- `corpus.path` is resolved from the repository root, so record it repo-relative. `--result-stub` does that for you.
+- `corpus.path` is resolved from the repository root, so record it repo-relative. `--result-stub` does that for you, using `git` — without `git` on PATH it records the path as given, which then has to be resolvable from the repository root by hand.
 - `corpus.digest` is `sha256:` over the corpus file. Two runs are comparable only if the digest matches; editing a case invalidates every earlier result against it, and the digest is what makes that visible.
 - The referenced corpus is validated too. Without that, a run pointing at a corpus with no `[critical]` requirement would make `success` vacuously true and a fully-failed run would validate as a success.
 - **`host.model` is required.** If the host does not report one, write an explicit marker such as `"unknown"` — but a run whose model is unknown cannot be used for candidate comparison, because two runs from different models would both read as "unknown" and their difference would be invisible. That is precisely the confusion this format exists to prevent.
@@ -176,6 +184,7 @@ A single overall score would average that away, and the regression would never b
 So the comparison unit is `(case, host, model, candidate)`, and the rules are:
 
 - Compare two run files only when `corpus.digest`, `host.id`, and `host.model` all match, they cover the same set of `case_id`s, and `candidate` differs.
+- Equal case sets are not sufficient on their own: two runs with the same cases but different trial counts (`{1}` against `{1,2}`) are not comparable either, because the trial protocols differ. Match the trial set too, or say plainly that you are comparing single trials against an average.
 - A run whose `host.model` is `"unknown"` is not comparable to anything.
 - Do not average accuracy across hosts or across models. There is no field for it, and adding one is a schema change, not a convenience.
 - "Improved" is a per-host, per-model statement. Phrase it that way: *Claude Code / opus-5: improved. Codex / gpt-5.4: regressed.* Never as one boolean.

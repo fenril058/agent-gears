@@ -22,6 +22,7 @@
 #
 # 使い方:
 #   bash scripts/check-evals.sh                  # plugins/ 配下の cases.json を全部
+#   EVALS_SCAN_ROOT=<dir> bash scripts/check-evals.sh   # 走査ルートの差し替え(テスト用)
 #   bash scripts/check-evals.sh <file>...        # 指定ファイル(.schema で振り分け)
 #
 # 必要: jq。CI では `nix shell nixpkgs#jq --command` 経由で実行する。
@@ -118,7 +119,10 @@ read -r -d '' JQ_CASES <<'JQ' || true
                 (if ($r | has("critical") | not) then ["\($rp): missing \"critical\""]
                  elif ($r.critical | type) != "boolean" then ["\($rp).critical: must be a boolean"]
                  else [] end),
-                optstr($rp; $r; "surface")
+                optstr($rp; $r; "surface"),
+                (if ($r | has("surface")) and ($r.surface | type) == "string"
+                    and ($r.surface | test("[[:cntrl:]]"))
+                 then ["\($rp).surface: must not contain control characters"] else [] end)
               ] | flatten))
           ] | flatten end)
        ] | flatten))
@@ -140,8 +144,12 @@ read -r -d '' JQ_RUN <<'JQ' || true
   optstr("$"; .; "notes"),
 
   # eval-render.sh --result-stub の未記入マーカー。埋めないまま合格させない。
-  ([paths(strings) as $q | select(getpath($q) == "REPLACE-ME")
-    | "$." + ($q | map(tostring) | join(".")) + ": still the REPLACE-ME placeholder from --result-stub"]),
+  # 雛形が実際に置くフィールドだけを見る。全文走査にすると、こちらが予約して
+  # いない名前空間(corpus 側の id 等)の正当な値まで巻き込む。
+  ([ [["run_id"], ["started_at"], ["host", "id"], ["host", "model"],
+      ["candidate", "label"], ["candidate", "revision"]][] as $q
+     | select(getpath($q) == "REPLACE-ME")
+     | "$." + ($q | join(".")) + ": still the REPLACE-ME placeholder from --result-stub" ]),
 
   obj("$"; .; "corpus"),
   (if (.corpus | type) == "object" then
@@ -265,6 +273,8 @@ fail=0
 n_corpus=0
 n_run=0
 
+# エラーがあれば表示して 1 を返す。呼び出し側が共有 fail の前後比較に頼らずに
+# 済むよう、必ず戻り値で成否を伝える。
 report() { # report <file> <errors-json>
   local file="$1" errs="$2" n
   n="$(jq 'length' <<<"$errs")"
@@ -272,10 +282,11 @@ report() { # report <file> <errors-json>
   echo "NG: $file" >&2
   jq -r '.[] | "  - " + .' <<<"$errs" >&2
   fail=1
+  return 1
 }
 
 check_cases() {
-  local file="$1" dir errs
+  local file="$1" dir errs bad=0
   # plugins/<plugin>/skills/<skill>/evals/cases.json の <skill>。
   # 正規レイアウト上のファイルでないと <skill> を名乗れないので、そのときだけ
   # 突き合わせる(temp ディレクトリ等から検証したときの偽陽性を出さない)。
@@ -284,7 +295,7 @@ check_cases() {
   */skills/*/evals/cases.json) dir="$(basename "$(dirname "$(dirname "$file")")")" ;;
   esac
   errs="$(jq -c --arg schema "$CASES_SCHEMA" --arg dir "$dir" "$JQ_LIB $JQ_CASES" "$file")"
-  report "$file" "$errs"
+  report "$file" "$errs" || bad=1
   # surface パターンは ERE。コンパイルできないものはここで落とす(grep は
   # 不正な正規表現で終了コード 2、一致なしなら 1)。
   local re
@@ -294,13 +305,15 @@ check_cases() {
       echo "NG: $file" >&2
       echo "  - surface pattern is not a valid ERE: $re" >&2
       fail=1
+      bad=1
     fi
   done < <(jq -r '.cases[]?.requirements[]?.surface // empty' "$file")
   n_corpus=$((n_corpus + 1))
+  return "$bad"
 }
 
 check_run() {
-  local file="$1" corpus digest errs before
+  local file="$1" corpus digest errs corpus_ok
   corpus="$(jq -r '.corpus.path // empty' "$file")"
   if [ -z "$corpus" ] || [ ! -f "$corpus" ]; then
     echo "NG: $file" >&2
@@ -310,10 +323,10 @@ check_run() {
   fi
   # 参照先 corpus を先に検証する。ここを飛ばすと [critical] が1つも無い corpus を
   # 指すことで success の判定を空虚に真にできる。
-  before="$fail"
-  check_cases "$corpus"
+  corpus_ok=0
+  check_cases "$corpus" || corpus_ok=1
   n_corpus=$((n_corpus - 1)) # run の巻き添えで corpus を二重に数えない
-  if [ "$fail" != "$before" ]; then
+  if [ "$corpus_ok" != 0 ]; then
     echo "  ^ the corpus referenced by $file is invalid; its results are not trustworthy" >&2
     return 0
   fi
@@ -359,21 +372,50 @@ if [ "$#" -gt 0 ]; then
   done
 else
   # evals/ の中身は cases.json 1枚だけ。綴り違い(case.json)、退避ファイル
-  # (cases.json.bak)、想定外の階層(evals/nested/cases.json)を黙って未検証に
-  # しない。check-licenses.sh / check-plugin-meta.sh と同じく、期待集合と実集合を
-  # 突き合わせる。
-  while IFS= read -r f; do
-    case "$f" in
-    plugins/*/skills/*/evals/cases.json) ;;
+  # (cases.json.bak)、symlink、想定外の階層(evals/nested/evals/cases.json)を
+  # 黙って未検証にしない。check-licenses.sh / check-plugin-meta.sh と同じく、
+  # 期待どおりかを実集合と突き合わせる。
+  #
+  # シェルの glob は `*` が `/` をまたぐので、パス一致だけでは階層を固定できない。
+  # 深さを数えて要素ごとに検査する。区切りは NUL(改行を含む名前で分割されない)。
+  scan_root="${EVALS_SCAN_ROOT:-plugins}"
+
+  # evals ディレクトリ自体が正規の深さにあるか(plugins/<p>/skills/<s>/evals)。
+  while IFS= read -r -d '' d; do
+    rel="${d#"$scan_root"/}"
+    case "$rel" in
+    */skills/*/evals)
+      # rel が <plugin>/skills/<skill>/evals ちょうど4要素であることを確かめる。
+      if [ "$(awk -F/ '{print NF}' <<<"$rel")" -ne 4 ]; then
+        echo "NG: $d" >&2
+        echo "  - evals/ must sit at <plugin>/skills/<skill>/evals, not nested deeper" >&2
+        fail=1
+      fi
+      ;;
     *)
+      echo "NG: $d" >&2
+      echo "  - evals/ must sit at <plugin>/skills/<skill>/evals" >&2
+      fail=1
+      ;;
+    esac
+  done < <(find "$scan_root" -type d -name evals -print0 | sort -z)
+
+  # evals/ 直下は cases.json ちょうど1枚の通常ファイルだけ。
+  while IFS= read -r -d '' f; do
+    if [ -L "$f" ]; then
+      echo "NG: $f" >&2
+      echo "  - symlinks are not allowed under evals/; the corpus must be a regular file" >&2
+      fail=1
+      continue
+    fi
+    if [ "$(basename "$f")" != "cases.json" ]; then
       echo "NG: $f" >&2
       echo "  - unexpected file under evals/; the corpus must be exactly <skill>/evals/cases.json" >&2
       fail=1
       continue
-      ;;
-    esac
+    fi
     check_file "$f"
-  done < <(find plugins -path '*/skills/*/evals/*' -type f | sort)
+  done < <(find "$scan_root" -path '*/evals/*' \( -type f -o -type l \) -print0 | sort -z)
 fi
 
 if [ "$fail" = 0 ]; then

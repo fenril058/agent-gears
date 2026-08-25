@@ -5,8 +5,10 @@
   "cases": [
     {
       "id": "storage-choice-median",
-      "tags": ["median"],
-      "scenario": "The user is at the start of a greenfield service and wants the storage choice stress-tested before any implementation. Nothing about the choice is discoverable from the environment: every open item is a decision the user has to make. The executor produces its first grilling turn and stops there, because there is no user available to answer.",
+      "tags": [
+        "median"
+      ],
+      "scenario": "The user is at the start of a greenfield service and wants the storage choice stress-tested before any implementation. Nothing about the choice is discoverable from the environment: every open item is a decision the user has to make. The executor produces the first turn of that interview and stops there, because there is no user available to answer.",
       "prompt": "新しいサービスのデータストアを Postgres にするか DynamoDB にするか決めたい。実装に入る前に叩いてほしい。",
       "requirements": [
         {
@@ -33,14 +35,16 @@
         {
           "id": "interview-continues",
           "critical": false,
-          "text": "The turn is framed as the first of several — the executor waits for the answer and signals that further branches remain, rather than treating one question as the whole grilling."
+          "text": "The turn is framed as the first of several — the executor waits for the answer and signals that further branches remain, rather than treating one question as the whole interview."
         }
       ]
     },
     {
       "id": "repo-facts-looked-up-edge",
-      "tags": ["edge"],
-      "scenario": "The session is running inside a checkout of this repository (agent-gears). The user wants to be grilled about adding one new skill. Some of what the interview needs is a fact already written down in the repo — which plugins exist, where a skill directory goes, which CI checks a new skill has to pass. The rest — which plugin the new skill belongs to, how wide its scope should be — is the user's decision. The executor produces its first grilling turn and stops.",
+      "tags": [
+        "edge"
+      ],
+      "scenario": "The session is running inside a checkout of this repository (agent-gears). The user wants to be interviewed about adding one new skill. Some of what the interview needs is a fact already written down in the repo — which plugins exist, where a skill directory goes, which CI checks a new skill has to pass. The rest — which plugin the new skill belongs to, how wide its scope should be — is the user's decision. The executor produces the first turn of that interview and stops.",
       "prompt": "この repo に新しい skill を1つ足したい。どこに置くかも含めて要件を詰めたい。",
       "requirements": [
         {
@@ -74,8 +78,10 @@
     },
     {
       "id": "record-what-settles-edge",
-      "tags": ["edge"],
-      "scenario": "A grilling is already in progress, in a repository that has no CONTEXT.md glossary and no ADR directory yet. Two things have just settled in the conversation. (1) Terminology: the user and the executor agreed that in this project a 'run' means one execution of the whole corpus against a single host+model pair, and that a single scenario execution is a 'trial' — the two words had been used interchangeably until now. (2) A decision: results will be stored one file per host+model rather than in a single combined table, because the team expects the same change to help one model and hurt another, and a combined table would average that away. Reversing it later means rewriting every stored result. Several branches of the interview are still open (retention period, whether trials are stored individually or summarised).",
+      "tags": [
+        "edge"
+      ],
+      "scenario": "An interview is already in progress, in a repository that has no CONTEXT.md glossary and no ADR directory yet. Two things have just settled in the conversation. (1) Terminology: the user and the executor agreed that in this project a 'run' means one execution of the whole corpus against a single host+model pair, and that a single scenario execution is a 'trial' — the two words had been used interchangeably until now. (2) A decision: results will be stored one file per host+model rather than in a single combined table, because the team expects the same change to help one model and hurt another, and a combined table would average that away. Reversing it later means rewriting every stored result. Several branches of the interview are still open (retention period, whether trials are stored individually or summarised).",
       "prompt": "そこは合意でいい。続けて。",
       "requirements": [
         {
@@ -93,7 +99,12 @@
         {
           "id": "interview-continues",
           "critical": true,
-          "text": "The interview continues in the same turn with exactly one next question, carrying a recommended answer.",
+          "text": "The interview continues in the same turn: exactly one next question is put to the user."
+        },
+        {
+          "id": "next-question-recommended",
+          "critical": true,
+          "text": "That next question carries the executor's own recommended answer.",
           "surface": "推奨|おすすめ|勧め|recommend|recommendation"
         },
         {

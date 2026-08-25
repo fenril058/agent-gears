@@ -23,7 +23,8 @@
 #     --result-stub         プロンプトの代わりに、結果 JSON の雛形を出す
 #                           (scripts/check-evals.sh が検証できる形)
 #
-# 必要: jq。
+# 必要: jq。git があれば corpus path をリポジトリルート相対で記録する(無い場合は
+# 渡されたパスをそのまま書くので、検証時に解決できる形で渡すこと)。
 set -euo pipefail
 
 corpus=""
@@ -200,7 +201,9 @@ if [ "$candidate" = "with-skill" ]; then
   [ -f "$skill_file" ] || die "skill file not found: $skill_file (pass --skill-file)"
   target="Read \`$skill_file\` in full and follow it."
 else
-  target="None. This is the baseline run: no skill is provided. Handle the scenario however you would by default. Do not go looking for a skill named \"$skill_name\"."
+  # baseline では対象 skill の名前も出さない。名指しすると executor に候補の正体を
+  # 教えることになり、host 側の skill 自動読み込みを誘発しうる。
+  target="None. This is the baseline run: no instruction is provided. Handle the scenario however you would by default. Do not load or consult any optional skill, instruction file, or reference document beyond what this prompt contains."
 fi
 
 printf 'You are an executor handling the scenario below with a blank slate.\n\n'
