@@ -223,6 +223,39 @@ tline "same verdict は trial を表示キーに含む(trial 2)" \
 ntline "same verdict が trial を落として同じ行を重複させる" \
   "storage-choice-median no-implementation pass [critical]"
 
+# --- tool_uses の部分欠損 ----------------------------------------------------
+# tool_uses は optional なので「3 case 中1件だけ未記録」は正当な入力である。
+# 欠損を落として計算すると 3, missing, 15 が「min 3 max 15 range 12」に見え、
+# 3, missing, missing なら「range 0(スキュー無し)」に見える。この節は skew の
+# 診断に使うので、部分観測から幅を出してはいけない。
+jq --slurpfile x "$tmp/stub2.json" --slurpfile y "$tmp/stub3.json" \
+  '.results += [$x[0].results[0], $y[0].results[0]]
+   | .results[0].tool_uses = 3 | .results[2].tool_uses = 15' "$tmp/a.json" >"$tmp/a-3c.json"
+jq --slurpfile x "$tmp/stub2.json" --slurpfile y "$tmp/stub3.json" \
+  '.results += [$x[0].results[0], $y[0].results[0]]
+   | .results[0].tool_uses = 1 | .results[1].tool_uses = 2 | .results[2].tool_uses = 9' "$tmp/b.json" >"$tmp/b-3c.json"
+part="$(bash "$COMPARE" "$tmp/a-3c.json" "$tmp/b-3c.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+
+pline() {
+  n=$((n + 1))
+  printf '%s\n' "$part" | grep -qxF "$2" && return 0
+  note "[$1] の行が出ていない"
+  echo "  期待(完全一致): $2" >&2
+}
+npline() {
+  n=$((n + 1))
+  printf '%s\n' "$part" | grep -qxF "$2" || return 0
+  note "[$1] が出てはいけないのに出ている"
+  echo "  出てはいけない行: $2" >&2
+}
+
+pline "欠損 case の位置を - で残す" \
+  "#1* trial 1 3, -, 15 observed 2/3 — 欠損があるので min/max/range を出さない"
+npline "部分観測から min/max/range を出す" \
+  "#1* trial 1 3, 15 min 3 max 15 range 12"
+pline "全 case そろっていれば min/max/range を出す" \
+  "#2 trial 1 1, 2, 9 min 1 max 9 range 8"
+
 # --- 比較不能の拒否 ----------------------------------------------------------
 # refuse <label> <期待する診断行(完全一致)> <file...>
 refuse() {
@@ -295,6 +328,29 @@ jq '.results += [.results[0] | .trial = 2]' "$tmp/b.json" >"$tmp/b-t2.json"
 refuse "trial 集合が違う" \
   'case/trial set mismatch: '"$tmp"'/a.json covers storage-choice-median#1 but '"$tmp"'/b-t2.json covers storage-choice-median#1, storage-choice-median#2 — differing trial protocols are not comparable' \
   "$tmp/a.json" "$tmp/b-t2.json"
+
+# 片方だけ測れた項目がある。unevaluated -> pass は候補の改善ではなく証拠の有無で、
+# accuracy の分母も片方だけ変わる。
+unev='.results[0].requirements[1] = {id: "recommendation-attached", verdict: "unevaluated",
+        surface: "miss", note: "no tool-call transcript"}'
+jq "$unev | .results[0].accuracy = 0.5 | .results[0].success = false" "$tmp/a.json" >"$tmp/a-unev.json"
+refuse "片方だけ unevaluated" \
+  'unevaluated set mismatch: '"$tmp"'/a-unev.json and '"$tmp"'/b.json disagree on which items were measured at all: storage-choice-median#1/recommendation-attached — a run carrying an unevaluated verdict is not comparable to one that measured that item, and their accuracy denominators differ' \
+  "$tmp/a-unev.json" "$tmp/b.json"
+
+# 両 run が同じ項目を測れていないなら、その項目は比較不能ではない(どちらも未測定)。
+n=$((n + 1))
+# b の判定済みは pass / pass / fail / partial の4件 = (1+1+0+0.5)/4 = 0.625。
+# critical に fail は無く recommendation-attached が未測定なので success は null。
+jq "$unev | .results[0].accuracy = 0.625 | .results[0].success = null" "$tmp/b.json" >"$tmp/b-unev.json"
+if unevout="$(bash "$COMPARE" "$tmp/a-unev.json" "$tmp/b-unev.json" 2>&1)"; then
+  printf '%s\n' "$unevout" | tr -s ' ' | sed 's/^ *//; s/ *$//' |
+    grep -qxF "storage-choice-median 1 recommendation-attached * unevaluated/miss unevaluated/miss" ||
+    note "両 run とも unevaluated の項目が movement 無しで並ばない"
+else
+  note "両 run が同じ項目を unevaluated にしているのに拒否した"
+  printf '%s\n' "$unevout" >&2
+fi
 
 # corpus digest が違う(別 corpus を指した run どうし)。
 # それぞれの digest は自分の corpus と一致しているので check-evals.sh は通る。

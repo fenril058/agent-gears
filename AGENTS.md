@@ -42,6 +42,10 @@
   ないので全ペアで見る —— 先頭を錨にすると `A, B, B` を見逃す。
   trial をまたいだ計算をしない。`tool_uses` の集計は `(arm, trial)` ごと、
   「全 arm 同一」の判定と表示キーは `(case, trial, requirement)` ごと。
+  `unevaluated` の集合が run 間で違えば比較を拒否する。`unevaluated -> pass` は
+  候補の改善ではなく証拠の有無で、accuracy の分母も片方だけ変わる。
+  `tool_uses` が case 単位で部分欠損したら位置を `-` で残し、min/max/range は出さない
+  (部分観測から skew を読ませない)。
   arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
   (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
   EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、

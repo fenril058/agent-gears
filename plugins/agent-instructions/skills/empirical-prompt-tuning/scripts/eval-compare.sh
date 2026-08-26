@@ -129,6 +129,10 @@ read -r -d '' JQ_GATE <<'JQ' || true
 | [ range(1; ($runs | length)) as $i
     | $runs[$i] as $b | $names[$i] as $bn
     | ([ $b.results[] | "\(.case_id)#\(.trial)" ] | sort | unique) as $bkeys
+    | ([ $a.results[] | .case_id as $c | .trial as $t | .requirements[]
+         | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $aun
+    | ([ $b.results[] | .case_id as $c | .trial as $t | .requirements[]
+         | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $bun
     | [ (if $b.corpus.digest != $a.corpus.digest
          then "corpus.digest mismatch: \($an) is \($a.corpus.digest) but \($bn) is \($b.corpus.digest) — results are only comparable within one corpus digest"
          else empty end),
@@ -140,6 +144,14 @@ read -r -d '' JQ_GATE <<'JQ' || true
          else empty end),
         (if $bkeys != $akeys
          then "case/trial set mismatch: \($an) covers \($akeys | join(", ")) but \($bn) covers \($bkeys | join(", ")) — differing trial protocols are not comparable"
+         else empty end),
+        # 片方だけ測れた項目があると、その movement は候補の改善ではなく証拠の
+        # 有無を映す(unevaluated -> pass は「良くなった」ではない)。accuracy の
+        # 分母も片方だけ変わる。EVAL-CORPUS.md:
+        # 「A run carrying any unevaluated verdict is not comparable to one that
+        #  measured that item.」
+        (if $bun != $aun
+         then "unevaluated set mismatch: \($an) and \($bn) disagree on which items were measured at all: \((($aun - $bun) + ($bun - $aun)) | sort | join(", ")) — a run carrying an unevaluated verdict is not comparable to one that measured that item, and their accuracy denominators differ"
          else empty end) ]
   ]
 # candidate の相異は等値関係ではないので、先頭を錨にした比較では足りない。
@@ -296,13 +308,21 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 # trial をまたいだ要約は EVAL-CORPUS.md で「まだ設計していない」ものである。
 | ([ range(0; $n) as $i
      | ($keys | map(.trial) | unique | sort)[] as $t
+     # 欠損 case を黙って落とさない。tool_uses は optional なので「3 case 中1件だけ
+     # 未記録」は正当な入力だが、落として計算すると 3, missing, 15 が
+     # 「min 3 max 15 range 12」に、3, missing, missing が「range 0(スキュー無し)」に
+     # 見える。この節は skew の診断に使うので、部分観測から幅を出してはいけない。
+     # case の位置を保って - を残し、1件でも欠ければ min/max/range を出さない。
      | ([ $keys[] | select(.trial == $t)
           | $rowIdx[$i]["\(.case_id)#\(.trial)"]
-          | select(has("tool_uses")) | .tool_uses ]) as $vals
+          | if has("tool_uses") then .tool_uses else null end ]) as $vals
+     | ($vals | map(select(. != null))) as $seen
      | "  " + ($tag[$i] | pad(6)) + ("trial \($t)" | pad(9))
-       + ((if ($vals | length) == 0 then "-" else ($vals | map(tostring) | join(", ")) end) | pad(30))
-       + (if ($vals | length) == 0 then "(tool_uses 未記録)"
-          else "min \($vals | min)  max \($vals | max)  range \(($vals | max) - ($vals | min))" end) ]) as $tu
+       + (($vals | map(if . == null then "-" else tostring end) | join(", ")) | pad(30))
+       + (if ($seen | length) == 0 then "(tool_uses 未記録)"
+          elif ($seen | length) < ($vals | length)
+          then "observed \($seen | length)/\($vals | length) — 欠損があるので min/max/range を出さない"
+          else "min \($seen | min)  max \($seen | max)  range \(($seen | max) - ($seen | min))" end) ]) as $tu
 | $out
 + [ "", "## tool_uses across cases, within arm", "" ]
 + $tu

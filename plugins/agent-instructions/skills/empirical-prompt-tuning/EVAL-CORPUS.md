@@ -351,7 +351,12 @@ Before comparing anything, it enforces the preconditions from "Do not fold hosts
 - `corpus.digest`, `host.id` and `host.model` identical across every run
 - `host.model` not `"unknown"`
 - the same set of `(case_id, trial)` pairs in every run
+- the same set of `(case_id, trial, requirement_id)` carrying an `unevaluated` verdict
 - `candidate` distinct between **every pair** of runs, since a comparison of a candidate with itself is not one
+
+The `unevaluated` condition is the run-level form of the rule stated with the schema: a run carrying an `unevaluated` verdict is not comparable to one that measured that item.
+Without it, `unevaluated -> pass` prints as a movement, which reads as the candidate improving when what actually differs is whether the evidence was captured; and the two runs' accuracy denominators differ, so the secondary summary is not comparable either.
+Both runs failing to measure the same item is fine — the row shows `unevaluated` on both sides with no movement, which is the truth.
 
 Distinctness is the one precondition that is not an equality against a single anchor.
 The others are: if every run matches the first on digest, host and case set, they match each other.
@@ -369,9 +374,9 @@ Run files are read-only to it.
 
 Three further sections come from what the first measurement made obvious:
 
-- **the same verdict in every arm**, keyed `(case_id, requirement_id)` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
+- **the same verdict in every arm**, keyed `(case_id, trial, requirement_id)` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
 - **surface / semantic disagreement**, counted per requirement over every observation — `surface: hit` with a `partial`/`fail` verdict, or `surface: miss` with `pass`. `SKILL.md` only describes the pattern being too narrow; a pattern that fires on a label without checking what follows it is the opposite failure, and one run cannot tell it from chance.
-- **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. A run that did not record `tool_uses` prints `-`; the aggregator never substitutes a zero.
+- **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. `tool_uses` is optional per result, so a run that recorded it for two cases out of three is a legal input, and dropping the third silently is how `3, missing, 15` becomes "min 3, max 15, range 12" and `3, missing, missing` becomes "range 0 — no skew" while two cases went unobserved. The row therefore keeps each case's position, printing `-` where nothing was recorded, and withholds min/max/range entirely unless every case in that `(arm, trial)` has a value, saying `observed 2/3` instead. The aggregator never substitutes a zero.
 
 The same rule governs the first section: "identical in every arm" is decided per `(case_id, trial, requirement_id)` and the trial stays in the printed key.
 Drop it and a requirement that every arm passed on trial 1 and every arm failed on trial 2 becomes two indistinguishable rows.
