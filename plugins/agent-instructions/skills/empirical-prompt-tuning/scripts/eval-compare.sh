@@ -298,20 +298,30 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 # gate が unevaluated 集合の一致を要求しているので、unevaluated な項目は必ず
 # 全 arm で unevaluated である。黙って落とすと、証拠を捕り損ねたことごと消える。
 | . as $out
+# gate が保証するのは「同じ requirement が全 arm で unevaluated」までで、
+# 未測定になった理由が同じことまでは保証しない。note は「何の証拠が欠けたか」の
+# 記録なので、先頭 arm のものだけを無印で代表させると差が消える。
+# 全 arm 同一のときだけ1行に畳み、違えば arm ごとに出す。
 | ([ $keys[] as $k
      | "\($k.case_id)#\($k.trial)" as $kk
      | $byCase[$k.case_id].requirements[] as $req
      | select($idx[0][$kk][$req.id].verdict == "unevaluated")
-     | "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))"
-       + ($idx[0][$kk][$req.id].note // "(note なし)")
-       + (if $req.critical then "   [critical]" else "" end) ]) as $unev
+     | ([ range(0; $n) | $idx[.][$kk][$req.id].note // "(note なし)" ]) as $notes
+     | (($notes | unique | length) == 1) as $sameNote
+     | [ "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))"
+         + (if $sameNote then $notes[0] else "(欠けた証拠が arm ごとに違う)" end)
+         + (if $req.critical then "   [critical]" else "" end) ]
+       + (if $sameNote then []
+          else [ range(0; $n) as $i | "      \($tag[$i] | pad(6))\($notes[$i])" ] end) ]
+   | flatten) as $unev
 | $out
 + (if ($unev | length) == 0 then []
    else [ "", "## unevaluated in every arm   (測定が存在しない —— 候補についての所見ではない)", "" ]
         + $unev
         + [ "",
             "  これらは候補の良し悪しではなく、証拠を捕れなかったことの記録である。",
-            "  [critical] が含まれていれば、その case の success は判定不能(null)になる。" ] end)
+            "  [critical] が未測定でも、別の [critical] が fail か partial なら success は false で確定する。",
+            "  未測定だけが true を妨げているときに限り null になる。" ] end)
 # --- surface / semantic の食い違い ----------------------------------------
 | . as $out
 | ([ $keys[] as $k

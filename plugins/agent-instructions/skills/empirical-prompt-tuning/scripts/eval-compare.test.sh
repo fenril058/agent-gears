@@ -400,6 +400,40 @@ n=$((n + 1))
 printf '%s\n' "$out" | grep -q "unevaluated in every arm" &&
   note "unevaluated が1件も無いのに専用の節が出る"
 
+# 節の footer は success の判定順序を正しく述べること。この fixture 自体が
+# 「[critical] が未測定でも success=false」の反例になっている:
+# a-unev は one-question(critical)が fail なので false、b-unev は critical に
+# fail が無く未測定だけが残るので null。「未測定なら null」と書くと矛盾する。
+n=$((n + 1))
+printf '%s\n' "$unevout" |
+  grep -qxF "[critical] が未測定でも、別の [critical] が fail か partial なら success は false で確定する。" ||
+  note "unevaluated 節の footer が success の判定順序を誤って説明している"
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qF "[critical] が含まれていれば、その case の success は判定不能" &&
+  note "unevaluated 節の footer に「未測定なら null」という誤った説明が残っている"
+# fixture が本当に反例になっていることを、secondary summary で確かめる。
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 #1* false 0.5 3 1000" ||
+  note "critical が未測定でも別の critical fail があれば success=false、が fixture に現れていない"
+
+# 未測定の理由は arm ごとに違いうる。gate が保証するのは「同じ requirement が
+# 全 arm で unevaluated」までで、理由の一致までは保証しない。
+n=$((n + 1))
+jq '.results[0].requirements[1].note = "file-state capture failed"' "$tmp/b-unev.json" >"$tmp/b-unev2.json"
+difnote="$(bash "$COMPARE" "$tmp/a-unev.json" "$tmp/b-unev2.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+printf '%s\n' "$difnote" | grep -qxF "storage-choice-median 1 recommendation-attached (欠けた証拠が arm ごとに違う) [critical]" ||
+  note "note が arm ごとに違うのに1件で代表させている"
+n=$((n + 1))
+printf '%s\n' "$difnote" | grep -qxF "#1* no tool-call transcript" ||
+  note "arm ごとの note (#1) が出ない"
+n=$((n + 1))
+printf '%s\n' "$difnote" | grep -qxF "#2 file-state capture failed" ||
+  note "arm ごとの note (#2) が出ない"
+# 全 arm 同一なら1行に畳む(毎回 arm ごとに展開すると読みにくい)。
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 recommendation-attached no tool-call transcript [critical]" ||
+  note "note が全 arm 同一なのに1行に畳まれない"
+
 # corpus digest が違う(別 corpus を指した run どうし)。
 # それぞれの digest は自分の corpus と一致しているので check-evals.sh は通る。
 # ここを検査しないと、別 corpus の結果が1枚の表に並ぶ。
