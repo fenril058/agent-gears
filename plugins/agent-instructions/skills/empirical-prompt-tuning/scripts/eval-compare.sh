@@ -331,18 +331,29 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      | ($idx[$i][$kk][$req.id]) as $r
      | select($r != null)
      | {req: "\($k.case_id) / \($req.id)", pair: "\($r.surface)+\($r.verdict)",
+        unev: ($r.verdict == "unevaluated"),
         odd: (($r.surface == "hit" and ($r.verdict == "fail" or $r.verdict == "partial"))
               or ($r.surface == "miss" and $r.verdict == "pass"))} ]
    | group_by(.req)
-   | map({req: .[0].req, odd: (map(select(.odd)) | length),
-          pairs: (group_by(.pair) | map("\(.[0].pair) x\(length)") | join(", "))})) as $sf
+   # unevaluated には semantic の判定が存在しないので、surface と突き合わせようがない。
+   # 観測として数えると "miss+unevaluated x2 / odd 0" のように、一致を確かめた結果
+   # 食い違いが無かったかのように読める。判定済みだけを数え、除いた件数は明示する。
+   # 判定済みが1件も無い requirement は行ごと落とす(unevaluated in every arm に出る)。
+   | map({req: .[0].req,
+          judged: map(select(.unev | not)),
+          skipped: (map(select(.unev)) | length)})
+   | map(select((.judged | length) > 0))
+   | map({req: .req, odd: (.judged | map(select(.odd)) | length),
+          pairs: ((.judged | group_by(.pair) | map("\(.[0].pair) x\(length)") | join(", "))
+                  + (if .skipped > 0 then "   (未測定 \(.skipped) 件を除く)" else "" end))})) as $sf
 | $out
 + [ "", "## surface / semantic   (arm x case x trial の観測を数える)", "" ]
-+ (if ($sf | length) == 0 then [ "  (surface pattern を持つ requirement が無い)" ]
++ (if ($sf | length) == 0 then [ "  (surface pattern を持つ判定済みの requirement が無い)" ]
    else ([ ("  " + ("requirement" | pad(50)) + ("odd" | pad(6)) + "observed (surface+verdict)") ]
          + [ $sf[] | "  " + (.req | pad(50)) + (.odd | tostring | pad(6)) + .pairs ]
          + [ "",
              "  odd = surface hit なのに semantic が partial/fail、または surface miss なのに pass。",
+             "  unevaluated は semantic の判定が無いので数えない(除いた件数は行末に出す)。",
              "  1 run では pattern の欠陥か偶然か決まらない。run を足して数を見る。" ]) end)
 # --- arm 内の case 間 tool_uses ------------------------------------------
 | . as $out

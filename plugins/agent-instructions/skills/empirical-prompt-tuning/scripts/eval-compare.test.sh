@@ -434,6 +434,43 @@ n=$((n + 1))
 printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 recommendation-attached no tool-call transcript [critical]" ||
   note "note が全 arm 同一なのに1行に畳まれない"
 
+# --- surface / semantic は unevaluated を数えない ------------------------------
+# unevaluated には semantic の判定が存在しないので、surface と突き合わせようがない。
+# 観測として数えると "miss+unevaluated x2 / odd 0" のように、一致を確かめた結果
+# 食い違いが無かったかのように読める。
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qF "miss+unevaluated" &&
+  note "surface/semantic 節が unevaluated を観測として数えている"
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qxF "storage-choice-median / recommendation-attached 0 miss+unevaluated x2" &&
+  note "判定が存在しないのに odd=0(食い違い無し)と表示している"
+# 判定済みが1件も無い requirement は行ごと落とす(unevaluated in every arm に出るため)。
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -q "storage-choice-median / recommendation-attached" &&
+  note "全 arm 未測定の requirement が surface/semantic 節に残っている"
+
+# 同じ requirement が trial 1 で判定済み・trial 2 で未測定なら、判定済みだけを数え、
+# 除いた件数を明示する(黙って分母を減らさない)。
+n=$((n + 1))
+# trial 2 だけ recommendation-attached を未測定にする。
+# a: 判定済み4件 = fail/pass/pass/fail -> 0.5、critical の one-question が fail なので false。
+# b: 判定済み4件 = pass/pass/fail/partial -> 0.625、critical に fail は無く未測定が残るので null。
+jq '.results += [(.results[0] | .trial = 2
+     | .requirements = [.requirements[]
+         | if .id == "recommendation-attached"
+           then {id: "recommendation-attached", verdict: "unevaluated", surface: "miss", note: "no transcript"}
+           else . end])]
+   | .results[1].accuracy = 0.5 | .results[1].success = false' "$tmp/a.json" >"$tmp/a-mix.json"
+jq '.results += [(.results[0] | .trial = 2
+     | .requirements = [.requirements[]
+         | if .id == "recommendation-attached"
+           then {id: "recommendation-attached", verdict: "unevaluated", surface: "miss", note: "no transcript"}
+           else . end])]
+   | .results[1].accuracy = 0.625 | .results[1].success = null' "$tmp/b.json" >"$tmp/b-mix.json"
+mixout="$(bash "$COMPARE" "$tmp/a-mix.json" "$tmp/b-mix.json" 2>&1 | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+printf '%s\n' "$mixout" | grep -qxF "storage-choice-median / recommendation-attached 2 hit+fail x1, hit+partial x1 (未測定 2 件を除く)" ||
+  note "判定済みと未測定が混ざるとき、判定済みだけを数えて除外件数を出さない"
+
 # corpus digest が違う(別 corpus を指した run どうし)。
 # それぞれの digest は自分の corpus と一致しているので check-evals.sh は通る。
 # ここを検査しないと、別 corpus の結果が1枚の表に並ぶ。
