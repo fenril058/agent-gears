@@ -19,6 +19,7 @@ Everywhere a measurement does exist, the three values and the formula are exactl
 eval corpus            evals/cases.json — scenarios and the fixed checklist. No host in it.
       |
 runner interface       scripts/eval-render.sh — corpus -> execution prompt, judgment prompt, result skeleton.
+      |                scripts/eval-compare.sh — run files -> requirement-level delta matrix.
       |
 host execution         Claude Code Task tool / Codex / Copilot. Lives outside this repo's data.
 ```
@@ -224,6 +225,65 @@ The data model does not care how the revision got onto disk, only that the run s
 `SKILL.md`'s "Variant exploration" compares two uncommitted drafts (conservative vs exploratory).
 Both are `with-skill`; distinguish them by putting the draft's identity in `revision` (e.g. `worktree:conservative`) rather than only in `label`, which nothing validates.
 
+## Runner isolation contract
+
+The corpus names no host, and `eval-render.sh` only avoids naming the skill.
+Everything else that keeps the arms comparable belongs to the runner, and "the runner withholds the skill" turned out not to be one action but five invariants.
+Each of the following was violated by an ad-hoc runner during the first real measurement of this corpus, and each violation was visible only because the tool-call transcript had been captured.
+
+### Unloading a skill is not withholding it
+
+A host switch that disables skills — Claude Code's `--safe-mode` or `--disable-slash-commands` — stops the skill from being *loaded*.
+It does not remove the file.
+`~/.claude/skills/<skill>/SKILL.md` stays readable, and an executor told to record "via `domain-modeling`" goes looking for it: one did, and read three files out of the installed skill directory.
+The same path was open to the baseline arm for the skill actually under test.
+Nothing but luck kept it shut.
+
+Withholding means **unreachable through the filesystem**, not merely unloaded.
+Point the host at an empty configuration directory, or run it in a filesystem sandbox.
+Where neither is possible, say so in the run's `notes` and treat the baseline as provisional rather than pretending the boundary held.
+
+### Only one candidate exists on disk at a time
+
+Two arms' candidate files must never co-exist during a run, and a permission flag is not a substitute.
+Claude Code's `--add-dir` grants *additional* access; under `--permission-mode bypassPermissions` it does not restrict reads at all.
+Two executors reached the sibling arm's `SKILL.md` with `find` and read it — one of them the arm whose entire purpose was not to see it.
+
+Materialise the candidate at a single neutral path for the duration of its own arm and delete it afterwards.
+A directory holding only the arm being run cannot leak the arm that is not.
+
+### Arm identity must not appear in anything the executor can observe
+
+The executor sees its working directory, its git history and its branch.
+Any of them can name the arm:
+
+- a working tree at `.../work/<case>/tampered/` announces the arm to `pwd`
+- a candidate at `skills/A/` beside `skills/B/` announces that there are two
+- `git commit -m "tampered candidate"` announces the edit itself — an executor ran `git show HEAD`, found the commit, and reported the tampering back in its deliverable
+
+Name the paths so they carry no arm information, and build a modified checkout so its history is indistinguishable from the intact one (amend onto the upstream commit rather than adding one on top).
+
+### Dependencies are equalised across arms, not withheld
+
+A requirement can only be about the candidate.
+When the candidate delegates — `grilling` records "via `domain-modeling`" — whether that delegate is reachable changes what the executor is able to do, and if it varies between arms the comparison stops being about the candidate at all.
+
+This is **not a corpus property**.
+The corpus describes a scenario and a checklist; "this skill leans on that one" is a property of the skill text, which already says so in prose.
+Nor is it a property of `candidate.revision`, which records which text was handed over.
+It is a property of the environment the runner builds, and the invariant is symmetry: **every arm, the baseline included, gets the same delegates.**
+The baseline withholds the candidate and nothing else — withholding its delegates as well would narrow the baseline below the model's default, the distortion "Baseline and candidate" already warns about.
+
+So neither schema gains a field.
+The asymmetry observed in the first measurement — one arm found `domain-modeling` on disk, two did not — came from chance filesystem discovery, not from a missing declaration, and a declaration would not have prevented it.
+Record what the arms actually had in the run's `notes`.
+
+### Audit the transcript before trusting the run
+
+Every breach above was found by grepping the captured tool calls for the other arms' artefacts after the runs finished.
+None of them was visible in the deliverables.
+A runner that does not capture the transcript cannot check any of these invariants, which is a second reason to capture it — independent of grading the `tool-calls` requirements.
+
 ## Do not fold hosts together
 
 The same edit to a skill can help one model and hurt another.
@@ -267,13 +327,49 @@ bash "$render" --corpus "$corpus" --case storage-choice-median --result-stub > "
 bash scripts/check-evals.sh "$out/run-1.json"
 ```
 
-The baseline arm is the same five steps with `--candidate without-skill`.
+The baseline arm is the same five steps with `--candidate without-skill`, run under the isolation contract above.
 
 `bash scripts/check-evals.sh` with no arguments validates every committed corpus; that is the form CI runs.
+
+## Comparing runs
+
+`scripts/eval-compare.sh`, next to `eval-render.sh`, puts two or more run files side by side:
+
+```sh
+compare="plugins/agent-instructions/skills/empirical-prompt-tuning/scripts/eval-compare.sh"
+bash "$compare" "$out"/run-baseline.json "$out"/run-with.json "$out"/run-tampered.json
+```
+
+Its primary output is a **requirement-level delta matrix**, one row per `(case_id, trial, requirement_id)`, one column per arm, with the movement against a reference arm.
+Accuracy, success, `tool_uses` and `duration_ms` follow as a secondary summary, and deliberately not first: in the first real measurement of this corpus, one arm read 0.750 against another's 0.833 — "the tampered candidate is better" — when the only requirement that had moved was a single non-`[critical]` item going `fail` to `partial`.
+A number that summarises sixteen verdicts hides which of them changed, which is the one thing a regression check is for.
+
+The reference defaults to the `without-skill` run when exactly one is given, and to the first argument otherwise; `--reference <file>` overrides it.
+
+Before comparing anything, it enforces the preconditions from "Do not fold hosts together" and refuses the whole comparison — it does not silently drop the offending file:
+
+- `corpus.digest`, `host.id` and `host.model` identical across every run
+- `host.model` not `"unknown"`
+- the same set of `(case_id, trial)` pairs in every run
+- `candidate` distinct between runs, since a comparison of a candidate with itself is not one
+
+That set equality is between the runs, not against the corpus.
+Two runs covering one of three cases satisfy it, and a comparison of only the case you re-ran is a legitimate thing to want, so it is not refused.
+What is refused is doing it quietly: the header reports coverage as `cases 1 / 3 in corpus` and names the cases that were not run, because a partial run that reads as a whole-corpus result is how a regression in an unrun case gets reported as absent.
+
+It also runs `scripts/check-evals.sh` over its inputs first, because aggregating a run whose stored `success` disagrees with its verdicts prints the disagreement as though it were a measurement.
+Run files are read-only to it.
+
+Three further sections come from what the first measurement made obvious:
+
+- **the same verdict in every arm**, keyed `(case_id, requirement_id)` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
+- **surface / semantic disagreement**, counted per requirement over every observation — `surface: hit` with a `partial`/`fail` verdict, or `surface: miss` with `pass`. `SKILL.md` only describes the pattern being too narrow; a pattern that fires on a label without checking what follows it is the opposite failure, and one run cannot tell it from chance.
+- **`tool_uses` across cases within one arm**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. A run that did not record `tool_uses` prints `-`; the aggregator never substitutes a zero.
 
 ## Deliberately not here
 
 Trigger eval (`triggers.json`), blind A/B comparison of two outputs, a variance summary across trials, and any CI job that calls an LLM.
+`eval-compare.sh` reports each trial as its own row and computes nothing across trials, so a variance summary remains an unmade decision rather than one made by accident.
 Each of those wants its own format decision, and forcing them into this one now would make the corpus general before there is anything to generalise from.
 `trial` is already in the result schema, so repeated trials can be recorded before any of that is designed.
 

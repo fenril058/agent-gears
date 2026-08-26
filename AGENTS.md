@@ -32,6 +32,17 @@
   `eval-render.sh --part judgment` で別 evaluator が行う。
   host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
   `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
+  run の突き合わせは `eval-compare.sh`。主出力は accuracy の差ではなく
+  **requirement 単位の差分行列**で、accuracy を先に見せると「非 critical が1件動いただけ」を
+  「候補の方が良い」と読み違える(実測で踏んだ)。比較の前提は機械的に拒否する。
+  テストは同じディレクトリの `eval-compare.test.sh`(CI の consistency job)。
+  case 集合の一致は run どうしの相対比較で、corpus の網羅性は強制しない。
+  1 case だけの run が corpus 全体の run を名乗れないよう、網羅数と未実行 case 名を出す。
+  arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
+  (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
+  EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、
+  その依存は corpus でも candidate でもなく runner environment の性質として扱い、
+  baseline を含む全 arm へ等しく与える(schema には足さない)。
   `host.model` は必須。取得できない host では `"unknown"` と明記し、その run は比較に使わない。
   LLM を呼ぶ評価自体は CI に入れない。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、

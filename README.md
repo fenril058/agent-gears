@@ -230,6 +230,14 @@ skill を渡さない baseline に checklist を見せると、それをその�
 
 - 形式の定義と手順: `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md`
 - 実行 / 採点 / 結果雛形の生成: `.../empirical-prompt-tuning/scripts/eval-render.sh`
+- 結果の突き合わせ: `.../empirical-prompt-tuning/scripts/eval-compare.sh`
+  主出力は accuracy の差ではなく **requirement 単位の差分行列**(`(case_id, trial, requirement_id)` ごとに1行)。
+  accuracy だけ見ると「非 critical 1件が動いただけ」を「候補の方が良い」と読み違える。
+  比較の前提(digest / host.id / host.model / model≠unknown / `(case_id, trial)` 集合 / candidate が異なること)を
+  機械的に検査し、満たさない組み合わせは黙って混ぜず拒否する。
+  case 集合の一致は run どうしの相対比較なので、corpus 全体を覆っているかは別に見る。
+  覆っていない比較は拒否しないが(変えた case だけ走らせ直すのは正当)、`cases 1 / 3 in corpus` と
+  走っていない case 名を出す。
 - 決定的な検証: `bash scripts/check-evals.sh`(CI の `consistency` job が実行)
   JSON/schema の妥当性、参照先 skill・case の実在、`[critical]` 要件が最低1つあること、
   シナリオが2件以上で要件が3〜7項目であること、結果ファイルなら参照先 corpus の妥当性と
@@ -238,6 +246,10 @@ skill を渡さない baseline に checklist を見せると、それをその�
 
 `cases.json` の case id と requirement id は、既に記録した結果から参照される。
 リネームすると過去の結果が孤児になるので、id は変えずに text を直す。
+
+arm(baseline / 候補)の隔離は runner の仕事で、host の「skill を無効化する」機能だけでは足りない。
+無効化してもファイルは `~/.claude/skills/` に残り、executor は filesystem から読める。
+必要な不変条件は EVAL-CORPUS.md「Runner isolation contract」にまとめてある。
 
 ### 出典とライセンス
 
