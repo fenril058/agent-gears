@@ -134,9 +134,9 @@ nline "動いていないのに movement が出る" \
 
 # --- 全 arm 同一 verdict -----------------------------------------------------
 line "全 arm 同一(critical)" \
-  "storage-choice-median no-implementation pass [critical]"
+  "storage-choice-median 1 no-implementation pass [critical]"
 nline "動いた requirement が全 arm 同一に混ざる" \
-  "storage-choice-median one-question fail [critical]"
+  "storage-choice-median 1 one-question fail [critical]"
 
 # --- surface / semantic の食い違い -------------------------------------------
 # A は hit+partial、B は hit+fail。どちらも surface hit なのに semantic が pass でない。
@@ -149,9 +149,9 @@ line "tool_uses / duration_ms がある arm" \
 line "無い arm は捏造せず - にする" \
   "storage-choice-median 1 #2 false 0.5 - -"
 line "tool_uses の case 間まとめ(記録あり)" \
-  "#1* 3 min 3 max 3 range 0"
+  "#1* trial 1 3 min 3 max 3 range 0"
 line "tool_uses の case 間まとめ(記録なし)" \
-  "#2 - (tool_uses 未記録)"
+  "#2 trial 1 - (tool_uses 未記録)"
 
 # --- corpus の網羅性 ---------------------------------------------------------
 # case 集合の一致は run どうしの相対比較でしかない。corpus に3 case あって1 case しか
@@ -186,6 +186,42 @@ n=$((n + 1))
 ovr="$(bash "$COMPARE" "$tmp/a.json" "$tmp/b.json" --reference "$tmp/b.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
 printf '%s\n' "$ovr" | grep -qxF "storage-choice-median 1 one-question * fail pass #1 pass->fail" ||
   note "--reference で movement の向きが反転しない"
+
+# --- 複数 trial: trial をまたいだ計算をしない --------------------------------
+# trial 1 は tool_uses 3・no-implementation が両 arm pass、
+# trial 2 は tool_uses 30・全要件が両 arm fail。
+# trial を混ぜると (a) tool_uses の幅が 3..30 になり case 間スキューに化け、
+# (b) same verdict の表に区別できない2行が出る。
+twotrial='.results[0].tool_uses = 3
+  | .results += [(.results[0] | .trial = 2 | .tool_uses = 30 | .accuracy = 0
+                  | .requirements = [.requirements[] | .verdict = "fail"])]'
+jq "$twotrial" "$tmp/a.json" >"$tmp/a-2t.json"
+jq "$twotrial" "$tmp/b.json" >"$tmp/b-2t.json"
+two="$(bash "$COMPARE" "$tmp/a-2t.json" "$tmp/b-2t.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+
+tline() {
+  n=$((n + 1))
+  printf '%s\n' "$two" | grep -qxF "$2" && return 0
+  note "[$1] の行が出ていない"
+  echo "  期待(完全一致): $2" >&2
+}
+ntline() {
+  n=$((n + 1))
+  printf '%s\n' "$two" | grep -qxF "$2" || return 0
+  note "[$1] が出てはいけないのに出ている"
+  echo "  出てはいけない行: $2" >&2
+}
+
+tline "tool_uses は trial ごとに集計する(trial 1)" "#1* trial 1 3 min 3 max 3 range 0"
+tline "tool_uses は trial ごとに集計する(trial 2)" "#1* trial 2 30 min 30 max 30 range 0"
+ntline "tool_uses が trial をまたいで幅を作る" "#1* 3, 30 min 3 max 30 range 27"
+
+tline "same verdict は trial を表示キーに含む(trial 1)" \
+  "storage-choice-median 1 no-implementation pass [critical]"
+tline "same verdict は trial を表示キーに含む(trial 2)" \
+  "storage-choice-median 2 no-implementation fail [critical]"
+ntline "same verdict が trial を落として同じ行を重複させる" \
+  "storage-choice-median no-implementation pass [critical]"
 
 # --- 比較不能の拒否 ----------------------------------------------------------
 # refuse <label> <期待する診断行(完全一致)> <file...>
@@ -224,8 +260,26 @@ refuse "host.model が unknown" \
 # candidate が同一なら比較ではない(variance の測定は別物)。
 jq '.run_id = "run-a2"' "$tmp/a.json" >"$tmp/a2.json"
 refuse "candidate が同一" \
-  'candidate is identical in '"$tmp"'/a.json and '"$tmp"'/a2.json — a comparison needs the candidate to differ' \
+  'candidate is identical in '"$tmp"'/a.json and '"$tmp"'/a2.json — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate' \
   "$tmp/a.json" "$tmp/a2.json"
+
+# candidate identity は (kind, revision)。label は EVAL-CORPUS.md「Variant exploration」
+# が言うとおり何も検証されないので identity ではない。
+jq '.run_id = "run-b2" | .candidate.label = "同じ revision の別名"' "$tmp/b.json" >"$tmp/b-relabel.json"
+refuse "label だけ違う同一 revision" \
+  'candidate is identical in '"$tmp"'/b.json and '"$tmp"'/b-relabel.json — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate' \
+  "$tmp/b.json" "$tmp/b-relabel.json"
+
+# without-skill は revision を持てないので、label が違っても同一 candidate。
+jq '.run_id = "run-a3" | .candidate.label = "別名の baseline"' "$tmp/a.json" >"$tmp/a-relabel.json"
+refuse "baseline 2本(revision 無し)" \
+  'candidate is identical in '"$tmp"'/a.json and '"$tmp"'/a-relabel.json — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate' \
+  "$tmp/a.json" "$tmp/a-relabel.json"
+
+# 先頭を錨にした比較では A, B, B の後ろ2本を見逃す。全 i<j ペアで見ること。
+refuse "3 arm の後半2つが同一 candidate" \
+  'candidate is identical in '"$tmp"'/b.json and '"$tmp"'/b-relabel.json — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate' \
+  "$tmp/a.json" "$tmp/b.json" "$tmp/b-relabel.json"
 
 # case 集合が違う。
 jq '.run_id = "run-c" | .started_at = "2026-08-26T00:00:00Z"

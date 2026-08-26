@@ -140,11 +140,18 @@ read -r -d '' JQ_GATE <<'JQ' || true
          else empty end),
         (if $bkeys != $akeys
          then "case/trial set mismatch: \($an) covers \($akeys | join(", ")) but \($bn) covers \($bkeys | join(", ")) — differing trial protocols are not comparable"
-         else empty end),
-        (if $b.candidate == $a.candidate
-         then "candidate is identical in \($an) and \($bn) — a comparison needs the candidate to differ"
          else empty end) ]
   ]
+# candidate の相異は等値関係ではないので、先頭を錨にした比較では足りない。
+# A, B, B の後ろ2本は「先頭と違う」だけで通ってしまう。全 i<j ペアで見る。
+# identity は (kind, revision)。label は identity ではない —— EVAL-CORPUS.md の
+# 「Variant exploration」が draft の身元を revision に置けと言っているのは、
+# label は何も検証しないからである。without-skill は revision を持てないので、
+# label が違っても同じ candidate になる(baseline 2本は比較ではない)。
++ [ range(0; ($runs | length)) as $i
+    | range($i + 1; ($runs | length)) as $j
+    | select(($runs[$i].candidate | {kind, revision}) == ($runs[$j].candidate | {kind, revision}))
+    | "candidate is identical in \($names[$i]) and \($names[$j]) — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate" ]
 + [ range(0; ($runs | length)) as $i
     | (if $runs[$i].host.model == "unknown"
        then "host.model is \"unknown\" in \($names[$i]) — a run whose model is unknown is not comparable to anything"
@@ -248,10 +255,13 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      | "\($k.case_id)#\($k.trial)" as $kk
      | $byCase[$k.case_id].requirements[] as $req
      | select([ range(0; $n) | $idx[.][$kk][$req.id].verdict ] | unique | length == 1)
-     | "  \($k.case_id | pad(27))\($req.id | pad(28))\($idx[0][$kk][$req.id].verdict)"
+     # 判定は (case, trial, requirement) 単位なので、表示キーにも trial が要る。
+     # 落とすと trial 1 の全 arm pass と trial 2 の全 arm fail が、同じ case /
+     # requirement の区別できない2行になる。
+     | "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))\($idx[0][$kk][$req.id].verdict)"
        + (if $req.critical then "   [critical]" else "" end) ]) as $same
 | $out
-+ [ "", "## same verdict in every arm", "" ]
++ [ "", "## same verdict in every arm   (case, trial, requirement ごと)", "" ]
 + (if ($same | length) == 0 then [ "  (none)" ] else $same end)
 + [ "",
     "  これは「不要な requirement」の判定ではない。skill を縮小できる兆候か、",
@@ -271,7 +281,7 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
    | map({req: .[0].req, odd: (map(select(.odd)) | length),
           pairs: (group_by(.pair) | map("\(.[0].pair) x\(length)") | join(", "))})) as $sf
 | $out
-+ [ "", "## surface / semantic", "" ]
++ [ "", "## surface / semantic   (arm x case x trial の観測を数える)", "" ]
 + (if ($sf | length) == 0 then [ "  (surface pattern を持つ requirement が無い)" ]
    else ([ ("  " + ("requirement" | pad(50)) + ("odd" | pad(6)) + "observed (surface+verdict)") ]
          + [ $sf[] | "  " + (.req | pad(50)) + (.odd | tostring | pad(6)) + .pairs ]
@@ -280,10 +290,16 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
              "  1 run では pattern の欠陥か偶然か決まらない。run を足して数を見る。" ]) end)
 # --- arm 内の case 間 tool_uses ------------------------------------------
 | . as $out
+# trial をまたいで min/max/range を計算しない。SKILL.md の「1 scenario だけ
+# 3-5倍」は同一 trial 内での case 間比較で、trial 1 の 3 と trial 2 の 15 を
+# 同じ幅に入れると、trial 間のばらつきが case 間のスキューに化ける。
+# trial をまたいだ要約は EVAL-CORPUS.md で「まだ設計していない」ものである。
 | ([ range(0; $n) as $i
-     | ([ $keys[] | $rowIdx[$i]["\(.case_id)#\(.trial)"]
+     | ($keys | map(.trial) | unique | sort)[] as $t
+     | ([ $keys[] | select(.trial == $t)
+          | $rowIdx[$i]["\(.case_id)#\(.trial)"]
           | select(has("tool_uses")) | .tool_uses ]) as $vals
-     | "  " + ($tag[$i] | pad(6))
+     | "  " + ($tag[$i] | pad(6)) + ("trial \($t)" | pad(9))
        + ((if ($vals | length) == 0 then "-" else ($vals | map(tostring) | join(", ")) end) | pad(30))
        + (if ($vals | length) == 0 then "(tool_uses 未記録)"
           else "min \($vals | min)  max \($vals | max)  range \(($vals | max) - ($vals | min))" end) ]) as $tu

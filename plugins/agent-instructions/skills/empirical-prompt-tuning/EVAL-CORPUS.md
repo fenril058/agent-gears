@@ -351,7 +351,14 @@ Before comparing anything, it enforces the preconditions from "Do not fold hosts
 - `corpus.digest`, `host.id` and `host.model` identical across every run
 - `host.model` not `"unknown"`
 - the same set of `(case_id, trial)` pairs in every run
-- `candidate` distinct between runs, since a comparison of a candidate with itself is not one
+- `candidate` distinct between **every pair** of runs, since a comparison of a candidate with itself is not one
+
+Distinctness is the one precondition that is not an equality against a single anchor.
+The others are: if every run matches the first on digest, host and case set, they match each other.
+Distinctness does not transitively follow, so it is checked over all pairs — `A, B, B` passes an anchored check while carrying the same candidate twice.
+Candidate identity is `(kind, revision)`.
+A different `label` is not a different candidate, for the reason "Variant exploration" above gives for putting a draft's identity in `revision`: nothing validates `label`.
+Two `without-skill` runs therefore always collide, `revision` being unavailable to them — which is correct, since two baselines are not a comparison.
 
 That set equality is between the runs, not against the corpus.
 Two runs covering one of three cases satisfy it, and a comparison of only the case you re-ran is a legitimate thing to want, so it is not refused.
@@ -364,7 +371,11 @@ Three further sections come from what the first measurement made obvious:
 
 - **the same verdict in every arm**, keyed `(case_id, requirement_id)` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
 - **surface / semantic disagreement**, counted per requirement over every observation — `surface: hit` with a `partial`/`fail` verdict, or `surface: miss` with `pass`. `SKILL.md` only describes the pattern being too narrow; a pattern that fires on a label without checking what follows it is the opposite failure, and one run cannot tell it from chance.
-- **`tool_uses` across cases within one arm**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. A run that did not record `tool_uses` prints `-`; the aggregator never substitutes a zero.
+- **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. A run that did not record `tool_uses` prints `-`; the aggregator never substitutes a zero.
+
+The same rule governs the first section: "identical in every arm" is decided per `(case_id, trial, requirement_id)` and the trial stays in the printed key.
+Drop it and a requirement that every arm passed on trial 1 and every arm failed on trial 2 becomes two indistinguishable rows.
+Across trials the aggregator only ever tallies observations — the surface/semantic counts — and never averages, so a variance summary stays an unmade decision.
 
 ## Deliberately not here
 

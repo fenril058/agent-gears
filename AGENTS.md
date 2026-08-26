@@ -38,6 +38,10 @@
   テストは同じディレクトリの `eval-compare.test.sh`(CI の consistency job)。
   case 集合の一致は run どうしの相対比較で、corpus の網羅性は強制しない。
   1 case だけの run が corpus 全体の run を名乗れないよう、網羅数と未実行 case 名を出す。
+  candidate identity は `(kind, revision)`(label は identity ではない)。相異は等値関係では
+  ないので全ペアで見る —— 先頭を錨にすると `A, B, B` を見逃す。
+  trial をまたいだ計算をしない。`tool_uses` の集計は `(arm, trial)` ごと、
+  「全 arm 同一」の判定と表示キーは `(case, trial, requirement)` ごと。
   arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
   (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
   EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、
