@@ -5,7 +5,8 @@
 # ここで守りたいのは2つある。
 #
 # 1. 比較不能な run を黙って混ぜないこと。digest / host.id / host.model /
-#    model!=unknown / (case_id,trial) 集合 / candidate が異なること、の各条件は
+#    model!=unknown / (case_id,trial) 集合 / unevaluated 集合 /
+#    candidate が異なること、の各条件は
 #    どれか1つでも空回りすると「別モデルの結果を平均した表」が黙って出る。
 #    期待する診断行は【1行まるごと完全一致】で照合する。部分一致にすると
 #    条件を1つ落としても通ってしまう。
@@ -23,6 +24,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../../../.." && pwd)"
 COMPARE="$HERE/eval-compare.sh"
 RENDER="$HERE/eval-render.sh"
+CHECK_FOR_TEST=""
 
 [ -f "$REPO/scripts/check-evals.sh" ] || {
   echo "リポジトリルートを取り違えている: $REPO" >&2
@@ -38,6 +40,7 @@ RENDER="$HERE/eval-render.sh"
 }
 
 cd "$REPO" || exit 1
+CHECK_FOR_TEST="$REPO/scripts/check-evals.sh"
 
 # plugin 名はハードコードしない(skill は plugin 間を移動しうる)。
 CORPUS="$(find plugins -path '*/skills/grilling/evals/cases.json' -print -quit)"
@@ -142,12 +145,32 @@ nline "動いた requirement が全 arm 同一に混ざる" \
 # A は hit+partial、B は hit+fail。どちらも surface hit なのに semantic が pass でない。
 line "surface hit なのに semantic が pass でない組を数える" \
   "storage-choice-median / recommendation-attached 2 hit+fail x1, hit+partial x1"
+# 反復の単位は run ではなく trial。同じ candidate の run を足すのは
+# candidate 相異の gate で拒否されるので、案内が実装と矛盾する。
+line "偶然性を見る反復単位を trial と案内する" \
+  "1 trial では pattern の欠陥か偶然か決まらない。各 arm の trial を増やして数を見る。"
+nline "run を足せという案内が残っている" \
+  "1 run では pattern の欠陥か偶然か決まらない。run を足して数を見る。"
 
 # --- secondary summary と tool_uses の欠損 ------------------------------------
 line "tool_uses / duration_ms がある arm" \
   "storage-choice-median 1 #1* false 0.5 3 1000"
 line "無い arm は捏造せず - にする" \
   "storage-choice-median 1 #2 false 0.5 - -"
+
+# success / accuracy は行ごとに違う値を取りうる。false と 0.5 だけを assert していると、
+# 両列を定数に置き換える改竄が素通りする(実際に素通りした)。true / false / null と、
+# 0.5 以外の accuracy をそれぞれ固定する。null は下の unevaluated 節で見る。
+n=$((n + 1))
+jq '.results[0].success = true | .results[0].accuracy = 1
+  | .results[0].requirements = [.results[0].requirements[] | .verdict = "pass"]' \
+  "$tmp/b.json" >"$tmp/b-true.json"
+trueout="$(bash "$COMPARE" "$tmp/a.json" "$tmp/b-true.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+printf '%s\n' "$trueout" | grep -qxF "storage-choice-median 1 #2 true 1 - -" ||
+  note "success=true / accuracy=1 の行が出ない(両列が定数でも通ってしまう)"
+n=$((n + 1))
+printf '%s\n' "$trueout" | grep -qxF "storage-choice-median 1 #1* false 0.5 3 1000" ||
+  note "同じ表の中で success/accuracy が行ごとに変わらない"
 line "tool_uses の case 間まとめ(記録あり)" \
   "#1* trial 1 3 min 3 max 3 range 0"
 line "tool_uses の case 間まとめ(記録なし)" \
@@ -290,6 +313,31 @@ dline "version が違えば arm ごとに開示する(#1)" \
 dline "version が違えば arm ごとに開示する(#2)" \
   "#2 with-skill candidate [git:deadbee] host version 2.1.250"
 
+# --- 表示境界のエスケープ ----------------------------------------------------
+# check-evals.sh は自由文字列を「非空」としか見ないので、label に改行を入れた
+# schema-valid な run を作れる。そのまま行指向の出力へ埋めると、偽の見出しや
+# 偽の測定行を本物の上に出せてしまう(実際に requirement-level delta matrix の
+# 偽の行を出せた)。表示境界で可視エスケープすること。
+n=$((n + 1))
+jq '.candidate.label = "candidate\n## forged section\n\n  storage-choice-median 1 one-question * pass pass"' \
+  "$tmp/b.json" >"$tmp/b-inject.json"
+bash "$CHECK_FOR_TEST" "$tmp/b-inject.json" >/dev/null 2>&1 ||
+  note "改行入り label の fixture が check-evals を通らない(この検査の前提が崩れている)"
+injout="$(bash "$COMPARE" "$tmp/a.json" "$tmp/b-inject.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+n=$((n + 1))
+printf '%s\n' "$injout" | grep -qxF "## forged section" &&
+  note "label の改行がそのまま出力され、偽の見出しを作れる"
+n=$((n + 1))
+printf '%s\n' "$injout" | grep -qxF "storage-choice-median 1 one-question * pass pass" &&
+  note "label の改行から偽の測定行を作れる"
+n=$((n + 1))
+printf '%s\n' "$injout" | grep -qxF '#2 with-skill candidate\n## forged section\n\n storage-choice-median 1 one-question * pass pass [git:deadbee]' ||
+  note "label が1行の可視エスケープとして出ていない"
+# 本物の行は壊れていないこと。
+n=$((n + 1))
+printf '%s\n' "$injout" | grep -qxF "storage-choice-median 1 one-question * fail pass #2 fail->pass" ||
+  note "エスケープで本物の matrix 行が壊れている"
+
 # --- 比較不能の拒否 ----------------------------------------------------------
 # refuse <label> <期待する診断行(完全一致)> <file...>
 refuse() {
@@ -415,6 +463,10 @@ printf '%s\n' "$unevout" | grep -qF "[critical] が含まれていれば、そ�
 n=$((n + 1))
 printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 #1* false 0.5 3 1000" ||
   note "critical が未測定でも別の critical fail があれば success=false、が fixture に現れていない"
+# 未測定だけが true を妨げる側は null。accuracy も分母が減って 0.625 になる。
+n=$((n + 1))
+printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 #2 null 0.625 - -" ||
+  note "success=null / accuracy=0.625 の行が出ない"
 
 # 未測定の理由は arm ごとに違いうる。gate が保証するのは「同じ requirement が
 # 全 arm で unevaluated」までで、理由の一致までは保証しない。

@@ -124,12 +124,21 @@ done
 # 先頭を錨にした総当たり。EVAL-CORPUS.md「Do not fold hosts together」の条件を
 # そのまま検査する。満たさない組み合わせは黙って混ぜず、ここで止める。
 read -r -d '' JQ_GATE <<'JQ' || true
+# 表示境界でのエスケープ。run ファイルの自由文字列(label / revision / note /
+# host metadata / id 類)は check-evals.sh が「非空の文字列」としか見ておらず、
+# 改行や端末制御列を含みうる。そのまま行指向の出力へ埋めると、schema 検証を
+# 通った入力から偽の見出しや偽の測定行を生成できる(実際に、label に改行を
+# 入れるだけで requirement-level delta matrix の偽の行を本物の上に出せた)。
+# tojson で JSON 文字列にしてから両端の引用符を落とすと、制御文字は \n などの
+# 可視な2文字へ落ち、非 ASCII はそのまま残る。
+def viz: tojson | .[1:-1];
+
 . as $runs
 | ($runs[0]) as $a
-| ($names[0]) as $an
+| ($names[0] | viz) as $an
 | ([ $runs[0].results[] | "\(.case_id)#\(.trial)" ] | sort | unique) as $akeys
 | [ range(1; ($runs | length)) as $i
-    | $runs[$i] as $b | $names[$i] as $bn
+    | $runs[$i] as $b | ($names[$i] | viz) as $bn
     | ([ $b.results[] | "\(.case_id)#\(.trial)" ] | sort | unique) as $bkeys
     | ([ $a.results[] | .case_id as $c | .trial as $t | .requirements[]
          | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $aun
@@ -165,10 +174,10 @@ read -r -d '' JQ_GATE <<'JQ' || true
 + [ range(0; ($runs | length)) as $i
     | range($i + 1; ($runs | length)) as $j
     | select(($runs[$i].candidate | {kind, revision}) == ($runs[$j].candidate | {kind, revision}))
-    | "candidate is identical in \($names[$i]) and \($names[$j]) — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate" ]
+    | "candidate is identical in \($names[$i] | viz) and \($names[$j] | viz) — a comparison needs the candidate to differ, and its identity is (kind, revision); a different label is not a different candidate" ]
 + [ range(0; ($runs | length)) as $i
     | (if $runs[$i].host.model == "unknown"
-       then "host.model is \"unknown\" in \($names[$i]) — a run whose model is unknown is not comparable to anything"
+       then "host.model is \"unknown\" in \($names[$i] | viz) — a run whose model is unknown is not comparable to anything"
        else empty end) ]
 | flatten
 | .[]
@@ -189,6 +198,14 @@ read -r -d '' JQ_MAIN <<'JQ' || true
 # 表から文字が消えるのは困る(切り捨てた id は別物と区別できなくなる)。
 # jq では " " * 0 が null になるので、最低1文字は空ける。
 def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
+# 表示境界でのエスケープ。run ファイルの自由文字列(label / revision / note /
+# host metadata / id 類)は check-evals.sh が「非空の文字列」としか見ておらず、
+# 改行や端末制御列を含みうる。そのまま行指向の出力へ埋めると、schema 検証を
+# 通った入力から偽の見出しや偽の測定行を生成できる(実際に、label に改行を
+# 入れるだけで requirement-level delta matrix の偽の行を本物の上に出せた)。
+# tojson で JSON 文字列にしてから両端の引用符を落とすと、制御文字は \n などの
+# 可視な2文字へ落ち、非 ASCII はそのまま残る。
+def viz: tojson | .[1:-1];
 
 ($corpus[0]) as $cor
 | ($cor.cases | map({key: .id, value: .}) | from_entries) as $byCase
@@ -220,16 +237,16 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 | def cell($r): if $r == null then "-"
     else $r.verdict + (if ($r | has("surface")) then "/" + $r.surface else "" end) end;
 [
-  "corpus   \($cor.skill)   \($runs[0].corpus.path)",
-  "digest   \($runs[0].corpus.digest)",
-  "host     \($runs[0].host.id) / \($runs[0].host.model)"
+  "corpus   \($cor.skill | viz)   \($runs[0].corpus.path | viz)",
+  "digest   \($runs[0].corpus.digest | viz)",
+  "host     \($runs[0].host.id | viz) / \($runs[0].host.model | viz)"
     + (if $verDiffers then "   (host version は arm ごとに違う —— 下の arms を見ること)"
-       elif $commonVer then " / \($commonVer)"
+       elif $commonVer then " / \($commonVer | viz)"
        else "" end),
   "cases    \($ran | length) / \($all | length) in corpus   trials   {\($keys | map(.trial) | unique | sort | join(", "))}"
 ]
 + (if ($missing | length) > 0
-   then [ "         PARTIAL CORPUS — not run: \($missing | join(", "))",
+   then [ "         PARTIAL CORPUS — not run: \($missing | map(viz) | join(", "))",
           "         この比較は corpus 全体の比較ではない。走っていない case の regression は見えない。" ]
    else [] end)
 + [
@@ -237,9 +254,9 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
   "arms     (* = reference for movement)"
 ]
 + [ range(0; $n) as $i
-    | "  \($tag[$i] | pad(4)) \($runs[$i].candidate.kind | pad(14)) \($runs[$i].candidate.label)"
-      + (if $runs[$i].candidate.revision then "  [\($runs[$i].candidate.revision)]" else "" end)
-      + (if $verDiffers then "   host version \($runs[$i].host.version // "-")" else "" end) ]
+    | "  \($tag[$i] | pad(4)) \($runs[$i].candidate.kind | viz | pad(14)) \($runs[$i].candidate.label | viz)"
+      + (if $runs[$i].candidate.revision then "  [\($runs[$i].candidate.revision | viz)]" else "" end)
+      + (if $verDiffers then "   host version \(($runs[$i].host.version // "-") | viz)" else "" end) ]
 + [ "",
     "## requirement-level delta matrix",
     "",
@@ -250,7 +267,7 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
     | $byCase[$k.case_id].requirements[] as $req
     | [ range(0; $n) | $idx[.][$kk][$req.id] ] as $cells
     | ($cells[$ref] | cell(.)) as $refv
-    | ($k.case_id | pad(27)) + ($k.trial | tostring | pad(6)) + ($req.id | pad(28))
+    | ($k.case_id | viz | pad(27)) + ($k.trial | tostring | pad(6)) + ($req.id | viz | pad(28))
       + ((if $req.critical then "*" else "" end) | pad(6))
       + ([ range(0; $n) | ($cells[.] | cell(.)) | pad(14) ] | add)
       + ([ range(0; $n)
@@ -267,7 +284,7 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
     | "\($k.case_id)#\($k.trial)" as $kk
     | range(0; $n) as $i
     | ($rowIdx[$i][$kk]) as $row
-    | ($k.case_id | pad(27)) + ($k.trial | tostring | pad(6)) + ($tag[$i] | pad(6))
+    | ($k.case_id | viz | pad(27)) + ($k.trial | tostring | pad(6)) + ($tag[$i] | pad(6))
       + (($row.success | tostring) | pad(9))
       + ((if $row.accuracy == null then "null" else ($row.accuracy * 1000 | round / 1000 | tostring) end) | pad(10))
       + ((if ($row | has("tool_uses")) then ($row.tool_uses | tostring) else "-" end) | pad(11))
@@ -286,7 +303,7 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      # 判定は (case, trial, requirement) 単位なので、表示キーにも trial が要る。
      # 落とすと trial 1 の全 arm pass と trial 2 の全 arm fail が、同じ case /
      # requirement の区別できない2行になる。
-     | "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))\($idx[0][$kk][$req.id].verdict)"
+     | "  \($k.case_id | viz | pad(27))\($k.trial | tostring | pad(6))\($req.id | viz | pad(28))\($idx[0][$kk][$req.id].verdict)"
        + (if $req.critical then "   [critical]" else "" end) ]) as $same
 | $out
 + [ "", "## same verdict in every arm   (case, trial, requirement ごと)", "" ]
@@ -306,9 +323,9 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      | "\($k.case_id)#\($k.trial)" as $kk
      | $byCase[$k.case_id].requirements[] as $req
      | select($idx[0][$kk][$req.id].verdict == "unevaluated")
-     | ([ range(0; $n) | $idx[.][$kk][$req.id].note // "(note なし)" ]) as $notes
+     | ([ range(0; $n) | ($idx[.][$kk][$req.id].note // "(note なし)") | viz ]) as $notes
      | (($notes | unique | length) == 1) as $sameNote
-     | [ "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))"
+     | [ "  \($k.case_id | viz | pad(27))\($k.trial | tostring | pad(6))\($req.id | viz | pad(28))"
          + (if $sameNote then $notes[0] else "(欠けた証拠が arm ごとに違う)" end)
          + (if $req.critical then "   [critical]" else "" end) ]
        + (if $sameNote then []
@@ -330,7 +347,7 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      | range(0; $n) as $i
      | ($idx[$i][$kk][$req.id]) as $r
      | select($r != null)
-     | {req: "\($k.case_id) / \($req.id)", pair: "\($r.surface)+\($r.verdict)",
+     | {req: "\($k.case_id | viz) / \($req.id | viz)", pair: "\($r.surface)+\($r.verdict)",
         unev: ($r.verdict == "unevaluated"),
         odd: (($r.surface == "hit" and ($r.verdict == "fail" or $r.verdict == "partial"))
               or ($r.surface == "miss" and $r.verdict == "pass"))} ]
@@ -354,7 +371,8 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
          + [ "",
              "  odd = surface hit なのに semantic が partial/fail、または surface miss なのに pass。",
              "  unevaluated は semantic の判定が無いので数えない(除いた件数は行末に出す)。",
-             "  1 run では pattern の欠陥か偶然か決まらない。run を足して数を見る。" ]) end)
+             "  1 trial では pattern の欠陥か偶然か決まらない。各 arm の trial を増やして数を見る。",
+             "  同じ candidate の run を足すのは比較にならない(candidate の相異が要る)。" ]) end)
 # --- arm 内の case 間 tool_uses ------------------------------------------
 | . as $out
 # trial をまたいで min/max/range を計算しない。SKILL.md の「1 scenario だけ

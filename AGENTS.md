@@ -48,6 +48,8 @@
   (部分観測から skew を読ませない)。
   `unevaluated` は第四の verdict ではないので「全 arm 同一」の節に混ぜず、別節に出す。
   surface/semantic の突き合わせでも数えない(semantic の判定が無いので一致も不一致も無い)。
+  run ファイル由来の自由文字列は表示境界でエスケープする。`check-evals.sh` は非空しか
+  見ないので、`label` の改行だけで偽の測定行を本物の上に出せる(実測で踏んだ)。
   `host.version` は比較条件ではないが、arm ごとに違えば先頭 run のものを共通表示しない。
   arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
   (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
