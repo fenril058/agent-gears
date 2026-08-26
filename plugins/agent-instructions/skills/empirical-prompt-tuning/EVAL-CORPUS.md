@@ -346,6 +346,10 @@ A number that summarises sixteen verdicts hides which of them changed, which is 
 
 The reference defaults to the `without-skill` run when exactly one is given, and to the first argument otherwise; `--reference <file>` overrides it.
 
+`host.version` is not a comparison precondition — the unit is `host.id` and `host.model`, and a host patch release is not a different host.
+Allowing the difference is fine; printing only the first run's version is not, because the header then reads as though every arm ran on it.
+A version shared by every arm is shown in the header, and a version that differs is shown against each arm instead.
+
 Before comparing anything, it enforces the preconditions from "Do not fold hosts together" and refuses the whole comparison — it does not silently drop the offending file:
 
 - `corpus.digest`, `host.id` and `host.model` identical across every run
@@ -374,7 +378,9 @@ Run files are read-only to it.
 
 Three further sections come from what the first measurement made obvious:
 
-- **the same verdict in every arm**, keyed `(case_id, trial, requirement_id)` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
+- **the same verdict in every arm**, keyed `(case_id, trial, requirement_id)` and excluding `unevaluated` — six of sixteen requirements, including three `[critical]` ones, never moved. That is a prompt to look, not a verdict: such an item may be a rule the model has outgrown (a skill-shrink candidate), a defect the skill leaves unfixed in every arm, or slack in the corpus. The tool does not classify them, because the three are indistinguishable from the verdicts alone.
+Items that no arm measured are held out into their own **unevaluated in every arm** section instead: `unevaluated` is the absence of a measurement, not a fourth verdict, and an item nobody observed is not a requirement that carries no information about the candidate — it is a gap in the evidence. Listing it separately keeps it from being investigated as a skill-shrink candidate, and keeps it from vanishing.
+Because the gate demands the same `unevaluated` set in every run, such an item is always unevaluated in all arms; there is no partial case to report.
 - **surface / semantic disagreement**, counted per requirement over every observation — `surface: hit` with a `partial`/`fail` verdict, or `surface: miss` with `pass`. `SKILL.md` only describes the pattern being too narrow; a pattern that fires on a label without checking what follows it is the opposite failure, and one run cannot tell it from chance.
 - **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. `tool_uses` is optional per result, so a run that recorded it for two cases out of three is a legal input, and dropping the third silently is how `3, missing, 15` becomes "min 3, max 15, range 12" and `3, missing, missing` becomes "range 0 — no skew" while two cases went unobserved. The row therefore keeps each case's position, printing `-` where nothing was recorded, and withholds min/max/range entirely unless every case in that `(arm, trial)` has a value, saying `observed 2/3` instead. The aggregator never substitutes a zero.
 

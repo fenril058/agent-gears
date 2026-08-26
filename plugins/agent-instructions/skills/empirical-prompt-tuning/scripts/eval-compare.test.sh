@@ -256,6 +256,40 @@ npline "部分観測から min/max/range を出す" \
 pline "全 case そろっていれば min/max/range を出す" \
   "#2 trial 1 1, 2, 9 min 1 max 9 range 8"
 
+# --- host.version の開示 ------------------------------------------------------
+# version は比較条件ではない(EVAL-CORPUS.md の比較単位は host.id と host.model)。
+# 許すのは構わないが、先頭 run の version だけをヘッダに出すと全 arm が同じ version
+# だったように読める。
+n=$((n + 1))
+jq '.host.version = "2.1.243"' "$tmp/a.json" >"$tmp/a-v1.json"
+jq '.host.version = "2.1.243"' "$tmp/b.json" >"$tmp/b-v1.json"
+samever="$(bash "$COMPARE" "$tmp/a-v1.json" "$tmp/b-v1.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+printf '%s\n' "$samever" | grep -qxF "host claude-code / claude-sonnet-5 / 2.1.243" ||
+  note "全 arm 同一 version が共通表示にならない"
+
+jq '.host.version = "2.1.250"' "$tmp/b.json" >"$tmp/b-v2.json"
+diffver="$(bash "$COMPARE" "$tmp/a-v1.json" "$tmp/b-v2.json" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+dline() {
+  n=$((n + 1))
+  printf '%s\n' "$diffver" | grep -qxF "$2" && return 0
+  note "[$1] の行が出ていない"
+  echo "  期待(完全一致): $2" >&2
+}
+ndline() {
+  n=$((n + 1))
+  printf '%s\n' "$diffver" | grep -qxF "$2" || return 0
+  note "[$1] が出てはいけないのに出ている"
+  echo "  出てはいけない行: $2" >&2
+}
+ndline "version が違うのに先頭 run のものを共通表示する" \
+  "host claude-code / claude-sonnet-5 / 2.1.243"
+dline "version が違うことをヘッダで明示する" \
+  "host claude-code / claude-sonnet-5 (host version は arm ごとに違う —— 下の arms を見ること)"
+dline "version が違えば arm ごとに開示する(#1)" \
+  "#1* without-skill baseline host version 2.1.243"
+dline "version が違えば arm ごとに開示する(#2)" \
+  "#2 with-skill candidate [git:deadbee] host version 2.1.250"
+
 # --- 比較不能の拒否 ----------------------------------------------------------
 # refuse <label> <期待する診断行(完全一致)> <file...>
 refuse() {
@@ -344,13 +378,27 @@ n=$((n + 1))
 # critical に fail は無く recommendation-attached が未測定なので success は null。
 jq "$unev | .results[0].accuracy = 0.625 | .results[0].success = null" "$tmp/b.json" >"$tmp/b-unev.json"
 if unevout="$(bash "$COMPARE" "$tmp/a-unev.json" "$tmp/b-unev.json" 2>&1)"; then
-  printf '%s\n' "$unevout" | tr -s ' ' | sed 's/^ *//; s/ *$//' |
-    grep -qxF "storage-choice-median 1 recommendation-attached * unevaluated/miss unevaluated/miss" ||
+  unevout="$(printf '%s\n' "$unevout" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+  printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 recommendation-attached * unevaluated/miss unevaluated/miss" ||
     note "両 run とも unevaluated の項目が movement 無しで並ばない"
+  # unevaluated は第四の verdict ではなく「測定が存在しない」状態なので、
+  # 「候補について情報を持たない requirement」を探す節に混ぜてはいけない。
+  n=$((n + 1))
+  printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 recommendation-attached unevaluated [critical]" &&
+    note "全 arm unevaluated の項目が same verdict 節に混ざる"
+  # 代わりに専用の節へ出す。黙って落とすと証拠を捕り損ねたことごと消える。
+  n=$((n + 1))
+  printf '%s\n' "$unevout" | grep -qxF "storage-choice-median 1 recommendation-attached no tool-call transcript [critical]" ||
+    note "全 arm unevaluated の項目が専用の節に出ない"
 else
   note "両 run が同じ項目を unevaluated にしているのに拒否した"
   printf '%s\n' "$unevout" >&2
 fi
+
+# unevaluated が無ければ節ごと出さない(狼少年にしない)。
+n=$((n + 1))
+printf '%s\n' "$out" | grep -q "unevaluated in every arm" &&
+  note "unevaluated が1件も無いのに専用の節が出る"
 
 # corpus digest が違う(別 corpus を指した run どうし)。
 # それぞれの digest は自分の corpus と一致しているので check-evals.sh は通る。

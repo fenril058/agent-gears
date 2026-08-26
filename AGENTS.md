@@ -46,6 +46,8 @@
   候補の改善ではなく証拠の有無で、accuracy の分母も片方だけ変わる。
   `tool_uses` が case 単位で部分欠損したら位置を `-` で残し、min/max/range は出さない
   (部分観測から skew を読ませない)。
+  `unevaluated` は第四の verdict ではないので「全 arm 同一」の節に混ぜず、別節に出す。
+  `host.version` は比較条件ではないが、arm ごとに違えば先頭 run のものを共通表示しない。
   arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
   (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
   EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、

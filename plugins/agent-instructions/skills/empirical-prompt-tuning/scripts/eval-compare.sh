@@ -14,7 +14,8 @@
 #   corpus.digest / host.id / host.model が一致すること
 #   host.model が "unknown" でないこと
 #   (case_id, trial) の集合が一致すること
-#   candidate が互いに異なること
+#   verdict が unevaluated の (case_id, trial, requirement_id) 集合が一致すること
+#   candidate が互いに異なること(identity は (kind, revision))
 #
 # 入力の結果ファイルは immutable として扱う(書き換えない)。集計の前に
 # scripts/check-evals.sh を通し、通らない入力は集計しない。検証していない
@@ -45,7 +46,8 @@ eval-compare.sh <run.json> <run.json> [<run.json>...] [--reference <run.json>]
 
 主出力は requirement 単位の差分行列。accuracy / success / duration / tool_uses は
 secondary summary。比較不能な組み合わせは拒否する(digest / host.id / host.model /
-model!=unknown / (case_id,trial) 集合 / candidate が異なること)。
+model!=unknown / (case_id,trial) 集合 / unevaluated 集合 / candidate が異なること)。
+host.version は比較条件ではないが、arm ごとに違えば開示する。
 USAGE
 }
 
@@ -208,6 +210,12 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 | ($keys | map(.case_id) | unique) as $ran
 | ($cor.cases | map(.id)) as $all
 | ($all - $ran) as $missing
+# host.version は比較条件ではない(EVAL-CORPUS.md の比較単位は host.id と host.model)。
+# 許すのは構わないが、先頭 run の version だけをヘッダに出すと、全 arm が同じ version
+# だったように読める。全 arm 同一のときだけ共通表示にし、違えば arm ごとに開示する。
+| ([ $runs[] | .host.version // null ] | unique) as $vers
+| (if ($vers | length) == 1 then $vers[0] else null end) as $commonVer
+| (($vers | length) > 1) as $verDiffers
 # セル文字列: verdict(+ surface が corpus に宣言されていれば /hit|/miss)
 | def cell($r): if $r == null then "-"
     else $r.verdict + (if ($r | has("surface")) then "/" + $r.surface else "" end) end;
@@ -215,7 +223,9 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
   "corpus   \($cor.skill)   \($runs[0].corpus.path)",
   "digest   \($runs[0].corpus.digest)",
   "host     \($runs[0].host.id) / \($runs[0].host.model)"
-    + (if $runs[0].host.version then " / \($runs[0].host.version)" else "" end),
+    + (if $verDiffers then "   (host version は arm ごとに違う —— 下の arms を見ること)"
+       elif $commonVer then " / \($commonVer)"
+       else "" end),
   "cases    \($ran | length) / \($all | length) in corpus   trials   {\($keys | map(.trial) | unique | sort | join(", "))}"
 ]
 + (if ($missing | length) > 0
@@ -228,7 +238,8 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 ]
 + [ range(0; $n) as $i
     | "  \($tag[$i] | pad(4)) \($runs[$i].candidate.kind | pad(14)) \($runs[$i].candidate.label)"
-      + (if $runs[$i].candidate.revision then "  [\($runs[$i].candidate.revision)]" else "" end) ]
+      + (if $runs[$i].candidate.revision then "  [\($runs[$i].candidate.revision)]" else "" end)
+      + (if $verDiffers then "   host version \($runs[$i].host.version // "-")" else "" end) ]
 + [ "",
     "## requirement-level delta matrix",
     "",
@@ -267,6 +278,11 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
      | "\($k.case_id)#\($k.trial)" as $kk
      | $byCase[$k.case_id].requirements[] as $req
      | select([ range(0; $n) | $idx[.][$kk][$req.id].verdict ] | unique | length == 1)
+     # unevaluated は第四の verdict ではなく「測定が存在しない」状態なので、
+     # この節には入れない。ここは「候補について情報を持たない requirement」を
+     # 探す診断で、未測定の項目を混ぜると skill 縮小候補として調べに行かせてしまう。
+     # 別節 (unevaluated in every arm) に出す。
+     | select($idx[0][$kk][$req.id].verdict != "unevaluated")
      # 判定は (case, trial, requirement) 単位なので、表示キーにも trial が要る。
      # 落とすと trial 1 の全 arm pass と trial 2 の全 arm fail が、同じ case /
      # requirement の区別できない2行になる。
@@ -278,6 +294,24 @@ def pad($n): . + (" " * (if ($n - length) > 0 then ($n - length) else 1 end));
 + [ "",
     "  これは「不要な requirement」の判定ではない。skill を縮小できる兆候か、",
     "  全 arm に残る skill の欠陥か、corpus の遊びかの分類は人が行う。" ]
+# --- 全 arm で未測定の requirement ----------------------------------------
+# gate が unevaluated 集合の一致を要求しているので、unevaluated な項目は必ず
+# 全 arm で unevaluated である。黙って落とすと、証拠を捕り損ねたことごと消える。
+| . as $out
+| ([ $keys[] as $k
+     | "\($k.case_id)#\($k.trial)" as $kk
+     | $byCase[$k.case_id].requirements[] as $req
+     | select($idx[0][$kk][$req.id].verdict == "unevaluated")
+     | "  \($k.case_id | pad(27))\($k.trial | tostring | pad(6))\($req.id | pad(28))"
+       + ($idx[0][$kk][$req.id].note // "(note なし)")
+       + (if $req.critical then "   [critical]" else "" end) ]) as $unev
+| $out
++ (if ($unev | length) == 0 then []
+   else [ "", "## unevaluated in every arm   (測定が存在しない —— 候補についての所見ではない)", "" ]
+        + $unev
+        + [ "",
+            "  これらは候補の良し悪しではなく、証拠を捕れなかったことの記録である。",
+            "  [critical] が含まれていれば、その case の success は判定不能(null)になる。" ] end)
 # --- surface / semantic の食い違い ----------------------------------------
 | . as $out
 | ([ $keys[] as $k

@@ -233,8 +233,9 @@ skill を渡さない baseline に checklist を見せると、それをその�
 - 結果の突き合わせ: `.../empirical-prompt-tuning/scripts/eval-compare.sh`
   主出力は accuracy の差ではなく **requirement 単位の差分行列**(`(case_id, trial, requirement_id)` ごとに1行)。
   accuracy だけ見ると「非 critical 1件が動いただけ」を「候補の方が良い」と読み違える。
-  比較の前提(digest / host.id / host.model / model≠unknown / `(case_id, trial)` 集合 / candidate が異なること)を
-  機械的に検査し、満たさない組み合わせは黙って混ぜず拒否する。
+  比較の前提(digest / host.id / host.model / model≠unknown / `(case_id, trial)` 集合 /
+  `unevaluated` の集合 / candidate が異なること)を機械的に検査し、満たさない組み合わせは
+  黙って混ぜず拒否する。`host.version` は比較条件ではないが、arm ごとに違えば開示する。
   case 集合の一致は run どうしの相対比較なので、corpus 全体を覆っているかは別に見る。
   覆っていない比較は拒否しないが(変えた case だけ走らせ直すのは正当)、`cases 1 / 3 in corpus` と
   走っていない case 名を出す。
