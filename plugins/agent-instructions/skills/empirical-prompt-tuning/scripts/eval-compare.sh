@@ -231,6 +231,18 @@ def viz: tojson | .[1:-1];
 | ($keys | map(.case_id) | unique) as $ran
 | ($cor.cases | map(.id)) as $all
 | ($all - $ran) as $missing
+# run 全体の対象 case 集合。出現順を保つ(unique は並べ替えてしまい、
+# 結果ファイルに書かれた case の順と表の列の順がずれる)。
+# trial ごとの列を固定するのはこれで、trial に存在する case ではない。
+| (reduce $keys[] as $k ([]; if index($k.case_id) then . else . + [$k.case_id] end)) as $caseCols
+# (case_id, trial) の集合は矩形とは限らない。trial 1 は 3 case、trial 2 は 1 case、
+# という run は schema でも比較 gate でも正当である(全 arm が同じ集合なら通る)。
+# 禁じないかわりに黙らない: trial ごとの網羅を run の case 集合を分母にして出す。
+# ヘッダの "cases 3 / 3 in corpus   trials {1, 2}" だけだと、trial 2 まで全 case
+# 揃っているように読める。
+| ([ ($keys | map(.trial) | unique | sort)[] as $t
+     | ([ $keys[] | select(.trial == $t) | .case_id ] | unique) as $ranT
+     | {trial: $t, n: ($ranT | length), missing: ($caseCols - $ranT)} ]) as $tcov
 # host.version は比較条件ではない(EVAL-CORPUS.md の比較単位は host.id と host.model)。
 # 許すのは構わないが、先頭 run の version だけをヘッダに出すと、全 arm が同じ version
 # だったように読める。全 arm 同一のときだけ共通表示にし、違えば arm ごとに開示する。
@@ -253,6 +265,16 @@ def viz: tojson | .[1:-1];
    then [ "         PARTIAL CORPUS — not run: \($missing | map(viz) | join(", "))",
           "         この比較は corpus 全体の比較ではない。走っていない case の regression は見えない。" ]
    else [] end)
+# PARTIAL CORPUS は「run 全体が corpus の case を覆っているか」、こちらは
+# 「各 trial が run の case 集合を覆っているか」。別の問いなので節を分ける。
++ [ "trial coverage   "
+    + ($tcov | map("\(.trial): \(.n)/\($caseCols | length)") | join(", "))
+    + "   (分母は run の対象 case 集合)" ]
++ ([ $tcov[] | select((.missing | length) > 0)
+     | "         PARTIAL TRIALS — trial \(.trial) で走っていない case: \(.missing | map(viz) | join(", "))" ]
+   | if length == 0 then []
+     else . + [ "         trial ごとに case 集合が違う(非矩形)。trial 単位の行は run の case 集合を覆っていない。" ]
+     end)
 + [
   "",
   "arms     (* = reference for movement)"
@@ -390,9 +412,17 @@ def viz: tojson | .[1:-1];
      # 「min 3 max 15 range 12」に、3, missing, missing が「range 0(スキュー無し)」に
      # 見える。この節は skew の診断に使うので、部分観測から幅を出してはいけない。
      # case の位置を保って - を残し、1件でも欠ければ min/max/range を出さない。
-     | ([ $keys[] | select(.trial == $t)
-          | $rowIdx[$i]["\(.case_id)#\(.trial)"]
-          | if has("tool_uses") then .tool_uses else null end ]) as $vals
+     #
+     # 列は run 全体の対象 case 集合($caseCols)に固定する。「その trial に存在する
+     # case」を分母にすると、非矩形の run で分母が縮む: trial 2 に case-a しか
+     # 無ければ 1/1 観測済みとなり min=max・range 0 が「スキュー無し」と読める。
+     # 実際には 1/3 の部分観測である。result そのものが無い case と、result はあるが
+     # tool_uses を持たない case は、どちらも未観測として同じく - にする(0 で補わない)。
+     | ([ $caseCols[]
+          | $rowIdx[$i]["\(.)#\($t)"]
+          | if . == null then null
+            elif has("tool_uses") then .tool_uses
+            else null end ]) as $vals
      | ($vals | map(select(. != null))) as $seen
      | "  " + ($tag[$i] | pad(6)) + ("trial \($t)" | pad(9))
        + (($vals | map(if . == null then "-" else tostring end) | join(", ")) | pad(30))
