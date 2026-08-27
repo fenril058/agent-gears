@@ -32,6 +32,32 @@
   `eval-render.sh --part judgment` で別 evaluator が行う。
   host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
   `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
+  run の突き合わせは `eval-compare.sh`。主出力は accuracy の差ではなく
+  **requirement 単位の差分行列**で、accuracy を先に見せると「非 critical が1件動いただけ」を
+  「候補の方が良い」と読み違える(実測で踏んだ)。比較の前提は機械的に拒否する。
+  テストは同じディレクトリの `eval-compare.test.sh`(CI の consistency job)。
+  case 集合の一致は run どうしの相対比較で、corpus の網羅性は強制しない。
+  1 case だけの run が corpus 全体の run を名乗れないよう、網羅数と未実行 case 名を出す。
+  candidate identity は `(kind, revision)`(label は identity ではない)。相異は等値関係では
+  ないので全ペアで見る —— 先頭を錨にすると `A, B, B` を見逃す。
+  trial をまたいだ計算をしない。`tool_uses` の集計は `(arm, trial)` ごと、
+  「全 arm 同一」の判定と表示キーは `(case, trial, requirement)` ごと。
+  `unevaluated` の集合が run 間で違えば比較を拒否する。`unevaluated -> pass` は
+  候補の改善ではなく証拠の有無で、accuracy の分母も片方だけ変わる。
+  `tool_uses` が case 単位で部分欠損したら位置を `-` で残し、min/max/range は出さない
+  (部分観測から skew を読ませない)。
+  `unevaluated` は第四の verdict ではないので「全 arm 同一」の節に混ぜず、別節に出す。
+  surface/semantic の突き合わせでも数えない(semantic の判定が無いので一致も不一致も無い)。
+  run ファイル・corpus 由来の自由文字列は表示境界でエスケープする。本文だけでなく
+  比較拒否の診断行も対象(診断は1件1行が前提で、行頭に印を付けて出すため)。
+  `check-evals.sh` は非空しか見ないので、`label` の改行で偽の測定行を、`host.id` の
+  改行で偽の診断行を出せる(どちらも実測で踏んだ)。
+  `host.version` は比較条件ではないが、arm ごとに違えば先頭 run のものを共通表示しない。
+  arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
+  (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
+  EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、
+  その依存は corpus でも candidate でもなく runner environment の性質として扱い、
+  baseline を含む全 arm へ等しく与える(schema には足さない)。
   `host.model` は必須。取得できない host では `"unknown"` と明記し、その run は比較に使わない。
   LLM を呼ぶ評価自体は CI に入れない。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
