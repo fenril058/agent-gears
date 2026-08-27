@@ -45,7 +45,12 @@
   `unevaluated` の集合が run 間で違えば比較を拒否する。`unevaluated -> pass` は
   候補の改善ではなく証拠の有無で、accuracy の分母も片方だけ変わる。
   `tool_uses` が case 単位で部分欠損したら位置を `-` で残し、min/max/range は出さない
-  (部分観測から skew を読ませない)。
+  (部分観測から skew を読ませない)。その列は **run 全体の case 集合**に固定する。
+  `(case_id, trial)` は矩形とは限らず(trial 1 は 3 case、trial 2 は 1 case でも
+  validator と gate を通る)、trial に存在する case を分母にすると trial 2 が
+  「1/1 観測済み・range 0」= スキュー無しに見える。非矩形は禁じないが、
+  trial ごとの網羅を header の `trial coverage` に出す(corpus 網羅の
+  PARTIAL CORPUS とは別の問い)。
   `unevaluated` は第四の verdict ではないので「全 arm 同一」の節に混ぜず、別節に出す。
   surface/semantic の突き合わせでも数えない(semantic の判定が無いので一致も不一致も無い)。
   run ファイル・corpus 由来の自由文字列は表示境界でエスケープする。本文だけでなく

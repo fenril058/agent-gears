@@ -279,6 +279,104 @@ npline "部分観測から min/max/range を出す" \
 pline "全 case そろっていれば min/max/range を出す" \
   "#2 trial 1 1, 2, 9 min 1 max 9 range 8"
 
+# --- 非矩形の (case_id, trial) 集合 -------------------------------------------
+# trial 1 は 3 case、trial 2 は 1 case だけ、という run は schema でも比較 gate でも
+# 正当である(全 arm が同じ集合なら通る)。禁じないので、集計と表示が黙って
+# 誤読を招かないことを固定する。
+#
+# 元の欠陥: tool_uses の (arm, trial) 行が「その trial に存在する case」を分母に
+# していたため、trial 2 が「1/1 観測済み」になり min=max・range 0 —— つまり
+# 「スキュー無し」を出していた。実際には run の対象 case 集合 3 件のうち 1 件しか
+# 走っていない部分観測である。
+# 上の「部分欠損」fixture は trial 1 だけ、上の「複数 trial」fixture は 1 case だけで、
+# その組み合わせ(3 case x 2 trial の非矩形)はどちらも踏んでいなかった。
+nonrect_a='.results[0].tool_uses = 3 | .results[1].tool_uses = 7 | .results[2].tool_uses = 15
+  | .results += [(.results[0] | .trial = 2 | .tool_uses = 30)]'
+nonrect_b='.results[0].tool_uses = 1 | .results[1].tool_uses = 2 | .results[2].tool_uses = 9
+  | .results += [(.results[0] | .trial = 2 | .tool_uses = 5)]'
+jq "$nonrect_a" "$full_a" >"$tmp/nr-a.json"
+jq "$nonrect_b" "$full_b" >"$tmp/nr-b.json"
+
+# 1. validator を通ること。非矩形を禁じる変更で fixture が落ちたら、この検査の
+#    前提そのものが崩れているので、その旨で落とす。
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$tmp/nr-a.json" "$tmp/nr-b.json" >/dev/null 2>&1 ||
+  note "非矩形 (case_id, trial) の fixture が check-evals を通らない(この検査の前提が崩れている)"
+
+# 2. arm 間で (case_id, trial) 集合が一致しているので、比較そのものは通ること。
+n=$((n + 1))
+nr=""
+if ! nr="$(bash "$COMPARE" "$tmp/nr-a.json" "$tmp/nr-b.json" 2>"$tmp/nr-err")"; then
+  note "arm 間で (case_id, trial) 集合が一致する非矩形 run を拒否した"
+  cat "$tmp/nr-err" >&2
+fi
+nr="$(printf '%s\n' "$nr" | tr -s ' ' | sed 's/^ *//; s/ *$//')"
+
+nrline() {
+  n=$((n + 1))
+  printf '%s\n' "$nr" | grep -qxF "$2" && return 0
+  note "[$1] の行が出ていない"
+  echo "  期待(完全一致): $2" >&2
+}
+nnrline() {
+  n=$((n + 1))
+  printf '%s\n' "$nr" | grep -qxF "$2" || return 0
+  note "[$1] が出てはいけないのに出ている"
+  echo "  出てはいけない行: $2" >&2
+}
+
+# 3/4/5. trial 2 は欠損位置を保ち、observed 1/3 と出し、min/max/range を出さない。
+nrline "非矩形の trial は run の case 集合を列に使う(#1)" \
+  "#1* trial 2 30, -, - observed 1/3 — 欠損があるので min/max/range を出さない"
+nrline "非矩形の trial は run の case 集合を列に使う(#2)" \
+  "#2 trial 2 5, -, - observed 1/3 — 欠損があるので min/max/range を出さない"
+nnrline "trial に存在する case だけを分母にして 1/1 観測済みにする(#1)" \
+  "#1* trial 2 30 min 30 max 30 range 0"
+nnrline "trial に存在する case だけを分母にして 1/1 観測済みにする(#2)" \
+  "#2 trial 2 5 min 5 max 5 range 0"
+# 行の文言に依存しない形でも押さえる。trial 2 の行に幅の数値を出さない
+# (「min/max/range を出さない」という但し書き自体には数値が続かない)。
+for arm in '#1\*' '#2'; do
+  n=$((n + 1))
+  printf '%s\n' "$nr" | grep -qE "^$arm trial 2 .*(min|max|range) [0-9]" &&
+    note "trial 2 ($arm) の部分観測から min/max/range の数値を出している"
+done
+# 揃っている trial では従来どおり幅を出す(修正が全 trial を黙らせていないこと)。
+nrline "全 case 揃った trial では min/max/range を出す(#1)" \
+  "#1* trial 1 3, 7, 15 min 3 max 15 range 12"
+nrline "全 case 揃った trial では min/max/range を出す(#2)" \
+  "#2 trial 1 1, 2, 9 min 1 max 9 range 8"
+
+# 6. ヘッダが trial 2 の部分実行を隠さないこと。
+#    "cases 3 / 3 in corpus  trials {1, 2}" だけだと trial 2 まで全 case 揃って
+#    いるように読める。PARTIAL CORPUS は「run 全体が corpus を覆っているか」の
+#    別の問いなので、この run では出ない(corpus の 3 case は全部走っている)。
+nrline "trial ごとの網羅を run の case 集合を分母にして出す" \
+  "trial coverage 1: 3/3, 2: 1/3 (分母は run の対象 case 集合)"
+nrline "どの case が その trial で走っていないかを名指しする" \
+  "PARTIAL TRIALS — trial 2 で走っていない case: repo-facts-looked-up-edge, record-what-settles-edge"
+nrline "非矩形であることを明示する" \
+  "trial ごとに case 集合が違う(非矩形)。trial 単位の行は run の case 集合を覆っていない。"
+n=$((n + 1))
+printf '%s\n' "$nr" | grep -q "PARTIAL CORPUS" &&
+  note "corpus の case を全部走らせているのに PARTIAL CORPUS が出る(2つの網羅性が混ざっている)"
+# 網羅の行だけを消して tool_uses の欠損表示に頼る、の逆も塞ぐ。
+nrline "corpus 側の網羅表示は従来どおり" \
+  "cases 3 / 3 in corpus trials {1, 2}"
+
+# 矩形な run では PARTIAL TRIALS を出さない(狼少年にしない)。
+n=$((n + 1))
+printf '%s\n' "$fullout" | grep -q "PARTIAL TRIALS" &&
+  note "全 trial で case が揃っているのに PARTIAL TRIALS が出る"
+n=$((n + 1))
+printf '%s\n' "$fullout" | grep -qxF "trial coverage 1: 3/3 (分母は run の対象 case 集合)" ||
+  note "矩形な run で trial coverage が出ない(開示が条件付きで消えている)"
+
+# 存在しない (case, trial) の測定行を捏造しないこと。trial 2 は case-a だけ。
+n=$((n + 1))
+printf '%s\n' "$nr" | grep -qE "^repo-facts-looked-up-edge 2 " &&
+  note "trial 2 に存在しない case の行を出している"
+
 # --- host.version の開示 ------------------------------------------------------
 # version は比較条件ではない(EVAL-CORPUS.md の比較単位は host.id と host.model)。
 # 許すのは構わないが、先頭 run の version だけをヘッダに出すと全 arm が同じ version

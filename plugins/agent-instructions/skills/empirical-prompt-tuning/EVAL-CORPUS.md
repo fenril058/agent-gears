@@ -284,6 +284,12 @@ Every breach above was found by grepping the captured tool calls for the other a
 None of them was visible in the deliverables.
 A runner that does not capture the transcript cannot check any of these invariants, which is a second reason to capture it — independent of grading the `tool-calls` requirements.
 
+Audit each invariant separately, and re-audit before citing an old run.
+The first measurement was re-audited after the fact and cleared on one invariant while still failing another: no arm had read the candidate under test or a sibling's copy, but every arm — the three that had been re-run to fix the sibling-candidate and commit-message leaks included — was still running in `.../work/<case>/<arm>`, and two executors ran `pwd` and read the arm name back. Fixing the leak that was noticed says nothing about the ones that were not.
+
+A run that leaks arm identity is not salvaged by having no candidate leak.
+Record it as `historical` or `provisional` and keep its numbers as a record of what came out; do not cite them as causal uplift, because the arms differ by something other than the candidate.
+
 ## Do not fold hosts together
 
 The same edit to a skill can help one model and hurt another.
@@ -373,6 +379,9 @@ That set equality is between the runs, not against the corpus.
 Two runs covering one of three cases satisfy it, and a comparison of only the case you re-ran is a legitimate thing to want, so it is not refused.
 What is refused is doing it quietly: the header reports coverage as `cases 1 / 3 in corpus` and names the cases that were not run, because a partial run that reads as a whole-corpus result is how a regression in an unrun case gets reported as absent.
 
+Coverage *within* the run is a second, separate question, and the header answers it on its own line: `trial coverage   1: 3/3, 2: 1/3`, denominated in the run's case set rather than the corpus.
+A run whose trials cover different cases is legal, so `cases 3 / 3 in corpus   trials {1, 2}` alone reads as though trial 2 also ran all three; when a trial is short the header names the cases it skipped, under `PARTIAL TRIALS` rather than `PARTIAL CORPUS`.
+
 It also runs `scripts/check-evals.sh` over its inputs first, because aggregating a run whose stored `success` disagrees with its verdicts prints the disagreement as though it were a measurement.
 Run files are read-only to it.
 
@@ -389,7 +398,9 @@ What the gate does *not* equalise is the reason, so the section prints each arm'
 Its footer states the `success` rule in the order the schema defines it: a `[critical]` item left unevaluated makes `success` unknowable only while no other `[critical]` has already failed. Written the other way round it contradicts the run rows printed a few lines above it.
 - **items no arm measured**, held out of the section above (see below).
 - **surface / semantic disagreement**, counted per requirement over every *judged* observation — `surface: hit` with a `partial`/`fail` verdict, or `surface: miss` with `pass`. `SKILL.md` only describes the pattern being too narrow; a pattern that fires on a label without checking what follows it is the opposite failure, and one run cannot tell it from chance. One `trial` is what gets repeated to tell a pattern defect from chance, not one run: a second run of the same candidate is refused by the candidate-distinctness gate, so the footer names trials. `unevaluated` observations are left out and their count is printed at the end of the row, because there is no semantic judgement for the surface to agree or disagree with — counting them yields rows like `miss+unevaluated x2` with `odd 0`, which reads as a check that found no disagreement rather than as a check that never ran. A requirement with no judged observation at all drops out of the section; it is listed under **unevaluated in every arm** instead.
-- **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. `tool_uses` is optional per result, so a run that recorded it for two cases out of three is a legal input, and dropping the third silently is how `3, missing, 15` becomes "min 3, max 15, range 12" and `3, missing, missing` becomes "range 0 — no skew" while two cases went unobserved. The row therefore keeps each case's position, printing `-` where nothing was recorded, and withholds min/max/range entirely unless every case in that `(arm, trial)` has a value, saying `observed 2/3` instead. The aggregator never substitutes a zero.
+- **`tool_uses` across cases within one arm and one trial**, as raw values with min/max/range, feeding `SKILL.md`'s "one scenario at 3-5x the others" heuristic. That heuristic compares cases inside a single trial, so the rows are per `(arm, trial)` and nothing is computed across trials: pooling trial 1's 3 with trial 2's 15 turns run-to-run variation into what looks like a case skew. `tool_uses` is optional per result, so a run that recorded it for two cases out of three is a legal input, and dropping the third silently is how `3, missing, 15` becomes "min 3, max 15, range 12" and `3, missing, missing` becomes "range 0 — no skew" while two cases went unobserved. The row therefore keeps each case's position, printing `-` where nothing was recorded, and withholds min/max/range entirely unless every case has a value, saying `observed 2/3` instead. The aggregator never substitutes a zero.
+The fixed columns are the run's whole case set, not the cases present in that trial.
+The `(case_id, trial)` set need not be rectangular — `case-a#1, case-b#1, case-c#1, case-a#2` passes the validator, and passes the gate whenever every arm carries the same set — and taking the trial's own cases as the denominator is how trial 2 above reported `30` as `observed 1/1` with `range 0`, reading as "no skew" for what is a one-of-three observation. A case with no result in that trial and a case whose result omits `tool_uses` are both unobserved, and print the same `-`.
 
 The same rule governs the first section: "identical in every arm" is decided per `(case_id, trial, requirement_id)` and the trial stays in the printed key.
 Drop it and a requirement that every arm passed on trial 1 and every arm failed on trial 2 becomes two indistinguishable rows.
