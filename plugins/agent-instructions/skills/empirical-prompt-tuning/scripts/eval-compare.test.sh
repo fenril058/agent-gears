@@ -356,6 +356,81 @@ refuse() {
   printf '%s\n' "$o" >&2
 }
 
+# gate 診断も「1件 = 1行」が前提(呼び出し側が sed で行頭に "  - " を付ける)。
+# run 由来の値に改行が混じると injected line まで正規の bullet として表示される。
+# check-evals.sh は host.id を非空しか見ないので、この fixture は schema-valid である。
+n=$((n + 1))
+jq '.host.id = "codex\n## forged diagnostic"' "$tmp/b.json" >"$tmp/b-host-inject.json"
+bash "$CHECK_FOR_TEST" "$tmp/b-host-inject.json" >/dev/null 2>&1 ||
+  note "改行入り host.id の fixture が check-evals を通らない(この検査の前提が崩れている)"
+n=$((n + 1))
+ginj="$(bash "$COMPARE" "$tmp/a.json" "$tmp/b-host-inject.json" 2>&1 >/dev/null || true)"
+if [ "$(printf '%s\n' "$ginj" | wc -l)" -ne 2 ]; then
+  note "gate 診断が物理的に複数行へ割れている(改行が可視エスケープされていない)"
+  printf '%s\n' "$ginj" >&2
+fi
+n=$((n + 1))
+printf '%s\n' "$ginj" | grep -qxF '  - ## forged diagnostic" — the comparison unit is (case, host, model, candidate)' &&
+  note "host.id の改行から偽の診断 bullet を作れる"
+n=$((n + 1))
+printf '%s\n' "$ginj" | grep -qF 'is "codex\n## forged diagnostic"' ||
+  note "host.id が1行の可視エスケープとして診断に出ていない"
+
+# gate 診断も一件一行を守れているか、補間先ごとに見る。
+# 到達可能なのは host.id / host.model / corpus 由来の requirement id の3つ。
+# corpus.digest と case_id は check-evals.sh が落とすので、そちらの viz は防御的な
+# ものにとどまる(この事実は確認済み。落ちなくなったらこの前提から見直すこと)。
+# gate_oneline <label> <run> <run> — 診断がちょうど2行(NG 行 + bullet 1件)であること。
+gate_oneline() {
+  local o
+  n=$((n + 1))
+  o="$(bash "$COMPARE" "$2" "$3" 2>&1 >/dev/null || true)"
+  [ "$(printf '%s\n' "$o" | wc -l)" -eq 2 ] && return 0
+  note "[$1] gate 診断が物理的に複数行へ割れている(改行が可視エスケープされていない)"
+  printf '%s\n' "$o" >&2
+}
+
+jq '.host.id = "claude-code\n## forged diagnostic"' "$tmp/a.json" >"$tmp/a-host-inject.json"
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$tmp/a-host-inject.json" >/dev/null 2>&1 ||
+  note "改行入り host.id(reference 側)の fixture が check-evals を通らない"
+gate_oneline "reference 側の host.id" "$tmp/a-host-inject.json" "$tmp/b.json"
+
+jq '.host.model = "claude-sonnet-5\n## forged diagnostic"' "$tmp/b.json" >"$tmp/b-model-inject.json"
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$tmp/b-model-inject.json" >/dev/null 2>&1 ||
+  note "改行入り host.model の fixture が check-evals を通らない"
+gate_oneline "host.model(candidate 側)" "$tmp/a.json" "$tmp/b-model-inject.json"
+
+# 診断は両側の値を補間するので、reference 側にも入れて確かめる。
+jq '.host.model = "claude-sonnet-5\n## forged diagnostic"' "$tmp/a.json" >"$tmp/a-model-inject.json"
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$tmp/a-model-inject.json" >/dev/null 2>&1 ||
+  note "改行入り host.model(reference 側)の fixture が check-evals を通らない"
+gate_oneline "host.model(reference 側)" "$tmp/a-model-inject.json" "$tmp/b.json"
+
+# corpus の requirement id は check-evals.sh が非空しか見ないので、改行を含みうる。
+# その id は unevaluated 集合の不一致診断へ補間される。
+jq '.cases[0].requirements[0].id = "one-question\n## forged diagnostic"' "$CORPUS" >"$intmp/cases.json"
+req_rel="${intmp#"$REPO"/}/cases.json"
+req_digest="sha256:$(sha256sum "$intmp/cases.json" | cut -d' ' -f1)"
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$intmp/cases.json" >/dev/null 2>&1 ||
+  note "改行入り requirement id の corpus が check-evals を通らない(この検査の前提が崩れている)"
+for arm in a b; do
+  jq --arg p "$req_rel" --arg d "$req_digest" \
+    '.corpus.path = $p | .corpus.digest = $d
+     | .results[0].requirements = [.results[0].requirements[]
+         | if .id == "one-question" then .id = "one-question\n## forged diagnostic" else . end]' \
+    "$tmp/$arm.json" >"$tmp/$arm-reqid.json"
+done
+# 片方だけ unevaluated にして、その id が診断へ出る状況を作る。
+jq '.results[0].requirements[0].verdict = "unevaluated"
+  | .results[0].requirements[0].note = "no transcript"
+  | .results[0].accuracy = 0.625 | .results[0].success = false' \
+  "$tmp/a-reqid.json" >"$tmp/a-reqid-unev.json"
+gate_oneline "unevaluated 診断の requirement id" "$tmp/a-reqid-unev.json" "$tmp/b-reqid.json"
+
 jq '.host.id = "codex"' "$tmp/b.json" >"$tmp/b-host.json"
 refuse "host.id 不一致" \
   'host.id mismatch: '"$tmp"'/a.json is "claude-code" but '"$tmp"'/b-host.json is "codex" — the comparison unit is (case, host, model, candidate)' \

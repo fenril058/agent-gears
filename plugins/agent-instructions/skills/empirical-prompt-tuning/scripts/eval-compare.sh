@@ -145,16 +145,16 @@ def viz: tojson | .[1:-1];
     | ([ $b.results[] | .case_id as $c | .trial as $t | .requirements[]
          | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $bun
     | [ (if $b.corpus.digest != $a.corpus.digest
-         then "corpus.digest mismatch: \($an) is \($a.corpus.digest) but \($bn) is \($b.corpus.digest) — results are only comparable within one corpus digest"
+         then "corpus.digest mismatch: \($an) is \($a.corpus.digest | viz) but \($bn) is \($b.corpus.digest | viz) — results are only comparable within one corpus digest"
          else empty end),
         (if $b.host.id != $a.host.id
-         then "host.id mismatch: \($an) is \"\($a.host.id)\" but \($bn) is \"\($b.host.id)\" — the comparison unit is (case, host, model, candidate)"
+         then "host.id mismatch: \($an) is \"\($a.host.id | viz)\" but \($bn) is \"\($b.host.id | viz)\" — the comparison unit is (case, host, model, candidate)"
          else empty end),
         (if $b.host.model != $a.host.model
-         then "host.model mismatch: \($an) is \"\($a.host.model)\" but \($bn) is \"\($b.host.model)\" — the same edit can help one model and hurt another"
+         then "host.model mismatch: \($an) is \"\($a.host.model | viz)\" but \($bn) is \"\($b.host.model | viz)\" — the same edit can help one model and hurt another"
          else empty end),
         (if $bkeys != $akeys
-         then "case/trial set mismatch: \($an) covers \($akeys | join(", ")) but \($bn) covers \($bkeys | join(", ")) — differing trial protocols are not comparable"
+         then "case/trial set mismatch: \($an) covers \($akeys | map(viz) | join(", ")) but \($bn) covers \($bkeys | map(viz) | join(", ")) — differing trial protocols are not comparable"
          else empty end),
         # 片方だけ測れた項目があると、その movement は候補の改善ではなく証拠の
         # 有無を映す(unevaluated -> pass は「良くなった」ではない)。accuracy の
@@ -162,7 +162,7 @@ def viz: tojson | .[1:-1];
         # 「A run carrying any unevaluated verdict is not comparable to one that
         #  measured that item.」
         (if $bun != $aun
-         then "unevaluated set mismatch: \($an) and \($bn) disagree on which items were measured at all: \((($aun - $bun) + ($bun - $aun)) | sort | join(", ")) — a run carrying an unevaluated verdict is not comparable to one that measured that item, and their accuracy denominators differ"
+         then "unevaluated set mismatch: \($an) and \($bn) disagree on which items were measured at all: \((($aun - $bun) + ($bun - $aun)) | sort | map(viz) | join(", ")) — a run carrying an unevaluated verdict is not comparable to one that measured that item, and their accuracy denominators differ"
          else empty end) ]
   ]
 # candidate の相異は等値関係ではないので、先頭を錨にした比較では足りない。
@@ -183,6 +183,10 @@ def viz: tojson | .[1:-1];
 | .[]
 JQ
 
+# 診断は「1件 = 1行」が前提である(すぐ下で sed が行頭に "  - " を付ける)。補間する値に
+# 改行が混じると、injected line まで正規の診断 bullet として表示される。run 由来の
+# 文字列は check-evals.sh が非空しか見ないので、host.id に改行を入れた schema-valid な
+# run を作れてしまう。gate 内の補間も本文側と同じく viz を通すこと。
 # 診断に出すファイル名は jq へ配列で渡す(引数順と索引を一致させる)。
 names_json="$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)"
 gate="$(jq -s -r --argjson names "$names_json" "$JQ_GATE" "${files[@]}")"

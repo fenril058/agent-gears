@@ -376,8 +376,9 @@ What is refused is doing it quietly: the header reports coverage as `cases 1 / 3
 It also runs `scripts/check-evals.sh` over its inputs first, because aggregating a run whose stored `success` disagrees with its verdicts prints the disagreement as though it were a measurement.
 Run files are read-only to it.
 
-Every string it interpolates from a run file — labels, revisions, host metadata, notes, ids, and the file paths in its own diagnostics — is escaped at the display boundary.
-`check-evals.sh` requires those fields to be non-empty strings and nothing more, so a schema-valid run may carry newlines or terminal control sequences in them; pasted raw into line-oriented output, a `label` alone was enough to print a fabricated delta-matrix row above the real one.
+Every string it interpolates from a run file or the corpus — labels, revisions, host metadata, notes, ids, and the file paths in its own diagnostics — is escaped at the display boundary, in the refusal diagnostics as much as in the report.
+`check-evals.sh` requires those fields to be non-empty strings and nothing more, so a schema-valid run may carry newlines or terminal control sequences in them; pasted raw into line-oriented output, a `label` alone was enough to print a fabricated delta-matrix row above the real one, and a `host.id` alone to print a fabricated refusal bullet, since each diagnostic is prefixed per line.
+Not every field can carry one — `corpus.digest` is checked against the corpus hash and `case_id` against the corpus's kebab-case ids — but `host.id`, `host.model` and the corpus's own `requirement.id` can, so the escaping is applied uniformly rather than per reachable field.
 
 Four further sections follow the matrix. Three of them come from what the first measurement made obvious; the fourth — items no arm measured — comes from reviewing the tool itself, since that measurement happened to capture every requirement:
 
