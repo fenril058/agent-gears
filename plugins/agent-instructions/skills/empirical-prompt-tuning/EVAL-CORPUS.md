@@ -284,6 +284,12 @@ Every breach above was found by grepping the captured tool calls for the other a
 None of them was visible in the deliverables.
 A runner that does not capture the transcript cannot check any of these invariants, which is a second reason to capture it — independent of grading the `tool-calls` requirements.
 
+Audit each invariant separately, and re-audit before citing an old run.
+The first measurement was re-audited after the fact and cleared on one invariant while still failing another: no arm had read the candidate under test or a sibling's copy, but every arm — the three that had been re-run to fix the sibling-candidate and commit-message leaks included — was still running in `.../work/<case>/<arm>`, and two executors ran `pwd` and read the arm name back. Fixing the leak that was noticed says nothing about the ones that were not.
+
+A run that leaks arm identity is not salvaged by having no candidate leak.
+Record it as `historical` or `provisional` and keep its numbers as a record of what came out; do not cite them as causal uplift, because the arms differ by something other than the candidate.
+
 ## Do not fold hosts together
 
 The same edit to a skill can help one model and hurt another.
