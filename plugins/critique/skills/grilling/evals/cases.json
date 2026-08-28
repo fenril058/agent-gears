@@ -115,8 +115,8 @@
         {
           "id": "rest-deferred-correctly",
           "critical": false,
-          "text": "The remaining session material (approach, rejected alternatives, open items) is routed to the context export at the end rather than into the glossary or an ADR.",
-          "surface": "conversation-context-export|\\.dev/contexts"
+          "text": "The two questions the scenario leaves open — the retention period, and whether trials are stored individually or summarised — are not written into the glossary or the ADR as though they had been settled. Recording them explicitly as still open, or leaving them out, both satisfy this, and so does any amount of rationale about the decisions that did settle. Judge the files that changed, not a statement about what will be exported later.",
+          "evidence": "file-state"
         },
         {
           "id": "not-batched",
