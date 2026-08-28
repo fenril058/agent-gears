@@ -228,67 +228,104 @@ Both are `with-skill`; distinguish them by putting the draft's identity in `revi
 ## Runner isolation contract
 
 The corpus names no host, and `eval-render.sh` only avoids naming the skill.
-Everything else that keeps the arms comparable belongs to the runner, and "the runner withholds the skill" turned out not to be one action but five invariants.
-Each of the following was violated by an ad-hoc runner during the first real measurement of this corpus, and each violation was visible only because the tool-call transcript had been captured.
+Everything else that keeps the arms comparable belongs to the runner, and the invariant it has to hold is one sentence:
 
-### Unloading a skill is not withholding it
+**Everything the executor can observe is equivalent across arms, except whether the candidate is intentionally provided or withheld and, when provided, its contents.**
 
-A host switch that disables skills — Claude Code's `--safe-mode` or `--disable-slash-commands` — stops the skill from being *loaded*.
-It does not remove the file.
-`~/.claude/skills/<skill>/SKILL.md` stays readable, and an executor told to record "via `domain-modeling`" goes looking for it: one did, and read three files out of the installed skill directory.
-The same path was open to the baseline arm for the skill actually under test.
-Nothing but luck kept it shut.
+The exception is not only the candidate's text.
+Provision itself differs by design: a `with-skill` arm is told to read the candidate and follow it, a `without-skill` arm is told there is no target-specific instruction, and the execution prompts therefore differ.
+That difference is the treatment.
+Everything outside it has to match.
 
-Withholding means **unreachable through the filesystem**, not merely unloaded.
-Point the host at an empty configuration directory, or run it in a filesystem sandbox.
-Where neither is possible, say so in the run's `notes` and treat the baseline as provisional rather than pretending the boundary held.
+Each failure below is a way that sentence was violated while appearing to hold.
+None of them showed up in a deliverable; every one was found in a captured transcript, or by looking for it before the run.
 
-### Only one candidate exists on disk at a time
+### Withholding a candidate covers every path to it, not the working tree alone
 
-Two arms' candidate files must never co-exist during a run, and a permission flag is not a substitute.
-Claude Code's `--add-dir` grants *additional* access; under `--permission-mode bypassPermissions` it does not restrict reads at all.
-Two executors reached the sibling arm's `SKILL.md` with `find` and read it — one of them the arm whose entire purpose was not to see it.
+A host switch that disables customisations stops an instruction from being *loaded*.
+It does not remove it, and an executor that goes looking will find it.
 
-Materialise the candidate at a single neutral path for the duration of its own arm and delete it afterwards.
-A directory holding only the arm being run cannot leak the arm that is not.
+Withholding means unreachable, and reachability has more paths than the working tree:
 
-### Arm identity must not appear in anything the executor can observe
+- the copy installed under the host's own configuration
+- a copy another arm is using, or one a previous arm left behind
+- the copy inside the checkout the scenario places the executor in
+- a copy still reachable through Git history, refs, or a remote after the file is gone from the tip
 
-The executor sees its working directory, its git history and its branch.
-Any of them can name the arm:
+Rewriting the tip does not remove a file from history — the parent tree still carries it, a remote still serves it, and a reflog still records where the checkout came from.
+Enumerate the paths and close all of them, or the withholding is only apparent.
 
-- a working tree at `.../work/<case>/tampered/` announces the arm to `pwd`
-- a candidate at `skills/A/` beside `skills/B/` announces that there are two
-- `git commit -m "tampered candidate"` announces the edit itself — an executor ran `git show HEAD`, found the commit, and reported the tampering back in its deliverable
+### Identity is hidden across every observable channel, not just filenames
 
-Name the paths so they carry no arm information, and build a modified checkout so its history is indistinguishable from the intact one (amend onto the upstream commit rather than adding one on top).
+The arm, the case and the checklist have identities that no arm may learn.
 
-### Dependencies are equalised across arms, not withheld
+The target's identity is not in the same position.
+An arm that is handed the candidate can read the candidate's own name out of it — its front matter says so — and that is a consequence of handing it over, not a breach.
+What must not happen is the target's identity reaching an executor by any route other than the candidate: out of the runner's own environment, or out of the world an arm that is being withheld the candidate is placed in.
+A baseline that learns the target's name has been given a discovery cue the treatment was supposed to withhold, and it is no longer estimating the same thing.
 
-A requirement can only be about the candidate.
-When the candidate delegates — `grilling` records "via `domain-modeling`" — whether that delegate is reachable changes what the executor is able to do, and if it varies between arms the comparison stops being about the candidate at all.
+Naming is not confined to the filesystem. Identity has been observed leaking through:
 
-This is **not a corpus property**.
-The corpus describes a scenario and a checklist; "this skill leans on that one" is a property of the skill text, which already says so in prose.
-Nor is it a property of `candidate.revision`, which records which text was handed over.
-It is a property of the environment the runner builds, and the invariant is symmetry: **every arm, the baseline included, gets the same delegates.**
-The baseline withholds the candidate and nothing else — withholding its delegates as well would narrow the baseline below the model's default, the distortion "Baseline and candidate" already warns about.
+- the working directory the executor is placed in, and the names of its siblings
+- the arguments of processes the executor can see
+- the environment it inherits
+- descriptor metadata naming the files behind its own standard streams
+- Git metadata — commit messages, reflogs, remotes
+- configuration the host loads on its behalf, including the descriptions of unrelated instructions installed beside the candidate
+- documentation inside the world the scenario asks the executor to read
 
-So neither schema gains a field.
-The asymmetry observed in the first measurement — one arm found `domain-modeling` on disk, two did not — came from chance filesystem discovery, not from a missing declaration, and a declaration would not have prevented it.
+The last two survive a careful pass over the first ones.
+A delegate's own description can name the skill under test; a repository's README can name it.
+Neither is a path, so neither is caught by inspecting paths.
+
+### Withholding the checklist is not done in the execution prompt
+
+Keeping requirements out of the prompt handed to the executor is necessary and not sufficient.
+The checklist has other representations, and when the scenario puts the executor inside the repository that hosts the benchmark, they are readable:
+
+- requirement ids and case ids in fixtures, tests, and CI configuration
+- prose explaining what a requirement is testing — worse than the id, because it hands over the intent rather than a label
+
+Make all of it unreachable from the executor's world, and judge the removal by content rather than by identifier: a document that never names an id can still describe what is being measured.
+
+### A transcript is complete, or the run is provisional
+
+Grading and auditing both read the captured tool calls and their results.
+Anything that shortens them shortens what can be judged and what can be audited:
+
+- results truncated to a display-sized excerpt
+- large results spilled to a separate file the capture does not follow
+- a channel that was never recorded at all
+
+A partially captured transcript is not a transcript.
+Where the evidence an item needs is missing, record that item as `unevaluated` and say what was missing.
+Where the loss is wide enough that the invariants cannot be checked, record the whole run as provisional and do not cite it.
+
+### A post-run audit is defence in depth, not the guarantee
+
+The guarantee is structural: the leak paths do not exist.
+The audit is a second look, aimed at the paths that were not thought of.
+
+An audit that finds nothing does not establish that nothing leaked — it establishes that the checks which ran found nothing, which is a smaller claim.
+Audit each invariant separately, and re-audit before citing an old run: a measurement can clear one invariant while still failing another, and fixing the leak that was noticed says nothing about the ones that were not.
+
+A run that leaks identity is not salvaged by having no candidate leak.
+Record it as `historical` or `provisional` and keep its numbers as a record of what came out; do not cite them as causal uplift, because the arms differ by something other than the candidate.
+
+### Delegates are materialised equally in every arm, the baseline included
+
+When the candidate leans on another instruction, whether that delegate is reachable changes what the executor is able to do.
+If it varies between arms, the comparison stops being about the candidate.
+
+Equality here is not a list of names.
+Every arm must have the delegates present with the same content, the same revision, and the same reachability.
+Withholding a delegate from the baseline narrows it below the model's default; giving one arm a newer copy than another makes part of the difference between arms about the delegate.
+Provision of the candidate is the only intended difference between arms, and a delegate must not become a second one.
+
+This is not a corpus property, and not a property of `candidate.revision`, which records only which text was handed over.
+It is a property of the environment the runner builds, so neither schema gains a field.
 Record what the arms actually had in the run's `notes`.
 
-### Audit the transcript before trusting the run
-
-Every breach above was found by grepping the captured tool calls for the other arms' artefacts after the runs finished.
-None of them was visible in the deliverables.
-A runner that does not capture the transcript cannot check any of these invariants, which is a second reason to capture it — independent of grading the `tool-calls` requirements.
-
-Audit each invariant separately, and re-audit before citing an old run.
-The first measurement was re-audited after the fact and cleared on one invariant while still failing another: no arm had read the candidate under test or a sibling's copy, but every arm — the three that had been re-run to fix the sibling-candidate and commit-message leaks included — was still running in `.../work/<case>/<arm>`, and two executors ran `pwd` and read the arm name back. Fixing the leak that was noticed says nothing about the ones that were not.
-
-A run that leaks arm identity is not salvaged by having no candidate leak.
-Record it as `historical` or `provisional` and keep its numbers as a record of what came out; do not cite them as causal uplift, because the arms differ by something other than the candidate.
 
 ## Do not fold hosts together
 
