@@ -129,11 +129,7 @@ jobs:
       - run: nix shell nixpkgs#jq --command bash scripts/check-evals.sh
       - run: nix shell nixpkgs#jq --command bash scripts/check-evals.test.sh
       # 結果を突き合わせる集計(eval-compare.sh)の単体テスト。これも LLM を呼ばない。
-      # plugin 名はハードコードしない(skill は plugin 間を移動しうる)。
-      - run: |
-          t="$(find plugins -path '*/skills/*/scripts/eval-compare.test.sh' -print -quit)"
-          test -n "$t" || { echo "eval-compare.test.sh が見つからない" >&2; exit 1; }
-          nix shell nixpkgs#jq --command bash "$t"
+      - run: nix shell nixpkgs#jq --command bash scripts/eval-compare.test.sh
       # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
       - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 

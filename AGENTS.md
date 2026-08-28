@@ -32,10 +32,12 @@
   `eval-render.sh --part judgment` で別 evaluator が行う。
   host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
   `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
-  run の突き合わせは `eval-compare.sh`。主出力は accuracy の差ではなく
-  **requirement 単位の差分行列**で、accuracy を先に見せると「非 critical が1件動いただけ」を
-  「候補の方が良い」と読み違える(実測で踏んだ)。比較の前提は機械的に拒否する。
-  テストは同じディレクトリの `eval-compare.test.sh`(CI の consistency job)。
+  run の突き合わせは `scripts/eval-compare.sh`(repo-level tooling。4 host へ配る
+  skill payload には入れない。`eval-render.sh` は skill 同梱のまま)。主出力は
+  accuracy の差ではなく **requirement 単位の差分行列**で、accuracy を先に見せると
+  「非 critical が1件動いただけ」を「候補の方が良い」と読み違える(実測で踏んだ)。
+  比較の前提は機械的に拒否する。
+  テストは `scripts/eval-compare.test.sh`(CI の consistency job)。
   case 集合の一致は run どうしの相対比較で、corpus の網羅性は強制しない。
   1 case だけの run が corpus 全体の run を名乗れないよう、網羅数と未実行 case 名を出す。
   candidate identity は `(kind, revision)`(label は identity ではない)。相異は等値関係では
