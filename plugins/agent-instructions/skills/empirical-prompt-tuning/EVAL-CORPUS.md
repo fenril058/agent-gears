@@ -19,7 +19,7 @@ Everywhere a measurement does exist, the three values and the formula are exactl
 eval corpus            evals/cases.json — scenarios and the fixed checklist. No host in it.
       |
 runner interface       scripts/eval-render.sh — corpus -> execution prompt, judgment prompt, result skeleton.
-      |                scripts/eval-compare.sh — run files -> requirement-level delta matrix.
+      |                <repo>/scripts/eval-compare.sh — run files -> requirement-level delta matrix.
       |
 host execution         Claude Code Task tool / Codex / Copilot. Lives outside this repo's data.
 ```
@@ -376,12 +376,14 @@ The baseline arm is the same five steps with `--candidate without-skill`, run un
 
 ## Comparing runs
 
-`scripts/eval-compare.sh`, next to `eval-render.sh`, puts two or more run files side by side:
+`scripts/eval-compare.sh` at the repository root — not in the skill payload, unlike `eval-render.sh` — puts two or more run files side by side:
 
 ```sh
-compare="plugins/agent-instructions/skills/empirical-prompt-tuning/scripts/eval-compare.sh"
-bash "$compare" "$out"/run-baseline.json "$out"/run-with.json "$out"/run-tampered.json
+bash scripts/eval-compare.sh "$out"/run-baseline.json "$out"/run-with.json "$out"/run-tampered.json
 ```
+
+`eval-render.sh` ships with the skill because a runner on any of the four hosts needs it to turn a corpus into prompts.
+The comparator reads run files that already exist and is only ever run inside this repository, so it lives with the other repository checks instead of being copied to every host.
 
 Its primary output is a **requirement-level delta matrix**, one row per `(case_id, trial, requirement_id)`, one column per arm, with the movement against a reference arm.
 Accuracy, success, `tool_uses` and `duration_ms` follow as a secondary summary, and deliberately not first: in the first real measurement of this corpus, one arm read 0.750 against another's 0.833 — "the tampered candidate is better" — when the only requirement that had moved was a single non-`[critical]` item going `fail` to `partial`.

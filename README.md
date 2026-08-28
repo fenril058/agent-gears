@@ -230,7 +230,7 @@ skill を渡さない baseline に checklist を見せると、それをその�
 
 - 形式の定義と手順: `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md`
 - 実行 / 採点 / 結果雛形の生成: `.../empirical-prompt-tuning/scripts/eval-render.sh`
-- 結果の突き合わせ: `.../empirical-prompt-tuning/scripts/eval-compare.sh`
+- 結果の突き合わせ: `scripts/eval-compare.sh`(repo-level tooling。4 host へ配る skill payload には入れない)
   主出力は accuracy の差ではなく **requirement 単位の差分行列**(`(case_id, trial, requirement_id)` ごとに1行)。
   accuracy だけ見ると「非 critical 1件が動いただけ」を「候補の方が良い」と読み違える。
   比較の前提(digest / host.id / host.model / model≠unknown / `(case_id, trial)` 集合 /

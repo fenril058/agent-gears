@@ -21,9 +21,8 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$HERE/../../../../.." && pwd)"
+REPO="$(cd "$HERE/.." && pwd)"
 COMPARE="$HERE/eval-compare.sh"
-RENDER="$HERE/eval-render.sh"
 CHECK_FOR_TEST=""
 
 [ -f "$REPO/scripts/check-evals.sh" ] || {
@@ -34,15 +33,17 @@ CHECK_FOR_TEST=""
   echo "eval-compare.sh が見つからない" >&2
   exit 1
 }
-[ -f "$RENDER" ] || {
-  echo "eval-render.sh が見つからない" >&2
-  exit 1
-}
 
 cd "$REPO" || exit 1
 CHECK_FOR_TEST="$REPO/scripts/check-evals.sh"
 
 # plugin 名はハードコードしない(skill は plugin 間を移動しうる)。
+# eval-render.sh は skill 同梱のままなので、パスは repo ルートから引く。
+RENDER="$(find plugins -path '*/skills/*/scripts/eval-render.sh' -print -quit)"
+[ -n "$RENDER" ] || {
+  echo "eval-render.sh が見つからない" >&2
+  exit 1
+}
 CORPUS="$(find plugins -path '*/skills/grilling/evals/cases.json' -print -quit)"
 [ -n "$CORPUS" ] || {
   echo "grilling の corpus が見つからない" >&2
