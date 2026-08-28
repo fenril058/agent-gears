@@ -230,7 +230,12 @@ Both are `with-skill`; distinguish them by putting the draft's identity in `revi
 The corpus names no host, and `eval-render.sh` only avoids naming the skill.
 Everything else that keeps the arms comparable belongs to the runner, and the invariant it has to hold is one sentence:
 
-**Everything the executor can observe is equivalent across arms, except the content of the candidate itself.**
+**Everything the executor can observe is equivalent across arms, except whether the candidate is intentionally provided or withheld and, when provided, its contents.**
+
+The exception is not only the candidate's text.
+Provision itself differs by design: a `with-skill` arm is told to read the candidate and follow it, a `without-skill` arm is told there is no target-specific instruction, and the execution prompts therefore differ.
+That difference is the treatment.
+Everything outside it has to match.
 
 Each failure below is a way that sentence was violated while appearing to hold.
 None of them showed up in a deliverable; every one was found in a captured transcript, or by looking for it before the run.
@@ -252,7 +257,13 @@ Enumerate the paths and close all of them, or the withholding is only apparent.
 
 ### Identity is hidden across every observable channel, not just filenames
 
-The target, the arm, the case and the checklist each have an identity, and each one reaching the executor breaks the comparison differently.
+The arm, the case and the checklist have identities that no arm may learn.
+
+The target's identity is not in the same position.
+An arm that is handed the candidate can read the candidate's own name out of it — its front matter says so — and that is a consequence of handing it over, not a breach.
+What must not happen is the target's identity reaching an executor by any route other than the candidate: out of the runner's own environment, or out of the world an arm that is being withheld the candidate is placed in.
+A baseline that learns the target's name has been given a discovery cue the treatment was supposed to withhold, and it is no longer estimating the same thing.
+
 Naming is not confined to the filesystem. Identity has been observed leaking through:
 
 - the working directory the executor is placed in, and the names of its siblings
@@ -309,7 +320,7 @@ If it varies between arms, the comparison stops being about the candidate.
 Equality here is not a list of names.
 Every arm must have the delegates present with the same content, the same revision, and the same reachability.
 Withholding a delegate from the baseline narrows it below the model's default; giving one arm a newer copy than another makes part of the difference between arms about the delegate.
-The candidate is the only thing that differs.
+Provision of the candidate is the only intended difference between arms, and a delegate must not become a second one.
 
 This is not a corpus property, and not a property of `candidate.revision`, which records only which text was handed over.
 It is a property of the environment the runner builds, so neither schema gains a field.
