@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 #
-# eval-compare.sh — agent-gears/eval-run@1 の結果ファイルを突き合わせる。
+# eval-compare.sh — agent-gears/eval-run@1 / @2 の結果ファイルを突き合わせる。
+#
+# 世代の違う run は同じ表に並べない。v1 と v2 では対象の表し方が違う
+# (corpus.skill / corpus.target、with-skill / with-target)ので、並べると
+# 別の語彙の値を同じ列で読ませることになる。記録済みの run を変換しない方針
+# なので、この拒否は移行期間ではなく恒久的な境界である。
 #
 # 主出力は accuracy の差ではなく【requirement 単位の差分行列】である。
 # 最初の実測で、accuracy だけ見ると読み違えることが分かった: with 0.750 /
@@ -42,11 +47,13 @@ usage() {
 eval-compare.sh <run.json> <run.json> [<run.json>...] [--reference <run.json>]
 
   --reference <run.json>  movement の基準にする run
-                          既定: without-skill が1本だけあればそれ、無ければ最初の引数
+                          既定: baseline arm(v1 は without-skill、v2 は
+                          without-target)が1本だけあればそれ、無ければ最初の引数
 
 主出力は requirement 単位の差分行列。accuracy / success / duration / tool_uses は
-secondary summary。比較不能な組み合わせは拒否する(digest / host.id / host.model /
-model!=unknown / (case_id,trial) 集合 / unevaluated 集合 / candidate が異なること)。
+secondary summary。比較不能な組み合わせは拒否する(schema 世代 / digest / host.id /
+host.model / model!=unknown / (case_id,trial) 集合 / unevaluated 集合 /
+candidate が異なること)。
 host.version は比較条件ではないが、arm ごとに違えば開示する。
 USAGE
 }

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 #
-# check-evals.sh — skill に併置された eval corpus(evals/cases.json)と、
-# runner が書き出す実行結果(agent-gears/eval-run@1)の形式を決定的に検証する。
+# check-evals.sh — 測定対象に併置された eval corpus(evals/cases.json)と、
+# runner が書き出す実行結果の形式を決定的に検証する。
+#
+# schema は2世代ある。v1(eval-cases@1 / eval-run@1)は対象が skill である前提を
+# corpus.skill と with-skill に埋め込んでおり、凍結してある。v2 は対象を
+# target: {kind, name}(kind は skill | rule-file)で持ち、新規 corpus はこちら。
+# 記録済みの run は変換しないので、run は自分と同じ世代の corpus しか参照できない。
+#
+# corpus の置き場所は2つ。skill は plugins/<plugin>/skills/<skill>/evals/、
+# 単独の rule ファイルは rules/<name>/evals/(rules/<name>.md の実在も見る)。
 #
 # LLM を呼ぶ評価そのものは CI の必須ジョブにしない。ここで見るのは「呼ぶ前に
 # 壊れていると分かること」だけ、つまり JSON として妥当か・参照先の skill と case が
@@ -383,8 +391,15 @@ corpus_gen() {
 
 check_cases() {
   local file="$1" dir errs bad=0 gen schema expect_kind="" expect_name="" rule_md
+  # 未知の世代を既定へ落とさない。落とすと、schema を書き損じた corpus が
+  # v1 として検査され、診断が「schema が違う」ではなく v1 の欠落一覧になる。
   gen="$(corpus_gen "$file")"
-  [ -n "$gen" ] || gen=1
+  if [ -z "$gen" ]; then
+    echo "NG: $file" >&2
+    echo "  - \$.schema: unknown corpus schema (expected \"$CASES_SCHEMA_V1\" or \"$CASES_SCHEMA_V2\")" >&2
+    fail=1
+    return 1
+  fi
   if [ "$gen" = 1 ]; then schema="$CASES_SCHEMA_V1"; else schema="$CASES_SCHEMA_V2"; fi
 
   # 置き場所から導ける期待値だけを突き合わせる。規約上の場所でないファイル
@@ -441,14 +456,22 @@ check_cases() {
 
 check_run() {
   local file="$1" corpus digest errs corpus_ok gen schema cgen
+  # check_file が既知の schema でしか呼ばないが、既定へ落とす形にはしない
+  # (呼び出し経路が増えたときに未知世代が v1 として通る)。
   case "$(jq -r '.schema // empty' "$file" 2>/dev/null)" in
+  "$RUN_SCHEMA_V1")
+    gen=1
+    schema="$RUN_SCHEMA_V1"
+    ;;
   "$RUN_SCHEMA_V2")
     gen=2
     schema="$RUN_SCHEMA_V2"
     ;;
   *)
-    gen=1
-    schema="$RUN_SCHEMA_V1"
+    echo "NG: $file" >&2
+    echo "  - \$.schema: unknown run schema (expected \"$RUN_SCHEMA_V1\" or \"$RUN_SCHEMA_V2\")" >&2
+    fail=1
+    return 0
     ;;
   esac
   corpus="$(jq -r '.corpus.path // empty' "$file")"

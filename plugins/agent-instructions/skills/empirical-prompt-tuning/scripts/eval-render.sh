@@ -16,10 +16,13 @@
 #
 # 使い方:
 #   eval-render.sh --corpus <cases.json> --case <case-id> [options]
-#     --candidate with-skill|without-skill  既定 with-skill
+#     --candidate <kind>    候補 kind。語彙は corpus の世代で決まる:
+#                           eval-cases@1 -> with-skill | without-skill
+#                           eval-cases@2 -> with-target | without-target
+#                           既定はその世代の with 側
 #     --part execution|judgment             既定 execution
-#     --skill-file <path>   with-skill のとき実行者に読ませる指示(既定: corpus の
-#                           2階層上の SKILL.md)
+#     --candidate-file <path>  with 側のとき実行者に読ませる候補(既定: corpus の
+#                           2階層上の SKILL.md)。--skill-file は legacy alias
 #     --result-stub         プロンプトの代わりに、結果 JSON の雛形を出す
 #                           (scripts/check-evals.sh が検証できる形)
 #
@@ -43,10 +46,16 @@ usage() {
   cat <<'USAGE'
 eval-render.sh --corpus <cases.json> --case <case-id> [options]
 
-  --candidate with-skill|without-skill  既定 with-skill
+  --candidate <kind>                    既定はその世代の with 側
   --part execution|judgment             既定 execution
-  --skill-file <path>                   with-skill のとき読ませる指示
+  --candidate-file <path>               with 側のとき読ませる候補
+                                        (--skill-file は legacy alias)
   --result-stub                         結果 JSON の雛形を出す
+
+候補 kind の語彙は corpus の世代で決まる。
+  eval-cases@1 -> with-skill  | without-skill   (結果は eval-run@1)
+  eval-cases@2 -> with-target | without-target  (結果は eval-run@2)
+未知の schema と schema 欠落は失格にする(既定の世代へ落とさない)。
 
 実行プロンプト(--part execution)に requirements は入らない。
 採点は --part judgment のプロンプトで、成果物を見た別 evaluator が行う。
@@ -109,7 +118,19 @@ esac
 # 語彙(候補 kind、結果 schema)は世代ごとに違うので、ここで揃える。
 # v1 の描画結果は1バイトも変えない —— 既存 measurement の実行プロンプトを
 # 再現できなくなると、固定条件の照合ができなくなる。
-case "$(jq -r '.schema // empty' "$corpus")" in
+# 既知の世代だけを名指しする。未知 schema・schema 欠落・将来の @3 は失格にする。
+# 「@2 以外は v1」と書くと、schema を書き損じた corpus や将来の世代を v1 として
+# 黙って描画してしまう —— 対象の語彙が違うまま実行プロンプトが出る方が、
+# 落ちるより悪い。
+corpus_schema="$(jq -r '.schema // empty' "$corpus")"
+case "$corpus_schema" in
+"agent-gears/eval-cases@1")
+  gen=1
+  run_schema="agent-gears/eval-run@1"
+  with_kind="with-skill"
+  without_kind="without-skill"
+  skill_name="$(jq -r '.skill' "$corpus")"
+  ;;
 "agent-gears/eval-cases@2")
   gen=2
   run_schema="agent-gears/eval-run@2"
@@ -117,12 +138,11 @@ case "$(jq -r '.schema // empty' "$corpus")" in
   without_kind="without-target"
   target_json="$(jq -c '.target' "$corpus")"
   ;;
+"")
+  die "corpus has no \$.schema: $corpus (expected agent-gears/eval-cases@1 or @2)"
+  ;;
 *)
-  gen=1
-  run_schema="agent-gears/eval-run@1"
-  with_kind="with-skill"
-  without_kind="without-skill"
-  skill_name="$(jq -r '.skill' "$corpus")"
+  die "unknown corpus schema \"$corpus_schema\": $corpus (expected agent-gears/eval-cases@1 or @2)"
   ;;
 esac
 [ -n "$candidate" ] || candidate="$with_kind"
