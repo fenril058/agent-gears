@@ -214,9 +214,23 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
 重要な skill は、評価シナリオと要件チェックリストを会話の中に残さず `evals/cases.json` に置く。
 
 ```text
-plugins/<plugin>/skills/<skill>/evals/cases.json   corpus(コミットする)
-.dev/evals/<skill>/<host>/<model>/<run-id>.json    実行結果(`.dev/` は gitignore)
+plugins/<plugin>/skills/<skill>/evals/cases.json   skill の corpus(コミットする)
+rules/<name>/evals/cases.json                      単独の rule ファイルの corpus(同上)
+.dev/evals/<target>/<host>/<model>/<run-id>.json   実行結果(`.dev/` は gitignore)
 ```
+
+置き場所が2つあるのは、測定対象が skill とは限らないからである。
+skill はディレクトリなのでその中に、`rules/always-on.md` のような単独ファイルは
+名前を合わせた兄弟ディレクトリに corpus を置く(`rules/<name>.md` の実在も検査する)。
+`rules/<name>/evals/` を足しても配布物は変わらない —— rule ファイルは
+`install.sh` / `nix/hm-module.nix` が1つずつ名指しして配っており、skill のように
+ディレクトリごと配られるわけではない。
+
+schema は2世代ある。**v1 は凍結、新規 corpus は v2。**
+v1 は対象が skill である前提を `corpus.skill` / `with-skill` / 置き場所に埋め込んでいる。
+v2 は `target: {kind, name}`(kind は `skill` か `rule-file`)と `with-target` / `without-target`。
+**記録済みの run は v2 へ変換しない。** 実測の成果物は当時の schema と bytes のまま残す。
+run は同じ世代の corpus しか参照できず、世代の違う run は `eval-compare.sh` が同じ表に並べない。
 
 corpus は host 非依存である。
 Claude Code / Codex / Copilot のどれで実行するかは corpus に書かず、結果ファイル側の metadata として持つ。

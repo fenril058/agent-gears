@@ -85,9 +85,16 @@ Corpus-driven runs — and every baseline comparison — need the executor blind
 ## Where it lives
 
 ```text
-plugins/<plugin>/skills/<skill>/evals/cases.json   the corpus, committed
-.dev/evals/<skill>/<host>/<model>/<run-id>.json    results, not committed (.dev/ is gitignored)
+plugins/<plugin>/skills/<skill>/evals/cases.json   a skill's corpus, committed
+rules/<name>/evals/cases.json                      a standalone rule file's corpus, committed
+.dev/evals/<target>/<host>/<model>/<run-id>.json   results, not committed (.dev/ is gitignored)
 ```
+
+Two layouts, because not every instruction unit is a skill.
+A skill is a directory, so its corpus sits inside it; a rule file such as `rules/always-on.md` is a single file, so its corpus sits in a sibling directory named after it, and `rules/<name>.md` must exist.
+The validator scans both roots. It scanned only `plugins` once, and a corpus under `rules/` was silently never validated.
+
+Adding `rules/<name>/evals/` does not change what gets distributed: `install.sh` and `nix/hm-module.nix` name the rule files one by one (`rules/always-on.md` → each host's instruction file), unlike skills, which are distributed as whole directories.
 
 `evals/` holds exactly one file, `cases.json`, as a regular file.
 The validator rejects anything else under it — a misspelled `case.json`, a leftover `cases.json.bak`, a symlink, or an `evals/` directory nested at the wrong depth — so none of them can sit there unvalidated.
@@ -97,7 +104,37 @@ The corpus travels with the skill, so it is symlinked to `~/.claude/skills/<skil
 Whether any host loads or is influenced by files a skill directory happens to contain is **unverified** — it has not been tested on Claude Code, Codex, or Copilot.
 No problem has been observed, but do not treat that as a guarantee.
 
-## `agent-gears/eval-cases@1`
+## Schema generations
+
+There are two generations. **v1 is frozen and v2 is the one to write new corpora in.**
+
+v1 assumes the thing under test is a skill, and says so in three places: `corpus.skill` is a bare name, `candidate.kind` is `with-skill` / `without-skill`, and the corpus lives under `plugins/…/skills/…`.
+That assumption stopped holding the moment a standalone rule file became a measurement target.
+
+v2 changes only the vocabulary of the target:
+
+| | v1 | v2 |
+|---|---|---|
+| corpus schema | `agent-gears/eval-cases@1` | `agent-gears/eval-cases@2` |
+| run schema | `agent-gears/eval-run@1` | `agent-gears/eval-run@2` |
+| target in the corpus | `"skill": "grilling"` | `"target": {"kind": "skill", "name": "grilling"}` |
+| target in a run | `"corpus": {"skill": …}` | `"corpus": {"target": {…}}` |
+| candidate kinds | `with-skill` / `without-skill` | `with-target` / `without-target` |
+
+`target.kind` is `skill` or `rule-file` — the two units that exist today.
+It is deliberately not a general taxonomy: a wider one should be built when there is a third kind to generalise from, not before.
+
+Everything else — cases, requirements, verdicts, the success and accuracy rules, host metadata — is unchanged between generations.
+
+### Compatibility
+
+- The validator recognises both generations and applies each one's rules.
+- **Recorded runs are never converted.** A stored measurement is evidence; rewriting its bytes would break the byte-level reproduction checks that its own fixed conditions were verified against.
+- A run must reference a corpus of its own generation. A v2 run pointing at a v1 corpus is rejected, and vice versa — otherwise the target is described one way in the run and another way in the corpus while both pass validation.
+- `eval-compare.sh` refuses to put runs of different generations in one table. The refusal is permanent, not a migration window: since past runs are not converted, a v1 run and a v2 run are never directly comparable.
+- The `grilling` corpus stays v1. Converting it now would orphan the trial 1 and trial 2 runs recorded against it; it can move to v2 when that skill is next measured in a fresh campaign.
+
+## `agent-gears/eval-cases@1` (frozen)
 
 ```json
 {
@@ -140,7 +177,7 @@ Requirement text is written in English, matching the English-canonical rule for 
 Unknown fields are rejected.
 That is not pedantry: it is what stops a cross-host aggregate score from being quietly added to the format later (see "Do not fold hosts together").
 
-## `agent-gears/eval-run@1`
+## `agent-gears/eval-run@1` (frozen)
 
 One file is one `(corpus, host, model, candidate)` combination, holding one row per case per trial.
 That is deliberate — giving the combination its own file means there is nowhere to write a number that spans two of them.
@@ -205,10 +242,10 @@ It also rejects the `REPLACE-ME` placeholders that `--result-stub` emits, so a s
 The two arms of a comparison. Which arm is "the candidate" is a property of the comparison, not of the file — today's `with-skill` run is the baseline for tomorrow's revision.
 `candidate.kind` records only what the executor was given:
 
-| `kind` | Meaning | `revision` |
+| `kind` (v1 / v2) | Meaning | `revision` |
 |---|---|---|
-| `with-skill` | the skill was given to the executor | required — which revision (`git:<sha>`, or a working-tree marker) |
-| `without-skill` | the skill was withheld; the model's default behaviour | not allowed |
+| `with-skill` / `with-target` | the candidate was given to the executor | required — which revision (`git:<sha>`, or a working-tree marker) |
+| `without-skill` / `without-target` | the candidate was withheld; the model's default behaviour | not allowed |
 
 The baseline prompt withholds the skill and its name, and stops there.
 It must not forbid anything the model would ordinarily do — telling it not to read instruction files or reference documents would suppress exactly the repository exploration that `facts-self-served`-style requirements measure, turning the comparison into *with skill* against *default minus repo exploration* and inflating the uplift.
@@ -334,7 +371,8 @@ A single overall score would average that away, and the regression would never b
 
 So the comparison unit is `(case, host, model, candidate)`, and the rules are:
 
-- Compare two run files only when `corpus.digest`, `host.id`, and `host.model` all match, they cover the same set of `case_id`s, and `candidate` differs.
+- Compare two run files only when they share a schema generation and `corpus.digest`, `host.id`, and `host.model` all match, they cover the same set of `case_id`s, and `candidate` differs.
+- Runs from different schema generations are never compared directly. v1 and v2 name the target differently (`corpus.skill` against `corpus.target`, `with-skill` against `with-target`), so one table would show two vocabularies in one column.
 - Equal case sets are not sufficient on their own: two runs with the same cases but different trial counts (`{1}` against `{1,2}`) are not comparable either, because the trial protocols differ. Match the trial set too, or say plainly that you are comparing single trials against an average.
 - A run whose `host.model` is `"unknown"` is not comparable to anything.
 - Do not average accuracy across hosts or across models. There is no field for it, and adding one is a schema change, not a convenience.
@@ -397,6 +435,7 @@ A version shared by every arm is shown in the header, and a version that differs
 
 Before comparing anything, it enforces the preconditions from "Do not fold hosts together" and refuses the whole comparison — it does not silently drop the offending file:
 
+- the same schema generation across every run (v1 and v2 name the target differently)
 - `corpus.digest`, `host.id` and `host.model` identical across every run
 - `host.model` not `"unknown"`
 - the same set of `(case_id, trial)` pairs in every run

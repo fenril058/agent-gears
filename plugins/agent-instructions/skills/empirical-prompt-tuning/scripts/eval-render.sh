@@ -29,7 +29,7 @@ set -euo pipefail
 
 corpus=""
 case_id=""
-candidate="with-skill"
+candidate=""
 part="execution"
 skill_file=""
 stub=0
@@ -80,7 +80,7 @@ while [ "$#" -gt 0 ]; do
     part="$2"
     shift 2
     ;;
-  --skill-file)
+  --candidate-file | --skill-file)
     need_value "$1" "$#"
     skill_file="$2"
     shift 2
@@ -100,16 +100,36 @@ done
 [ -n "$corpus" ] || die "--corpus is required"
 [ -n "$case_id" ] || die "--case is required"
 [ -f "$corpus" ] || die "corpus not found: $corpus"
-case "$candidate" in
-with-skill | without-skill) ;;
-*) die "--candidate must be with-skill or without-skill" ;;
-esac
 case "$part" in
 execution | judgment) ;;
 *) die "--part must be execution or judgment" ;;
 esac
 
-skill_name="$(jq -r '.skill' "$corpus")"
+# corpus の世代を読む。v1 は対象を裸の .skill で持ち、v2 は .target = {kind, name}。
+# 語彙(候補 kind、結果 schema)は世代ごとに違うので、ここで揃える。
+# v1 の描画結果は1バイトも変えない —— 既存 measurement の実行プロンプトを
+# 再現できなくなると、固定条件の照合ができなくなる。
+case "$(jq -r '.schema // empty' "$corpus")" in
+"agent-gears/eval-cases@2")
+  gen=2
+  run_schema="agent-gears/eval-run@2"
+  with_kind="with-target"
+  without_kind="without-target"
+  target_json="$(jq -c '.target' "$corpus")"
+  ;;
+*)
+  gen=1
+  run_schema="agent-gears/eval-run@1"
+  with_kind="with-skill"
+  without_kind="without-skill"
+  skill_name="$(jq -r '.skill' "$corpus")"
+  ;;
+esac
+[ -n "$candidate" ] || candidate="$with_kind"
+case "$candidate" in
+"$with_kind" | "$without_kind") ;;
+*) die "--candidate must be $with_kind or $without_kind (corpus is eval-cases@$gen)" ;;
+esac
 c="$(jq -c --arg id "$case_id" '.cases[] | select(.id == $id)' "$corpus")"
 [ -n "$c" ] || die "case \"$case_id\" is not in $corpus"
 
@@ -131,17 +151,20 @@ corpus_ref() {
 if [ "$stub" = 1 ]; then
   # 結果側の雛形。REPLACE-ME は check-evals.sh が失格にするので、埋めるまで
   # 「検証を通った」状態にはならない。
-  jq -n --arg skill "$skill_name" --arg path "$(corpus_ref)" \
+  jq -n --arg skill "${skill_name:-}" --argjson target "${target_json:-null}" \
+    --arg path "$(corpus_ref)" --arg schema "$run_schema" --arg withKind "$with_kind" \
     --arg digest "sha256:$(sha256sum "$corpus" | cut -d' ' -f1)" \
     --arg case_id "$case_id" --arg kind "$candidate" --argjson c "$c" '
     {
-      schema: "agent-gears/eval-run@1",
+      schema: $schema,
       run_id: "REPLACE-ME",
       started_at: "REPLACE-ME",
-      corpus: {skill: $skill, path: $path, digest: $digest},
+      corpus: (if $target == null
+               then {skill: $skill, path: $path, digest: $digest}
+               else {target: $target, path: $path, digest: $digest} end),
       host: {id: "REPLACE-ME", model: "REPLACE-ME"},
       candidate: ({kind: $kind, label: "REPLACE-ME"}
-                  + (if $kind == "with-skill" then {revision: "REPLACE-ME"} else {} end)),
+                  + (if $kind == $withKind then {revision: "REPLACE-ME"} else {} end)),
       results: [{
         case_id: $case_id,
         trial: 1,
@@ -224,11 +247,11 @@ RULES
 fi
 
 # --- 実行プロンプト。requirements は入れない ---------------------------------
-if [ "$candidate" = "with-skill" ]; then
+if [ "$candidate" = "$with_kind" ]; then
   if [ -z "$skill_file" ]; then
     skill_file="$(dirname "$(dirname "$corpus")")/SKILL.md"
   fi
-  [ -f "$skill_file" ] || die "skill file not found: $skill_file (pass --skill-file)"
+  [ -f "$skill_file" ] || die "candidate file not found: $skill_file (pass --candidate-file)"
   target="Read \`$skill_file\` in full and follow it."
 else
   # baseline では対象 skill の名前も出さない。名指しすると executor に候補の正体を
@@ -267,9 +290,9 @@ On completion, respond with the report structure below.
 - Retries: how many times you redid the same decision, and why.
 TASK
 
-cat <<'FOOTER'
+cat <<FOOTER
 
-The caller grades this deliverable separately (`eval-render.sh --part judgment`) and
-records the run as `agent-gears/eval-run@1` (`--result-stub` prints the skeleton),
+The caller grades this deliverable separately (\`eval-render.sh --part judgment\`) and
+records the run as \`$run_schema\` (\`--result-stub\` prints the skeleton),
 adding the host/model metadata plus tool_uses / duration that only the caller can observe.
 FOOTER

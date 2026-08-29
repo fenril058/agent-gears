@@ -20,8 +20,19 @@
   `plugin install` が `source: Invalid input` で落ちる。
   `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
-- skill の eval corpus は `plugins/<plugin>/skills/<skill>/evals/cases.json`。
+- eval corpus は skill なら `plugins/<plugin>/skills/<skill>/evals/cases.json`、
+  単独の rule ファイルなら `rules/<name>/evals/cases.json`(`rules/<name>.md` の実在も検査する)。
+  `check-evals.sh` の走査根は `plugins` と `rules` の2つ。片方だけにすると、もう片方の
+  corpus が壊れていても CI が黙って通す。
   形式定義は `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md` ただ1つ。
+  schema は2世代ある。**v1 は凍結、新規 corpus は v2。** v1 は対象が skill である前提を
+  `corpus.skill` / `with-skill` / 置き場所の3箇所に埋め込んでいる。v2 は
+  `target: {kind, name}`(kind は `skill` か `rule-file`)と `with-target` / `without-target`。
+  **記録済み run を v2 へ変換しない。** measurement artifact は当時の schema と bytes のまま
+  残す —— 書き換えると、その run の固定条件を byte 一致で照合した検証自体が無効になる。
+  run は自分と同じ世代の corpus しか参照できず、`eval-compare.sh` は世代の違う run を
+  同じ表に並べない(変換しない方針なので、この拒否は移行期間ではなく恒久的な境界)。
+  `grilling` の corpus は v1 のまま。今 v2 化すると trial 1 / trial 2 の run が孤児になる。
   CI の `scripts/check-evals.sh` が schema・`[critical]` の存在・結果ファイルの
   success/accuracy の検算まで見る(未知フィールドは失格)。
   結果ファイルを検証するときは参照先 corpus も検証する。`[critical]` ゼロの corpus を

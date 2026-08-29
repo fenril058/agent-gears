@@ -540,6 +540,25 @@ refuse "host.model 不一致" \
   'host.model mismatch: '"$tmp"'/a.json is "claude-sonnet-5" but '"$tmp"'/b-model.json is "claude-opus-5" — the same edit can help one model and hurt another' \
   "$tmp/a.json" "$tmp/b-model.json"
 
+# schema 世代をまたいだ比較を拒否する。v1 と v2 では対象の表し方が違う
+# (corpus.skill / corpus.target、with-skill / with-target)ので、同じ表に
+# 並べると別の語彙の値を同じ列で読ませることになる。
+# 過去の run を v2 へ変換しない方針なので、この拒否は恒久的な境界である。
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "rule-file", name: "always-on"}' "$CORPUS" >"$intmp/v2-cases.json"
+v2_rel="${intmp#"$REPO"/}/v2-cases.json"
+v2_digest="sha256:$(sha256sum "$intmp/v2-cases.json" | cut -d' ' -f1)"
+jq --arg p "$v2_rel" --arg d "$v2_digest" '.schema = "agent-gears/eval-run@2"
+  | .corpus = {target: {kind: "rule-file", name: "always-on"}, path: $p, digest: $d}
+  | .candidate.kind = "with-target"' "$tmp/b.json" >"$tmp/b-v2.json"
+# 前提: v2 の run 単体は検証を通る(通らないと拒否理由が schema 以外になる)。
+n=$((n + 1))
+bash "$CHECK_FOR_TEST" "$tmp/b-v2.json" >/dev/null 2>&1 ||
+  note "v2 の run 単体が check-evals.sh を通らない(この後の拒否理由が別物になる)"
+refuse "schema 世代不一致" \
+  'schema mismatch: '"$tmp"'/a.json is agent-gears/eval-run@1 but '"$tmp"'/b-v2.json is agent-gears/eval-run@2 — runs from different schema generations are not compared directly' \
+  "$tmp/a.json" "$tmp/b-v2.json"
+
 jq '.host.model = "unknown"' "$tmp/b.json" >"$tmp/b-unknown.json"
 jq '.host.model = "unknown"' "$tmp/a.json" >"$tmp/a-unknown.json"
 refuse "host.model が unknown" \
