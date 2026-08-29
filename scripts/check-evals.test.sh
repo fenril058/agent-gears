@@ -249,7 +249,7 @@ ok_scan "正規レイアウトの走査" "$scan"
 
 cp "$CORPUS" "$scan/p/skills/grilling/evals/cases.json.bak"
 ng_scan "evals/ 直下の退避ファイル" "$scan" \
-  'unexpected file under evals/; the corpus must be exactly <skill>/evals/cases.json'
+  'unexpected file under evals/; the corpus must be exactly <unit>/evals/cases.json'
 rm -f "$scan/p/skills/grilling/evals/cases.json.bak"
 
 ln -s cases.json "$scan/p/skills/grilling/evals/cases.json.link"
@@ -434,6 +434,100 @@ jq '.results[0].requirements[0].verdict = "partial"
     | .results[0].success = null | .results[0].accuracy = 0.875' "$tmp/run.json" >"$tmp/run-mix-part.json"
 ng "critical partial が unevaluated に隠れる" "$tmp/run-mix-part.json" \
   '$.results[0].success: null but the verdicts say false (false as soon as any critical requirement is fail or partial; null only when no critical has failed and at least one is unevaluated; true when every critical is pass)'
+
+# --- schema v2(対象非依存)-------------------------------------------------
+# v1 は既存 measurement の再検証用に凍結する。v2 は対象を .target = {kind, name}
+# で持ち、skill と単独の rule ファイルを曖昧なく区別する。
+# ここで守りたいのは「v1 がそのまま通り続けること」と「v2 が v1 の語彙を
+# 受け付けないこと」の両方である。片方だけだと世代が混ざる。
+
+mkdir -p "$tmp/rules/always-on/evals"
+: >"$tmp/rules/always-on.md"
+V2C="$tmp/rules/always-on/evals/cases.json"
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "rule-file", name: "always-on"}' "$CORPUS" >"$V2C"
+
+ok "v2 corpus(rule-file)" "$V2C"
+
+jq '.target.kind = "bogus"' "$V2C" >"$tmp/v2-kind.json"
+ng "v2 target.kind が enum 外" "$tmp/v2-kind.json" \
+  '$.target.kind: must be "skill" or "rule-file"'
+
+jq '.target.name = "Always_On"' "$V2C" >"$tmp/v2-name.json"
+ng "v2 target.name が kebab-case でない" "$tmp/v2-name.json" \
+  '$.target.name: must be kebab-case'
+
+jq '.skill = "always-on"' "$V2C" >"$tmp/v2-legacy.json"
+ng "v2 に v1 の skill フィールドが残る" "$tmp/v2-legacy.json" \
+  '$: unknown field "skill"'
+
+jq 'del(.target)' "$V2C" >"$tmp/v2-no-target.json"
+ng "v2 で target 欠落" "$tmp/v2-no-target.json" \
+  '$: missing "target"'
+
+jq '.schema = "agent-gears/eval-cases@1"' "$V2C" >"$tmp/v2-as-v1.json"
+ng "v2 の中身に v1 の schema 名" "$tmp/v2-as-v1.json" \
+  '$: unknown field "target"'
+
+# 置き場所と宣言のずれ。rules/<name>/evals/cases.json の <name> と突き合わせる。
+jq '.target.name = "claude"' "$V2C" >"$tmp/v2-misplaced.json"
+cp "$tmp/v2-misplaced.json" "$V2C"
+ng "v2 target.name が置き場所と食い違う" "$V2C" \
+  '$.target.name: "claude" does not match the directory "always-on"'
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "skill", name: "always-on"}' "$CORPUS" >"$V2C"
+ng "v2 target.kind が置き場所と食い違う" "$V2C" \
+  '$.target.kind: "skill" but the corpus location implies "rule-file"'
+
+# rule-file の本体が無ければ落とす。宣言だけあって実体が無い corpus は、
+# 何も測っていないのに schema どおりに見えてしまう。
+mkdir -p "$tmp/rules/ghost/evals"
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "rule-file", name: "ghost"}' "$CORPUS" >"$tmp/rules/ghost/evals/cases.json"
+ng "rule-file の本体 .md が無い" "$tmp/rules/ghost/evals/cases.json" \
+  "\$.target: kind is \"rule-file\" but $tmp/rules/ghost.md does not exist"
+rm -rf "$tmp/rules/ghost"
+
+# 正しい v2 corpus に戻してから run 側を見る。
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "rule-file", name: "always-on"}' "$CORPUS" >"$V2C"
+V2DIGEST="sha256:$(sha256sum "$V2C" | cut -d' ' -f1)"
+
+jq --arg d "$V2DIGEST" --arg p "$V2C" '.schema = "agent-gears/eval-run@2"
+  | .corpus = {target: {kind: "rule-file", name: "always-on"}, path: $p, digest: $d}
+  | .candidate.kind = "with-target"' "$tmp/run.json" >"$tmp/run-v2.json"
+ok "v2 run" "$tmp/run-v2.json"
+
+jq '.candidate.kind = "with-skill"' "$tmp/run-v2.json" >"$tmp/run-v2-oldkind.json"
+ng "v2 run に v1 の candidate.kind" "$tmp/run-v2-oldkind.json" \
+  '$.candidate.kind: must be "with-target" or "without-target"'
+
+jq '.corpus.skill = "always-on" | del(.corpus.target)' "$tmp/run-v2.json" >"$tmp/run-v2-oldcorpus.json"
+ng "v2 run に v1 の corpus.skill" "$tmp/run-v2-oldcorpus.json" \
+  '$.corpus: unknown field "skill"'
+
+# 世代をまたいだ参照を許さない。許すと、対象の表し方が run と corpus で
+# 食い違ったまま「検証済み」になる。
+V1DIGEST="sha256:$(sha256sum "$CORPUS" | cut -d' ' -f1)"
+jq --arg d "$V1DIGEST" --arg p "$CORPUS" '.corpus.path = $p | .corpus.digest = $d' \
+  "$tmp/run-v2.json" >"$tmp/run-v2-v1corpus.json"
+ng "v2 run が v1 corpus を指す" "$tmp/run-v2-v1corpus.json" \
+  "schema generation mismatch: this run is v2 but its corpus $CORPUS is v1"
+
+jq --arg d "$V2DIGEST" --arg p "$V2C" '.corpus = {skill: "grilling", path: $p, digest: $d}' \
+  "$tmp/run.json" >"$tmp/run-v1-v2corpus.json"
+ng "v1 run が v2 corpus を指す" "$tmp/run-v1-v2corpus.json" \
+  "schema generation mismatch: this run is v1 but its corpus $V2C is v2"
+
+# 走査モード: rules レイアウトは <name>/evals ちょうど2要素。
+jq 'del(.skill) | .schema = "agent-gears/eval-cases@2"
+    | .target = {kind: "rule-file", name: "always-on"}' "$CORPUS" >"$V2C"
+ok_scan "rules レイアウトの走査" "$tmp/rules"
+mkdir -p "$tmp/rules/always-on/evals/nested/evals"
+cp "$V2C" "$tmp/rules/always-on/evals/nested/evals/cases.json"
+ng_scan "rules 配下で evals が深すぎる" "$tmp/rules" \
+  'evals/ must sit at <name>/evals, not nested deeper'
+rm -rf "$tmp/rules/always-on/evals/nested"
 
 if [ "$fail" = 0 ]; then
   echo "OK: check-evals.sh のテスト ${n} 件"

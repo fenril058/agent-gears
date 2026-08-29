@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 #
-# eval-compare.sh — agent-gears/eval-run@1 の結果ファイルを突き合わせる。
+# eval-compare.sh — agent-gears/eval-run@1 / @2 の結果ファイルを突き合わせる。
+#
+# 世代の違う run は同じ表に並べない。v1 と v2 では対象の表し方が違う
+# (corpus.skill / corpus.target、with-skill / with-target)ので、並べると
+# 別の語彙の値を同じ列で読ませることになる。記録済みの run を変換しない方針
+# なので、この拒否は移行期間ではなく恒久的な境界である。
 #
 # 主出力は accuracy の差ではなく【requirement 単位の差分行列】である。
 # 最初の実測で、accuracy だけ見ると読み違えることが分かった: with 0.750 /
@@ -42,11 +47,13 @@ usage() {
 eval-compare.sh <run.json> <run.json> [<run.json>...] [--reference <run.json>]
 
   --reference <run.json>  movement の基準にする run
-                          既定: without-skill が1本だけあればそれ、無ければ最初の引数
+                          既定: baseline arm(v1 は without-skill、v2 は
+                          without-target)が1本だけあればそれ、無ければ最初の引数
 
 主出力は requirement 単位の差分行列。accuracy / success / duration / tool_uses は
-secondary summary。比較不能な組み合わせは拒否する(digest / host.id / host.model /
-model!=unknown / (case_id,trial) 集合 / unevaluated 集合 / candidate が異なること)。
+secondary summary。比較不能な組み合わせは拒否する(schema 世代 / digest / host.id /
+host.model / model!=unknown / (case_id,trial) 集合 / unevaluated 集合 /
+candidate が異なること)。
 host.version は比較条件ではないが、arm ごとに違えば開示する。
 USAGE
 }
@@ -97,13 +104,18 @@ corpus="$repo/$corpus_rel"
 [ -f "$corpus" ] || die "corpus not found: $corpus_rel (resolved from $repo)"
 
 # --- reference の決定 --------------------------------------------------------
-# 既定は without-skill。2本以上あるとどちらが基準か決まらないので、その場合は
+# 既定は baseline arm(v1 は without-skill、v2 は without-target)。
+# 2本以上あるとどちらが基準か決まらないので、その場合は
 # 最初の引数にする(--reference で明示できる)。
 if [ -z "$reference" ]; then
   base_idx=-1
   base_n=0
   for i in "${!files[@]}"; do
-    if [ "$(jq -r '.candidate.kind' "${files[$i]}")" = "without-skill" ]; then
+    case "$(jq -r '.candidate.kind' "${files[$i]}")" in
+    without-skill | without-target) is_base=1 ;;
+    *) is_base=0 ;;
+    esac
+    if [ "$is_base" = 1 ]; then
       base_idx="$i"
       base_n=$((base_n + 1))
     fi
@@ -144,7 +156,14 @@ def viz: tojson | .[1:-1];
          | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $aun
     | ([ $b.results[] | .case_id as $c | .trial as $t | .requirements[]
          | select(.verdict == "unevaluated") | "\($c)#\($t)/\(.id)" ] | sort) as $bun
-    | [ (if $b.corpus.digest != $a.corpus.digest
+    | [ # schema 世代が違う run を直接比べない。v1 と v2 では対象の表し方
+        # (corpus.skill / corpus.target、with-skill / with-target)が違うので、
+        # 同じ表に並べると別の語彙の値を同じ列で読ませることになる。
+        # 過去の run を v2 へ変換しない方針なので、この拒否は恒久的なものである。
+        (if $b.schema != $a.schema
+         then "schema mismatch: \($an) is \($a.schema | viz) but \($bn) is \($b.schema | viz) — runs from different schema generations are not compared directly"
+         else empty end),
+        (if $b.corpus.digest != $a.corpus.digest
          then "corpus.digest mismatch: \($an) is \($a.corpus.digest | viz) but \($bn) is \($b.corpus.digest | viz) — results are only comparable within one corpus digest"
          else empty end),
         (if $b.host.id != $a.host.id
@@ -253,7 +272,9 @@ def viz: tojson | .[1:-1];
 | def cell($r): if $r == null then "-"
     else $r.verdict + (if ($r | has("surface")) then "/" + $r.surface else "" end) end;
 [
-  "corpus   \($cor.skill | viz)   \($runs[0].corpus.path | viz)",
+  # 対象の名前は v1 が corpus.skill、v2 が corpus.target。v2 では kind も出す
+  # (skill と単独の rule ファイルを取り違えないため)。
+  "corpus   \(if ($cor | has("target")) then "\($cor.target.name | viz) (\($cor.target.kind | viz))" else ($cor.skill | viz) end)   \($runs[0].corpus.path | viz)",
   "digest   \($runs[0].corpus.digest | viz)",
   "host     \($runs[0].host.id | viz) / \($runs[0].host.model | viz)"
     + (if $verDiffers then "   (host version は arm ごとに違う —— 下の arms を見ること)"
