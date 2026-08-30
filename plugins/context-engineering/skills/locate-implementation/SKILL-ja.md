@@ -55,6 +55,8 @@ Ollama では、空でないダミーの鍵と `http://localhost:11434/v1` の�
 API key、認証 header、環境変数の無差別な一覧を表示しない。
 標準に準拠したローカルの URL パーサーで文字列を解析し、URL の userinfo と port を除き、IPv6 literal の角括弧も除いた正規化済み hostname を使う。
 文字列を目視で切り出したり、区切り文字で分割したりして host を決めない。
+URL の値をコマンドライン引数に含めたり、コマンドへ展開したりしない。
+サブプロセスで解析する場合は、選択した環境変数をプロセス内で読み、scheme、正規化済み hostname、port だけを出力する。
 該当するパーサーを利用できない場合や解析に失敗した場合は、判定不能に分類する。
 解析済み URL では userinfo は host とは別の要素としてその前にあるため、`http://localhost@collector.example.com/v1` の host は `collector.example.com` である。
 

@@ -17,6 +17,7 @@ skills:
   絞る場合だけ `fastcontext -q "<質問>" --citation --max-turns 1` を使う。
   fastcontext は OpenAI 互換 API 用の `FC_API_KEY` / `FC_MODEL` / `FC_BASE_URL` を使い、旧名の `API_KEY` / `MODEL` / `BASE_URL` にもフォールバックする。
   preload した `locate-implementation` skill のエンドポイント分類を実行前に適用する。
+  skill の分類手順を参照できない場合は endpoint を判定不能として扱い、Grep / Glob / Read へフォールバックする。
   loopback endpoint の場合だけ `fastcontext` を実行する。
   非 loopback または判定不能な endpoint では、親エージェントによる許可取得済みという申告を承認とは扱わず、Grep / Glob / Read へフォールバックする。
   その endpoint で `fastcontext` が必要なら、利用者と直接会話できるメインセッションが許可を得て実行する必要があると返す。
