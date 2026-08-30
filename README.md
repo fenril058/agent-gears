@@ -119,12 +119,12 @@ plugins/
     .claude-plugin/plugin.json
     skills/
       agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
-      empirical-prompt-tuning/    指示の実測 QA ループ(mizchi/skills 由来・MIT、+ EVAL-CORPUS.md / scripts/eval-render.sh)
+      empirical-prompt-tuning/    指示の静的な整合確認と、測定を始める条件(mizchi/skills 由来・MIT)
   critique/                       plugin: 決める前に案を叩く
     .claude-plugin/plugin.json
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
     skills/
-      grilling/          一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT、+ evals/cases.json)
+      grilling/          一問ずつ推奨案付きの意思決定インタビュー(mattpocock/skills 由来・MIT)
       spec-ambiguity-audit/  安価モデルに仕様書を素読みさせ、疑問点を機械的フィルタで検証する監査
       unconventional-simplification/ 暗黙の前提を1つずつ外してシンプルな別解を探す
   project-records/                plugin: 決めたことを寿命ごとに記録する
@@ -165,7 +165,8 @@ install.sh           symlink 配布スクリプト(home-manager を使わない�
 flake.nix / nix/     home-manager モジュール・mdidx/skills-ref のビルド定義(宣言的配布)
 cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
 PROVENANCE.json      外部由来 skill の出所と帰属表示ファイルの置き場所(唯一の宣言元)
-scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / 帰属表示の配置 / skills-ref による SKILL.md 仕様検証 / eval corpus の schema 検証)
+scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / 帰属表示の配置 / skills-ref による SKILL.md 仕様検証)
+docs/adr/            覆しにくい決定の記録(ADR)。追記と supersede のみで、書き換えない
 ```
 
 ### 常時ルール vs skill
@@ -208,63 +209,6 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
   この配布物の主対象は Claude Code なので、`check-skill-spec.sh` は既知の Claude 拡張(`CLAUDE_EXT`)だけを許容に読み替える(未知フィールドや `name`/`description` 違反は失格のまま)。
 - 付随ファイル `SKILL-ja.md` / `TEMPLATE.md` / `NOTES-local.md` は標準の対象外。
   正本は `SKILL.md` のみで、バリデータもこれらを検証しない。
-
-### skill の eval corpus
-
-重要な skill は、評価シナリオと要件チェックリストを会話の中に残さず `evals/cases.json` に置く。
-
-```text
-plugins/<plugin>/skills/<skill>/evals/cases.json   skill の corpus(コミットする)
-rules/<name>/evals/cases.json                      単独の rule ファイルの corpus(同上)
-.dev/evals/<target>/<host>/<model>/<run-id>.json   実行結果(`.dev/` は gitignore)
-```
-
-置き場所が2つあるのは、測定対象が skill とは限らないからである。
-skill はディレクトリなのでその中に、`rules/always-on.md` のような単独ファイルは
-名前を合わせた兄弟ディレクトリに corpus を置く(`rules/<name>.md` の実在も検査する)。
-`rules/<name>/evals/` を足しても配布物は変わらない —— rule ファイルは
-`install.sh` / `nix/hm-module.nix` が1つずつ名指しして配っており、skill のように
-ディレクトリごと配られるわけではない。
-
-schema は2世代ある。**v1 は凍結、新規 corpus は v2。**
-v1 は対象が skill である前提を `corpus.skill` / `with-skill` / 置き場所に埋め込んでいる。
-v2 は `target: {kind, name}`(kind は `skill` か `rule-file`)と `with-target` / `without-target`。
-**記録済みの run は v2 へ変換しない。** 実測の成果物は当時の schema と bytes のまま残す。
-run は同じ世代の corpus しか参照できず、世代の違う run は `eval-compare.sh` が同じ表に並べない。
-
-corpus は host 非依存である。
-Claude Code / Codex / Copilot のどれで実行するかは corpus に書かず、結果ファイル側の metadata として持つ。
-比較の単位は `(case, host, model, candidate)` で、**host/model をまたいだ総合スコアは作らない**。
-同じ修正が或るモデルでは改善、別のモデルでは悪化しうるため、平均するとその regression が消えるからである。
-
-**実行プロンプトに requirements を入れない。**
-skill を渡さない baseline に checklist を見せると、それをそのまま実装できてしまい、
-「この skill に存在価値があるか」を測れなくなる。
-採点は成果物を見た別の evaluator が `--part judgment` のプロンプトで行う。
-
-- 形式の定義と手順: `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md`
-- 実行 / 採点 / 結果雛形の生成: `.../empirical-prompt-tuning/scripts/eval-render.sh`
-- 結果の突き合わせ: `scripts/eval-compare.sh`(repo-level tooling。4 host へ配る skill payload には入れない)
-  主出力は accuracy の差ではなく **requirement 単位の差分行列**(`(case_id, trial, requirement_id)` ごとに1行)。
-  accuracy だけ見ると「非 critical 1件が動いただけ」を「候補の方が良い」と読み違える。
-  比較の前提(digest / host.id / host.model / model≠unknown / `(case_id, trial)` 集合 /
-  `unevaluated` の集合 / candidate が異なること)を機械的に検査し、満たさない組み合わせは
-  黙って混ぜず拒否する。`host.version` は比較条件ではないが、arm ごとに違えば開示する。
-  case 集合の一致は run どうしの相対比較なので、corpus 全体を覆っているかは別に見る。
-  覆っていない比較は拒否しないが(変えた case だけ走らせ直すのは正当)、`cases 1 / 3 in corpus` と
-  走っていない case 名を出す。
-- 決定的な検証: `bash scripts/check-evals.sh`(CI の `consistency` job が実行)
-  JSON/schema の妥当性、参照先 skill・case の実在、`[critical]` 要件が最低1つあること、
-  シナリオが2件以上で要件が3〜7項目であること、結果ファイルなら参照先 corpus の妥当性と
-  success / accuracy が verdict と一致することまで見る。
-- LLM を呼ぶ評価そのものは CI の必須ジョブにしない。手で回す。
-
-`cases.json` の case id と requirement id は、既に記録した結果から参照される。
-リネームすると過去の結果が孤児になるので、id は変えずに text を直す。
-
-arm(baseline / 候補)の隔離は runner の仕事で、host の「skill を無効化する」機能だけでは足りない。
-無効化してもファイルは `~/.claude/skills/` に残り、executor は filesystem から読める。
-必要な不変条件は EVAL-CORPUS.md「Runner isolation contract」にまとめてある。
 
 ### 出典とライセンス
 
@@ -438,5 +382,5 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
    plugin を新設したなら `marketplace.json` と `plugins/<plugin>/.claude-plugin/plugin.json` の両方に書く
    (`name` / `version` / `keywords` の一致を `scripts/check-plugin-meta.sh` が検証する)。
 6. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
-7. 重要 skill は `empirical-prompt-tuning` で実測 QA を実施する。
-   固定したシナリオと要件チェックリストは `evals/cases.json` に残す(「skill の eval corpus」節)。
+7. 重要 skill は `empirical-prompt-tuning` の静的な整合確認(`description` と本文が食い違っていないか)を行う。
+   実測を伴う A/B は、隔離境界を構成できる場合に限る。条件は `docs/adr/0001-evaluation-infrastructure-ownership.md`。

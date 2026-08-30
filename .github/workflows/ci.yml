@@ -123,16 +123,6 @@ jobs:
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
       # 外部由来 skill の LICENSE / NOTICE が PROVENANCE.json の宣言どおり置かれているか。
       - run: nix shell nixpkgs#jq --command bash scripts/check-licenses.sh
-      # skill 併置の eval corpus(evals/cases.json)の schema 検証。
-      # LLM を呼ぶ評価そのものは必須ジョブにしない。ここは決定的な検査だけ。
-      # 併せて検証側の単体テスト(壊れた corpus / 結果を本当に落とすか)も回す。
-      - run: nix shell nixpkgs#jq --command bash scripts/check-evals.sh
-      - run: nix shell nixpkgs#jq --command bash scripts/check-evals.test.sh
-      # 結果を突き合わせる集計(eval-compare.sh)の単体テスト。これも LLM を呼ばない。
-      - run: nix shell nixpkgs#jq --command bash scripts/eval-compare.test.sh
-      # eval-render.sh の v1 描画が凍結されていること。ここが動くと、記録済み
-      # measurement の実行プロンプトを再現できなくなり、固定条件の照合が失われる。
-      - run: nix shell nixpkgs#jq --command bash scripts/eval-render.test.sh
       # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
       - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 

@@ -1,11 +1,16 @@
 ---
 name: empirical-prompt-tuning
-description: Methodology for iteratively improving agent-facing instructions (skills / slash commands / CLAUDE.md / code-gen prompts) via bias-free executor + two-sided evaluation (self-report + instruction-side metrics). Meta-skill, invoke ONLY when the user explicitly asks for an "empirical" eval of a prompt or skill, or for the Iter-0 description / body consistency check. Do NOT auto-invoke after every skill edit; this loop is operator-triggered by name.
+description: Methodology for improving agent-facing instructions (skills / slash commands / CLAUDE.md / code-gen prompts). Starts from a static description/body consistency audit, prefers each host's first-party tooling, and states what a candidate-vs-baseline comparison must establish before it is worth running at all. Meta-skill, invoke ONLY when the user explicitly asks for an empirical evaluation of a prompt or skill, or for the description / body consistency check. Do NOT auto-invoke after every skill edit; this is operator-triggered by name.
 ---
 
 # Empirical Prompt Tuning
 
-The author of a prompt cannot judge its quality. The clearer the writer thinks something is, the more likely another agent will stumble on it. The core of this skill is to **have a bias-free executor actually run the instruction, evaluate it two-sidedly, and iterate**. Do not stop until improvements plateau.
+The author of a prompt cannot judge its quality.
+The clearer the writer thinks something is, the more likely another agent will stumble on it.
+
+That does not make every doubt worth measuring.
+A comparison between "with the instruction" and "without it" is only evidence if the arm that is supposed to be without it genuinely cannot reach it — and establishing that is harder than writing the instruction was.
+So work in order: audit statically, use what the host already gives you, and build a measurement only when a specific unresolved behaviour survives both.
 
 ## When to use
 
@@ -13,324 +18,74 @@ The author of a prompt cannot judge its quality. The clearer the writer thinks s
 - When an agent does not behave as expected and you want to attribute the cause to ambiguity on the instruction side
 - When hardening high-importance instructions (frequently used skills, automation-core prompts)
 
-When not to use:
-- One-off throwaway prompts (evaluation cost does not pay off)
-- When the goal is not to improve success rate but merely to reflect the writer's subjective preferences
-
-## Workflow
-
-0. **Iteration 0 — description / body consistency check** (static, no dispatch needed)
-   - Read the triggers / use cases claimed by the frontmatter `description`
-   - Read the scope the body actually covers
-   - If there is a gap, reconcile description or body before moving to iter 1
-   - Example: description says "navigation / form filling / data extraction" but the body is only a CLI reference for `npx playwright test` — detect that kind of gap
-   - If you skip this, the subagent will "reinterpret" the body to match the description, and accuracy will come out high even though the skill does not actually meet the requirements (false positive)
-
-1. **Baseline preparation**: Fix the target prompt and prepare the following two things.
-   - **Evaluation scenarios**, 2 to 3 kinds (1 median + 1 to 2 edge). Realistic tasks that assume actual situations where the target prompt would apply.
-   - **Requirements checklist** (for computing accuracy). For each scenario, enumerate 3 to 7 items the deliverable must satisfy. Accuracy % = items satisfied / total items. Fix this in advance (do not move it afterward).
-   - When the target is a skill in this repository, do not invent the scenarios in the conversation: load them from that skill's `evals/cases.json`, or write them there first. See "Persistent eval corpus" below.
-2. **Bias-free read**: Have a "blank-slate" executor read the instruction. **Dispatch a new subagent** via the Task tool. Do not substitute with a self-reread (it is structurally impossible to view text you just wrote objectively). When running multiple scenarios in parallel, place multiple Agent invocations within a single message. For how to handle environments where dispatch is unavailable, see the "Environment constraints" section.
-3. **Execution**: Hand the subagent a prompt that follows the **subagent invocation contract** described below, and have it execute the scenario. The executor produces an implementation or output and returns a self-report at the end.
-4. **Two-sided evaluation**: Record the following from the returned results.
-   - **Executor self-report** (extracted from the body of the subagent's report): unclear points / discretionary fill-ins / places where template application got stuck
-   - **Trace interpretation**: each unclear point is tagged with the phase it originated in (Understanding / Planning / Execution / Formatting — see "Subagent invocation contract"). Phase-local fixes land better than global "the prompt was unclear" fixes; a single Understanding-phase ambiguity often looks like a chain of Execution-phase failures.
-   - **Structured reflection**: each unclear point must be returned as `Issue / Cause / General Fix Rule`. The `General Fix Rule` is the class-level abstraction that feeds the "Failure pattern ledger" — without it, fixes stay as one-off patches that rediscover the same mistake later.
-   - **Instruction-side measurements** (the judgment rules are defined canonically in this section; refer to it from elsewhere):
-     - Success/failure: counts as success (○) only when **all** requirements tagged `[critical]` are ○. If even one is × or partial, it is failure (×). The label is the binary ○ / × only.
-     - Accuracy (achievement rate of the requirements checklist, %. ○ = full score, × = 0, partial = 0.5; sum and divide by total items)
-     - Step count (use the `tool_uses` field in the usage meta attached to the Task tool return value as-is. Include Read / Grep, do not exclude them)
-     - Duration (`duration_ms` from the Task tool usage meta)
-     - Retry count (how many times the subagent redid the same decision. Extract from the subagent's self-report; not measurable from the instruction side)
-     - **On failure, add a one-line note to the "unclear points" section of the presentation format stating "which [critical] item dropped"** (for root cause tracing)
-   - The requirements checklist must include **at least one** `[critical]`-tagged item (if there are zero, the success judgment becomes vacuous). Do not add or remove [critical] tags after the fact.
-5. **Apply the diff**: Put the minimum fix into the prompt to eliminate the unclear points. One theme per iteration (multiple related fixes are OK, unrelated fixes go to next time).
-   - **Before applying the fix, explicitly state "which item in the requirements checklist / judgment wording this fix satisfies"** (fixes inferred from axis names often do not land. See the "Fix propagation patterns" section below.)
-   - **Consult the failure pattern ledger first**. If the structured reflection's `General Fix Rule` already matches a known pattern, the first question is "why didn't the existing fix prevent it?" — the fix may need to move closer to the top of the prompt, or be re-worded, before a new ledger entry is added.
-6. **Re-evaluate**: Run 2 → 5 again with a new subagent (do not reuse the same agent: it has learned the previous improvements). Increase parallelism if iterating further does not plateau improvements.
-7. **Convergence check**: The rough rule is "stop when 2 consecutive iterations have zero new unclear points AND metric improvements fall below the thresholds (below)". Make it 3 consecutive for high-importance prompts.
-
-## Evaluation axes
-
-| Axis | How to capture | Meaning |
-|---|---|---|
-| Success/failure | Did the executor produce the intended deliverable (binary) | Minimum bar |
-| Accuracy | What % of requirements the deliverable satisfies | Degree of partial success |
-| Step count | Tool-call / decision-step count used by the executor | Indicator of instruction waste |
-| Duration | Executor's duration_ms | Proxy indicator of cognitive load |
-| Retry count | How many times the same decision was redone | Signal of instruction ambiguity |
-| Unclear points (self-report) | Executor enumerates as bullets | Qualitative improvement material |
-| Discretionary fill-ins (self-report) | Decisions not fixed by the instruction | Surfaces implicit specification |
-
-**Weighting**: Qualitative (unclear points / discretionary fill-ins) is primary, quantitative (time / step count) is auxiliary. Chasing only time reduction makes the prompt too thin.
-
-### Qualitative interpretation of `tool_uses`
-
-Looking only at accuracy hides skill problems. Using `tool_uses` as a **relative value across scenarios** reveals structural defects:
-
-- If one scenario is **3-5x or more** vs the others, that skill is a sign of being **decision-tree-index-leaning with low self-containment**. The executor is being forced into references descent.
-- Typical example: all scenarios have `tool_uses` of 1-3 but one scenario alone has 15+ → there is no recipe for that scenario in the skill itself, so it is cross-searching references/
-- Countermeasure: adding an "inline minimum complete example" or "guidance on when to read references" at the top of SKILL.md in iter 2 significantly drops `tool_uses`
-
-Even at 100% accuracy, a skew in `tool_uses` is grounds for triggering iter 2. "Cut off based on accuracy alone" tends to miss structural defects.
-
-### Fix propagation patterns (conservative / overshoot / zero-shoot)
-
-Fix → effect is not linear. Pre-estimation can play out in the following 3 patterns:
-
-- **Conservative swing** (estimate > actual): one fix aimed at multiple axes but only moved one. "Aiming at multiple axes tends to miss."
-- **Overshoot** (estimate < actual): one structural piece of information (e.g., a combination of command + config + expected output) satisfied judgment wording across multiple axes at once. "Combinations of information structurally hit multiple axes."
-- **Zero-shoot** (estimate > 0, actual = 0): a fix inferred from the axis name did not reach any of the judgment wording. "Axis names and judgment wording are different things."
-
-To stabilize this, **before applying the diff, have the subagent verbalize "which judgment wording this fix satisfies"**. Estimation accuracy does not come out unless you tie things at the threshold-wording level. When adding a new evaluation axis, also concretize the judgment criteria for each point down to the threshold-wording level (at a granularity the subagent can judge, such as "all explicit" or "full text of a minimum working configuration" — so it knows what constitutes 2 points).
-
-## Persistent eval corpus
-
-Scenarios and a checklist that exist only in the conversation cannot be re-run.
-For a skill in this repository, keep them on disk instead:
-
-```text
-plugins/<plugin>/skills/<skill>/evals/cases.json
-```
-
-That corpus holds the same things this skill already fixes in step 1 — the scenarios, and the checklist with its `[critical]` tags — in a form a later session, a different host, or a different model can pick up unchanged.
-Results are written per `(corpus, host, model, **candidate**)`, where the candidate is what the executor was given: the skill at some revision, or nothing at all (the baseline).
-There is no combined score, because the same edit can help one model and hurt another, and an average would hide that.
-The JSON writes verdicts as `pass` / `fail` / `partial`; those are this skill's `○` / `×` / partial under different spellings.
-It adds one out-of-band state, `unevaluated`, for an item whose evidence was never captured — not a fourth verdict but the absence of a measurement, kept distinct from `×` so a stored run cannot record "we could not tell" as a failure. It is excluded from the accuracy denominator, and a `[critical]` item left unevaluated makes success unknowable rather than false — unless another `[critical]` already failed, in which case the observed failure settles it.
-
-**Corpus runs invert one rule of the invocation contract below: the executor is not shown the checklist.**
-It receives the scenario, the user message, and the candidate instruction only, and a separate evaluator grades the deliverable afterwards — together with the tool calls and file changes the runner observed, because requirements about what the executor *did* cannot be settled from its output, where an unperformed action and a claimed one look identical.
-The inline contract hands the executor the checklist because its own reading of the requirements is part of the signal when you are measuring one instruction's clarity.
-A baseline comparison cannot afford that: an executor handed "ask exactly one question, attach a recommendation" will do exactly that with no skill at all, and the measured uplift collapses to zero.
-
-`EVAL-CORPUS.md`, next to this file, is the format reference.
-`scripts/eval-render.sh` renders the execution prompt, the judgment prompt, and the result skeleton; `scripts/check-evals.sh` at the repo root validates a corpus or a result file (it recomputes success and accuracy from the verdicts, so a mis-transcribed judgment is caught rather than trusted).
-
-Running the corpus is still this skill's loop: a fresh executor per trial, dispatched per the rules above.
-The corpus only removes the part that should not be improvised each time.
-
-## Subagent invocation contract
-
-The prompt given to the executor takes the following structure. This is the input contract for "two-sided evaluation".
-
-```
-You are an executor reading <target prompt name> with a blank slate.
-
-## Target prompt
-<Paste the full body of the target prompt, or specify a path for Read>
-
-## Scenario
-<One paragraph setting the scenario context>
-
-## Requirements checklist (items the deliverable must satisfy)
-1. [critical] <item that belongs to the minimum bar>
-2. <normal item>
-3. <normal item>
-...
-(Judgment rules are canonically defined in "Workflow 4. Two-sided evaluation / Instruction-side measurements". At least one [critical] is required.)
-
-## Task
-1. Follow the target prompt to execute the scenario and produce the deliverable.
-2. On completion, respond with the report structure below.
-
-## Report structure
-- Deliverable: <artifact or execution summary>
-- Requirement achievement: ○ / × / partial (with reason) for each item
-- **Trace** (tag OK / stuck / skipped for each phase, one-line reason when not OK):
-  - Understanding (reading the instruction and building a mental model)
-  - Planning (deciding the approach / ordering)
-  - Execution (actually doing the work)
-  - Formatting (shaping the deliverable to the expected form)
-  - *Collapsed form allowed*: when all four phases are OK, a single line `Trace: all OK` is sufficient. Emit phase-by-phase only when any phase is stuck or skipped. (This avoids happy-path boilerplate; the trace structure only earns its cost when something actually goes wrong.)
-- **Unclear points (structured)**: for each issue, three lines:
-  - Issue: <what observably happened>
-  - Cause: <why, diagnosed at the instruction level>
-  - General Fix Rule: <a class-level rule, not a spot fix, that would prevent this class of mistake>
-- Discretionary fill-ins: places not fixed by the instruction and filled in by your own judgment (bullets)
-- Retries: number of times you redid the same decision and why
-```
-
-The caller extracts the self-report portion from the report and fills the evaluation-axis table by obtaining `tool_uses` / `duration_ms` from the Agent tool's usage meta.
-
-### Pair each checklist item: surface and semantic
-
-Where possible, express each checklist axis as two judgments:
-
-- **Surface**: did a specific token appear in the deliverable? **Always include both the
-  Japanese and English spellings** — a repo whose skills are mostly Japanese loses hits
-  constantly otherwise (`スクレイプ` / `scrape`, `非互換` / `incompatible`, `信頼` /
-  `trust`, `止める` / `stop` / `defer`). One wide alternation per axis.
-- **Semantic**: the same axis judged by meaning (the subagent's own ○ / × / partial).
-
-Surface alone yields false negatives from paraphrase, abbreviation, and language choice.
-When semantic is ○ and surface is ×, **widen the surface pattern** — do not constrain the
-scenario to "use this word", which distorts the skill's natural output.
-
-## Environment constraints
+Not for one-off throwaway prompts, and not for encoding the writer's subjective preferences.
 
-In environments where dispatching a new subagent is not possible (already running as a subagent, Task tool is disabled, etc.), **do not apply** this skill.
-- Alternative 1: ask the parent session's user to start a separate Claude Code session and delegate the evaluation there
-- Alternative 2: give up on evaluation and explicitly report to the user "empirical evaluation skipped: dispatch unavailable"
-- **NG**: substitute with a self-reread (bias enters, so you must not trust the evaluation result)
+## 1. Static consistency audit
 
-**Structural review mode**: when you want to check only the **consistency and clarity of the description** of the skill / prompt rather than run empirical evaluation, carve it out explicitly as structural review mode. Note clearly in the request prompt to the subagent "this round is structural review mode: text consistency check, not execution". That way the subagent will not trip on the skip behavior in the environment-constraints section and can return a static review. Structural review is an aid to empirical, not a replacement (it cannot be used for consecutive-clear judgment).
+Always first, and often enough on its own. No dispatch, no execution.
 
-### A stuck Execution phase has two causes — separate them
+- Read the triggers and use cases claimed by the frontmatter `description`.
+- Read the scope the body actually covers.
+- Reconcile the two before anything else.
 
-Skills like `locate-implementation` and `markdown-context` assume real tools run (`mdidx`,
-`fastcontext`, `mq`, web fetches, external CLIs). When Execution comes back stuck, always
-diagnose which of these it is:
+A gap here poisons everything downstream: an executor reinterprets the body to match the description, and the instruction scores well without meeting its requirements.
 
-- **Environmental** (tool absent, API key unset, network blocked) → **false signal**. Not
-  a defect in the skill. Record it as "eval environment limitation" in the ledger and do
-  not chase it.
-- **Instructional** (the tool is there, but the skill does not make clear what to run or
-  how) → **a real defect**. This is what you are here to fix.
+Also read the instruction against what the host now injects on its own — system instructions, tool descriptions, and neighbouring always-on rules.
+An instruction that duplicates or contradicts them is a defect visible without running anything.
 
-The rule:
+## 2. First-party tooling
 
-- **Set the environment up and let it run.** This is the only legitimate route. Running it
-  yields genuine end-to-end Execution signal — wrong flags, output-format mismatches, the
-  failures that only appear when something actually executes.
-- **If it cannot run, do not evaluate that axis — stop and report.** Never substitute a
-  narration. Asking the subagent to describe the steps lets a plausible-but-wrong
-  procedure pass, producing a fake success that never touched the real tool. This is the
-  same philosophy as the dispatch rule above: report honestly rather than substitute.
+Before building anything, use what the host provides for running, tracing, and evaluating its own instructions.
+It is maintained by the people who change the runtime, it usually exposes the trace you actually need, and it costs nothing to keep working.
 
-On detecting that it cannot run, mark the axis "unevaluated: environment not set up" and
-prompt the user to set it up. For example:
+## 3. Custom measurement
 
-```
-locate-implementation's Execution axis needs fastcontext to run, but this environment
-has no API key configured, so it cannot.
-→ Axis unevaluated. Configure fastcontext and re-run.
-```
+Reach this step only when a specific unresolved behaviour survives steps 1 and 2. Settle all of the following **before** running anything. If any cannot be settled, do not run.
 
-Setting up the environment is the user's responsibility. Papering over the hole with a
-narration, and calling it measured, is the worst outcome.
+### Name the decision the result will change
 
-## Iteration stopping criteria
+Write down which placement decision moves on which outcome — keep, narrow, make explicit-only, restrict to one host, delete.
+A measurement that leaves the decision unchanged either way is not worth its cost.
 
-- **Convergence (stop)**: 2 consecutive rounds satisfying **all** of the following:
-  - New unclear points: 0
-  - Accuracy improvement vs previous: +3 points or less (saturation such as 5% → 8%)
-  - Step count variation vs previous: within ±10%
-  - Duration variation vs previous: within ±15%
-  - **Overfitting check**: at convergence judgment, add 1 hold-out scenario not used so far and evaluate. If accuracy drops 15 points or more from the recent average, overfitting. Go back to baseline scenario design and add edges.
-- **Divergence (suspect the design)**: if new unclear points do not decrease across 3+ iterations → the design direction of the prompt itself may be wrong. Stop fixing by patches and rewrite the structure
-- **Resource cutoff**: stop when importance and improvement cost no longer balance (the "ship at 80 points" call)
+### Fix the requirements in advance, and never show them to the executor
 
-### The four-stage trajectory, as a convergence gauge
+Enumerate what the deliverable must satisfy before the run, and do not move it afterwards.
+Never put the requirements into the execution prompt.
+An arm that is handed the checklist can implement it directly, which collapses the difference the comparison exists to detect.
+Score afterwards, from the deliverable.
 
-A structurally sound skill converges in **3–4 iterations**. Read which stage each
-iteration is in:
+### Score on observable evidence
 
-| Stage | What it fixes | Signature |
-|---|---|---|
-| 1. Missing structure | a behavior is absent outright (the skill never tells you to do X) | surface **and** semantic both fail; one fix makes the pass rate jump |
-| 2. Judgment width | the skill is right but the surface pattern is too narrow | semantic ○ / surface × on the same axis → widen the regex |
-| 3. Surface spelling | the model used Japanese, a synonym, or an abbreviation the pattern misses | only one trial fails; a spelling miss, not a content miss |
-| 4. Residual | a structural limit of the eval setup (see the Execution stuck rule above), not of the skill | the self-report says "external execution stuck". Record in the ledger and do not chase |
-
-If it does not shrink past 4 iterations, suspect the design per the divergence criterion
-above rather than continuing to patch.
-
-## Failure pattern ledger
-
-Maintain a cumulative list of failure modes across iterations. Without it, each iteration re-discovers the same class of mistake, and accuracy improvements stall without the operator noticing that the same `General Fix Rule` keeps surfacing under different surface wording.
-
-Entry format:
-
-```
-- **Pattern name**: short descriptive handle (not "ambiguous X"; prefer "over-eager template application when skip clause is absent")
-  - Example: <representative Issue wording from some iter>
-  - General Fix Rule: <the class-level rule from that iter's structured reflection>
-  - Seen in: iter N, iter M, ...
-```
-
-Rules:
-- Before generating a fix in Workflow step 5, scan the ledger. If the current `General Fix Rule` matches an existing entry, update `Seen in` and investigate why the existing fix did not prevent recurrence (wording ambiguity? position too late in the prompt? missing example?) before creating a new entry.
-- A pattern that recurs 3+ times despite targeted fixes is a structural signal — escalate to the "Divergence" criterion above rather than continuing to patch.
-- The ledger is per-target-prompt, not global across all empirical-prompt-tuning runs.
-
-## Variant exploration (optional, plateau-breaking)
-
-When iterations approach a plateau but convergence criteria (2 consecutive clears) are not met, suspect local optimum and run a 2-variant round:
-
-- **Conservative variant**: current prompt + next-best minor fix
-- **Exploratory variant**: current prompt with one structural change — reorder sections, split a dense paragraph, drop a redundant section, or add a missing scaffolding (e.g., a worked example)
-
-Dispatch fresh subagents on the same scenarios in parallel (one message with multiple Agent tool calls). Keep the variant with higher accuracy; on tie, prefer fewer unclear points; on further tie, prefer lower `tool_uses`.
-
-Pairwise-comparison caveats:
-- Do **not** ask a subagent to rate "A vs B" directly. LLM position bias and self-preference bias make such judgments noisy at small n.
-- Compare on the objective axes only (accuracy, step count, unclear-points count, phase-weakness counts). Those are reproducible; "which prompt felt better" is not.
-- If qualitative comparison is genuinely needed, counterbalance: run both orderings (A,B) and (B,A) and accept a verdict only if both orderings agree.
-
-Cost: variant exploration doubles dispatch count per iteration. Use when plateau is suspected, not by default.
-
-## Presentation format
-
-Record and present to the user with the following form at each iteration:
-
-```
-## Iteration N
-
-### Changes (diff from previous)
-- <one-line fix content>
-- Pattern applied: <pattern name from ledger, or "(new)">
-
-### Execution results (per scenario)
-| Scenario | Success/Failure | Accuracy | steps | duration | retries | Weak phase |
-|---|---|---|---|---|---|---|
-| A | ○ | 90% | 4 | 20s | 0 | — |
-| B | × | 60% | 9 | 41s | 2 | Execution |
-
-### Structured reflection (newly surfaced this time)
-- <Scenario B>: [critical] item N is × — <one-line reason for drop>
-  - Issue: <what observably happened>
-  - Cause: <why, at the instruction level>
-  - General Fix Rule: <class-level abstraction>
-- <Scenario A>: (nothing new)
-
-### Discretionary fill-ins (newly surfaced this time)
-- <Scenario B>: <fill-in content>
-
-### Ledger updates
-- Added: <pattern name> (from Scenario B)
-- Re-seen: <pattern name> (originally iter K) — existing fix did not prevent recurrence because <reason>
-
-### Next fix proposal
-- <one-line minimum fix>
-
-(Convergence check: X consecutive clears / Y rounds remaining to stop condition)
-```
-
-## Red flags (beware of rationalization)
-
-| Rationalization that surfaces | Reality |
-|---|---|
-| "Rereading it myself has the same effect" | You cannot view text you just wrote "objectively". Always dispatch a new subagent. |
-| "One scenario is enough" | One scenario overfits. Minimum 2, ideally 3. |
-| "Zero unclear points once, so we're done" | Could be coincidence. Finalize with 2 consecutive rounds. |
-| "Let's knock out multiple unclear points at once" | You lose track of what worked. One theme per iteration. |
-| "Split each related micro-fix strictly into its own iter" | Trap in the opposite direction. "One theme" is a semantic unit. 2-3 related micro-fixes can be bundled into 1 iter. Splitting too far explodes the iter count. |
-| "Metrics are good, so ignore qualitative feedback" | Time reduction can also be a sign of being too thin. Keep qualitative primary. |
-| "Rewriting from scratch is faster" | Correct if unclear points do not decrease across 3+ iterations. Before that stage, it is escape. |
-| "Let's reuse the same subagent" | It has learned the previous improvements. Always dispatch a new one. |
-
-## Common failures
-
-- **Scenario too easy / too hard**: neither produces signal. One at the median of real use, one edge
-- **Only looking at metrics**: chasing only time reduction strips important explanations and makes it fragile
-- **Too many changes per iteration**: you can no longer trace "which fix back then worked". One fix per iteration
-- **Tuning scenarios to match the fix**: making the scenario side easier just to make unclear points look eliminated → putting the cart before the horse
+A claim in the output that the executor "checked the repository" is not evidence that it did.
+Prefer tool calls, file state, and the trace over the executor's own account of its behaviour.
+State per requirement what would count as evidence, and mark a requirement unevaluated when that evidence was not captured — unevaluated is not a failure, and it is not a pass.
+
+### Establish the isolation the comparison requires
+
+This is the condition most often assumed and least often met. All four must hold:
+
+- **The candidate is unreachable to the arm that is meant to be without it.** Unreachable, not merely unloaded. Disabling the host's customisations stops it from being loaded; an executor that goes looking still finds it. Close every path: the copy installed under the host's own configuration, a copy another arm is using or left behind, the copy inside the checkout the scenario places the executor in, and copies still reachable through Git history, refs, or a remote after the file is gone from the tip.
+- **The evaluation criteria are withheld from every arm.**
+- **The target's name does not leak from anywhere except the candidate itself.** An arm handed the candidate can read its name out of its own front matter; that is the treatment, not a breach. What must not happen is the name arriving by another route: the working directory and its siblings' names, process arguments, the inherited environment, Git metadata, the descriptions of unrelated instructions installed beside it, or documentation inside the world the scenario asks the executor to read.
+- **Everything else the executor can observe is equivalent across arms.** Including anything the candidate delegates to: a dependency the candidate calls is a property of the environment, and every arm gets it equally.
+
+### Set a time box and a stopping condition
+
+Both before the first run. "Until the numbers look good" is not a stopping condition.
+
+### If isolation cannot be established, report that
+
+Do not run a comparison you cannot isolate and present its numbers with a caveat.
+Report the inconclusive result: the question, the path that could not be closed, and what would have to change to answer it.
+A number produced under a broken baseline is worse than no number, because it gets quoted later without the caveat.
+
+## Reading results
+
+- Compare per requirement, not by an aggregate score. An aggregate hides which requirement moved, and one non-critical item changing reads as an overall win.
+- Do not average across hosts or models. The same fix can improve one model and regress another; the average erases the regression. The unit of comparison is one case on one host on one model.
+- Record the host and model with every result. If the model cannot be determined, say so, and do not use that result for comparison.
 
 ## Related
 
-- `superpowers:writing-skills` — the TDD approach for skill creation. Essentially the same as this skill's "baseline → fix → rerun with a subagent"
-- `retrospective-codify` — fixating learnings after a task. This skill is during prompt development, retrospective-codify is after a task ends; use them differently
-- `superpowers:dispatching-parallel-agents` — conventions for running multiple scenarios in parallel
-- `waxa-eval` — operating manual for the `waxa` CLI, which automates the eval / iterate loop into an external process with a YAML scenario format and persistent ledger. This skill (empirical-prompt-tuning) covers the **methodology and the in-session Task-tool subagent flow**; `waxa-eval` covers the **CLI operation and YAML authoring**. They are complementary — use empirical for the Iter 0 static check, the `[critical]`-tagged checklist, and `tool_uses`-based skill diagnosis (none of which are accessible to a CLI process); use waxa-eval when persistence, CI repeatability, or external adoption gates are needed.
-- `agent-instructions-refine` — the direct editing procedure for instruction files. That skill slims and rewrites; this one measures whether the result still works. Run them as a pair.
+- `agent-instructions-refine`: rewriting the instruction once this has found what is wrong with it.
+- `spec-ambiguity-audit`: a cold read of a document by a cheap model, when the question is what a from-scratch implementer would trip on.

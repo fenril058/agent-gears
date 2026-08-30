@@ -20,64 +20,9 @@
   `plugin install` が `source: Invalid input` で落ちる。
   `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
-- eval corpus は skill なら `plugins/<plugin>/skills/<skill>/evals/cases.json`、
-  単独の rule ファイルなら `rules/<name>/evals/cases.json`(`rules/<name>.md` の実在も検査する)。
-  `check-evals.sh` の走査根は `plugins` と `rules` の2つ。片方だけにすると、もう片方の
-  corpus が壊れていても CI が黙って通す。
-  形式定義は `plugins/agent-instructions/skills/empirical-prompt-tuning/EVAL-CORPUS.md` ただ1つ。
-  schema は2世代ある。**v1 は凍結、新規 corpus は v2。** v1 は対象が skill である前提を
-  `corpus.skill` / `with-skill` / 置き場所の3箇所に埋め込んでいる。v2 は
-  `target: {kind, name}`(kind は `skill` か `rule-file`)と `with-target` / `without-target`。
-  **記録済み run を v2 へ変換しない。** measurement artifact は当時の schema と bytes のまま
-  残す —— 書き換えると、その run の固定条件を byte 一致で照合した検証自体が無効になる。
-  run は自分と同じ世代の corpus しか参照できず、`eval-compare.sh` は世代の違う run を
-  同じ表に並べない(変換しない方針なので、この拒否は移行期間ではなく恒久的な境界)。
-  `grilling` の corpus は v1 のまま。今 v2 化すると trial 1 / trial 2 の run が孤児になる。
-  CI の `scripts/check-evals.sh` が schema・`[critical]` の存在・結果ファイルの
-  success/accuracy の検算まで見る(未知フィールドは失格)。
-  結果ファイルを検証するときは参照先 corpus も検証する。`[critical]` ゼロの corpus を
-  指すと success の判定が空虚に真になるので、この経路を塞いだままにする。
-  case id と requirement id は既存の結果から参照されるのでリネームしない。text だけ直す。
-  **実行プロンプトに requirements を入れない。** baseline(skill なし)に checklist を
-  見せると、それをそのまま実装できてしまい uplift がゼロに潰れる。採点は
-  `eval-render.sh --part judgment` で別 evaluator が行う。
-  host/model をまたいだ総合スコアのフィールドを足さない。比較単位は
-  `(case, host, model, candidate)` で、平均すると model 固有の regression が消える。
-  run の突き合わせは `scripts/eval-compare.sh`(repo-level tooling。4 host へ配る
-  skill payload には入れない。`eval-render.sh` は skill 同梱のまま)。主出力は
-  accuracy の差ではなく **requirement 単位の差分行列**で、accuracy を先に見せると
-  「非 critical が1件動いただけ」を「候補の方が良い」と読み違える(実測で踏んだ)。
-  比較の前提は機械的に拒否する。
-  テストは `scripts/eval-compare.test.sh`(CI の consistency job)。
-  case 集合の一致は run どうしの相対比較で、corpus の網羅性は強制しない。
-  1 case だけの run が corpus 全体の run を名乗れないよう、網羅数と未実行 case 名を出す。
-  candidate identity は `(kind, revision)`(label は identity ではない)。相異は等値関係では
-  ないので全ペアで見る —— 先頭を錨にすると `A, B, B` を見逃す。
-  trial をまたいだ計算をしない。`tool_uses` の集計は `(arm, trial)` ごと、
-  「全 arm 同一」の判定と表示キーは `(case, trial, requirement)` ごと。
-  `unevaluated` の集合が run 間で違えば比較を拒否する。`unevaluated -> pass` は
-  候補の改善ではなく証拠の有無で、accuracy の分母も片方だけ変わる。
-  `tool_uses` が case 単位で部分欠損したら位置を `-` で残し、min/max/range は出さない
-  (部分観測から skew を読ませない)。その列は **run 全体の case 集合**に固定する。
-  `(case_id, trial)` は矩形とは限らず(trial 1 は 3 case、trial 2 は 1 case でも
-  validator と gate を通る)、trial に存在する case を分母にすると trial 2 が
-  「1/1 観測済み・range 0」= スキュー無しに見える。非矩形は禁じないが、
-  trial ごとの網羅を header の `trial coverage` に出す(corpus 網羅の
-  PARTIAL CORPUS とは別の問い)。
-  `unevaluated` は第四の verdict ではないので「全 arm 同一」の節に混ぜず、別節に出す。
-  surface/semantic の突き合わせでも数えない(semantic の判定が無いので一致も不一致も無い)。
-  run ファイル・corpus 由来の自由文字列は表示境界でエスケープする。本文だけでなく
-  比較拒否の診断行も対象(診断は1件1行が前提で、行頭に印を付けて出すため)。
-  `check-evals.sh` は非空しか見ないので、`label` の改行で偽の測定行を、`host.id` の
-  改行で偽の診断行を出せる(どちらも実測で踏んだ)。
-  `host.version` は比較条件ではないが、arm ごとに違えば先頭 run のものを共通表示しない。
-  arm の隔離は runner の責任で、host の skill 無効化だけでは足りない
-  (無効化してもファイルは `~/.claude/skills/` に残り読める)。不変条件は
-  EVAL-CORPUS.md「Runner isolation contract」。skill が別 skill に委譲する場合、
-  その依存は corpus でも candidate でもなく runner environment の性質として扱い、
-  baseline を含む全 arm へ等しく与える(schema には足さない)。
-  `host.model` は必須。取得できない host では `"unknown"` と明記し、その run は比較に使わない。
-  LLM を呼ぶ評価自体は CI に入れない。
+- 覆しにくい決定は `docs/adr/` に記録する。追記と supersede のみで、既存の ADR は書き換えない。
+  汎用 eval infrastructure を所有しない決定と、custom measurement を再開できる条件は
+  `docs/adr/0001-evaluation-infrastructure-ownership.md`。skill の A/B を始める前にここを読む。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。
@@ -87,7 +32,7 @@
   複数 plugin に分散するので、skill を動かしたら移動先への複製と移動元の残骸に注意。
   宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
 
-手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「skill の eval corpus」「配布方法」「新しい skill を足すとき」。
+手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
 
 shellcheck:
 
