@@ -16,6 +16,10 @@
 - 自然言語でしか表せない未知の挙動・症状から、複数領域にまたがる候補箇所を絞る場合だけ
   `fastcontext`(`locate-implementation` skill)を使う。
   既知ファイル・既知シンボル・小規模探索・設計判断・issue の優先順位づけには使わない。
+  `fastcontext` を使う前に、同 skill のエンドポイント分類と許可境界を適用する。
+  `search` を含む、利用者と直接会話できない委譲先エージェントは、loopback endpoint の場合だけ `fastcontext` を実行し、非 loopback または判定不能なら親エージェントの許可申告にかかわらず Grep、Glob、Read へフォールバックする。
+  非 loopback または判定不能な endpoint へ `fastcontext` が必要なら、メインセッションが API 呼び出し前に利用者から会話内で明示的な許可を得て実行する。
+  ツール呼び出し時のコマンド承認プロンプトは、この許可とは扱わない。
 
 ## 検証
 
