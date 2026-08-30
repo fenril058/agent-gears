@@ -20,9 +20,9 @@
   現在の Claude セッションを対象 worktree に移せないなら、停止して報告する。
 - `Agent` の `isolation: "worktree"` も同じ `WorktreeCreate` hook を通る(worktrunk plugin の一次資料による)。
   ただし Claude Code は内部 agent ID を `name` として渡すため、`worktrunk.agent-<id>` という throwaway branch の worktree になる。
-- hook を通ることと、実装用 worktree の運用要件を満たすことは別。
-  canonical な feature branch、path、workspace root、後続の統合方法は満たされず、これらは実行して確認してもいない。
-  よって Agent isolation は通常の実装委譲には使わず、`rules/always-on.md` の workspace root 規則に従う。
+- hook を通ることと、このリポジトリで要求する実装用 worktree の運用を満たすことは別である。
+  Agent isolation は内部 agent ID に基づく throwaway branch を作るため、意図した feature branch と、その branch を前提とする後続の統合手順を表現できない。
+  今回は Agent isolation 自体も実行して確認していないため、通常の実装委譲には使わず、`rules/always-on.md` の workspace root 規則に従う。
 
 ## Codex への委譲
 
