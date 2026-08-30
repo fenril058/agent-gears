@@ -1,5 +1,22 @@
 # Claude Code 専用の常時ルール
 
+## worktree
+
+- Worktrunk plugin の `WorktreeCreate` hook がセッションに読み込まれている場合、Claude Code の native worktree 作成を使ってよい。
+  hook が `wt switch --create` を実行するので、worktrunk が管理する通常の worktree になり、`rules/always-on.md` の環境準備の要件を満たす。
+  成立しているときは、要求した branch 名がそのまま使われ、worktree は worktrunk の layout(リポジトリの兄弟ディレクトリ)に作られる。
+- plugin がインストール済みでも、セッションに読み込まれていなければ hook は動かない。
+  `worktrunk:` namespace の skill が使えることが、読み込まれている観測可能な手がかりになる。
+  使えなければ `/reload-plugins` で読み込む。
+- hook が読み込まれていると確認できないセッションでは、native worktree 作成を安全な経路と見なさない。
+  hook 無しでは Claude Code 組み込みの経路になり、worktree はリポジトリ内の `.claude/worktrees/` に作られ、branch 名は加工される(`/` が `+` になり `worktree-` が前置される)。
+  この worktree は worktrunk の setup を通らないため、`rules/always-on.md` の環境準備の要件を満たさない。
+- どちらの経路になったかは、作成された path と branch 名で判別する。
+  `wt list` に出ることは判別に使えない。
+  `wt list` は `git worktree list` を列挙するので、どちらの経路の worktree も表示される。
+- サブエージェントの worktree isolation が同じ hook を通るかは未確認。
+  確かめるまで、通ると仮定しない。
+
 ## Codex への委譲
 
 - 委譲を始める前に対象 worktree の絶対パスを確定し、ジョブの完了まで保持する。

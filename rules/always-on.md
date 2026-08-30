@@ -43,14 +43,15 @@
 
 - worktree は並列作業(複数セッション/エージェントの同時進行)を意図するときだけ使う。
   worktree はセッション分割によるcontext断絶と人間の切り替えの手間を伴うため、並列を意図しない単発作業ではメインの checkout で `git switch`/`git checkout` して branch を切り替える。
-- worktree は原則として `wt`(worktrunk)で作成する。新規作成には `wt switch --create <branch>` を使う。
-- `wt` を経由せず作成された worktree では、post-start hook、gitignored ファイルの symlink 化、`direnv allow`、依存関係の準備が完了していない可能性がある。
-  その状態で実装、ビルド、テスト、`direnv exec` を行わない。
-- 実装ファイルを変更する場合は、対象 worktree をカレントディレクトリ、または書き込み可能な workspace root としてエージェントのセッションを開始する。
-- 別の worktree で開始済みのセッションから、兄弟 worktree に対する実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
-- 兄弟 worktree の読み取り専用レビューは、既存セッションから行ってよい。
-- 既存セッションから兄弟 worktree への書き込みは、実装変更・ビルド・テスト・`direnv exec`・Git 操作を伴わない限定的な書き込みに限り、前提条件を明示した個別 skill(`conversation-context-export` 等)経由でのみ許可する。
-- サブエージェントに実装作業を行わせる場合も、先に `wt` で worktree を作成し、その worktree を書き込み可能な workspace root として開始する。
+- worktree の作成経路は、その環境に設定された setup hook と環境準備(依存関係、gitignored ファイル、`direnv allow` など)を完了させるものでなければならない。
+  この要件を満たすと確認できない経路で作られた worktree を、満たしたものとして扱わない。
+- 準備の完了を確認してから実装、ビルド、テスト、`direnv exec` を行う。
+  準備は background で走ることがあるため、worktree が存在することを準備完了と見なさない。
+- 実装ファイルの変更は、対象 worktree を cwd または書き込み可能な workspace root として開始したセッションだけで行う。
+- 別のセッションから兄弟 worktree に対する実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
+  読み取り専用のレビューは既存セッションから行ってよい。
+- これらを伴わない限定的な書き込みは、前提条件を明示した個別 skill(`conversation-context-export` 等)経由でのみ許可する。
+- 対象 worktree を書き込み可能な workspace root にできないホストでは、そのホストのサブエージェントに実装作業を委譲しない。
   worktree の path を伝えるだけで書き込み可能になるとは仮定しない。
 
 ## Markdownの整形ルール
