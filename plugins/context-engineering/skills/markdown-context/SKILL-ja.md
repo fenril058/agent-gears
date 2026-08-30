@@ -1,6 +1,6 @@
 ---
 name: markdown-context
-description: Markdown ファイルが大きい、長さが不明、または必要な節だけを読む場合に使う。README、設計書、仕様書、長いドキュメント、本の原稿などを全文ロードせず、見出し索引から該当箇所だけを取得してトークンを節約する。mdidx を主役に、構造クエリが要るときだけ mq を併用する。
+description: Markdown ファイルが大きい、長さが不明、または小さいと分かっていないファイルから必要な節だけを読む場合に使う。小さいと分かっている Markdown ファイルは直接読む。README、設計書、仕様書、長いドキュメント、本の原稿などを全文ロードせず、見出し索引から該当箇所だけを取得してトークンを節約する。mdidx を主役に、構造クエリが要るときだけ mq を併用する。
 compatibility: mdidx と jq が PATH に必要。mq は任意(構造クエリ用途のみ)。いずれも skill には同梱されない。導入は README の周辺ツール節を参照(mdidx は例えば `nix profile install github:fenril058/agent-gears#mdidx`)。
 ---
 

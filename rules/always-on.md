@@ -30,16 +30,17 @@
 
 ## Git 操作
 
-- 読み取り専用の依頼、network unavailable、または `.git` に書き込めない状況では `git fetch` を実行しない。
-  その場合は「現在の `origin/main` が最新かは未確認」と明記し、最新性を主張しない。
-  実行可能な場合だけ、「`origin/main` の最新を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
+- 読み取り専用の依頼、または `.git` に書き込めない状況では `git fetch` を実行せず、`git ls-remote origin main` でリモートの `main` を確認する。
+  リモート先端が現在の `origin/main` と一致し、`git merge-base --is-ancestor origin/main HEAD` が成功した場合だけ、リモートの最新 `main` を含むと述べる。
+  リモート先端が現在の `origin/main` と一致しない場合、または network unavailable などで確認できない場合は「リモートの最新 `main` を含むかは未確認」と明記し、最新性を主張しない。
+  それ以外では、「リモートの最新 `main` を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
 
 ## リポジトリ配置 (ghq)
 
 - GitHub 等の clone は ghq 管理下に置く(`~/ghq/<host>/<owner>/<repo>`)。
 - ただし `<owner>/<repo>` は **`ghq get` した URL** で決まり、現在の `origin` とは一致しないことがある。
   upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
-- よって path を `origin` から推測しない。実 path は `ghq list --exact --full-path <repo>` で確認する。
+- よって path を `origin` から推測しない。実 path は `ghq list --exact --full-path <repo>` で確認し、同名リポジトリが複数 owner にある場合は `ghq list --exact --full-path <owner>/<repo>` で特定する。
 
 ## worktree(エージェント隔離)
 
@@ -63,4 +64,5 @@
 
 ## Markdownの整形ルール
 
-- リポジトリ内の Markdown 文書は、一文ごとに改行し、段落の区切りを空行で示す。
+- Git 管理対象かどうかにかかわらず、リポジトリを保存先とする Markdown 文書は、一文ごとに改行し、段落の区切りを空行で示す。
+  チャット、issue と PR の本文・コメントには適用しない。
