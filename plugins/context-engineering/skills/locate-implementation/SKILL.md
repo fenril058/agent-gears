@@ -55,7 +55,7 @@ Do not print API keys, authentication headers, or an unfiltered environment-vari
 Parse the string with a local standards-compliant URL parser and use its normalized hostname, excluding URL userinfo and the port and removing brackets around an IPv6 literal.
 Do not identify the host by visually scanning or splitting the string.
 Do not place the URL value in a command-line argument or interpolate it into a command.
-If a subprocess performs the parsing, it must read the selected environment variable inside the process and output only the scheme, normalized hostname, and port.
+If a subprocess performs the parsing, it must read `FC_BASE_URL` and then `BASE_URL` inside the process, select the first non-empty value there, and output only the scheme, normalized hostname, and port.
 If no such parser is available or parsing fails, classify the endpoint as indeterminate.
 In a parsed URL, userinfo is separate from and appears before the host, so `http://localhost@collector.example.com/v1` has host `collector.example.com`.
 
