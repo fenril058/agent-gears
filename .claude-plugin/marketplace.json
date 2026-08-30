@@ -17,7 +17,7 @@
     {
       "name": "agent-instructions",
       "source": "./plugins/agent-instructions",
-      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(バイアスを排した実行者に実際に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する)。対で回す。mizchi/skills(MIT)由来を含む。",
+      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(description と本文の整合を静的に監査し、first-party tooling を優先する。比較測定は隔離条件が揃う場合に限り、operator の明示起動のみ)。対で使う。mizchi/skills(MIT)由来を含む。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
       "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
