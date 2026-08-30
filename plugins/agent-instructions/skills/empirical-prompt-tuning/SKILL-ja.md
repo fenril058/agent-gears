@@ -16,7 +16,7 @@ description: agent 向けテキスト指示(skill / slash command / CLAUDE.md �
 
 ## 明示的に依頼するのに適した場面
 
-この skill は operator が名指しで依頼したときだけ動く。
+この skill は、プロンプトや skill の実測評価、または `description` と本文の整合確認を明示的に依頼されたときだけ動く。
 以下は依頼する価値がある場面であって、トリガーではない。
 いずれも、この skill が自分から起動する理由にはならない。
 

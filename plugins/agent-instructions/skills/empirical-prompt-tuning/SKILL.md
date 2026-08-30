@@ -1,6 +1,6 @@
 ---
 name: empirical-prompt-tuning
-description: Methodology for improving agent-facing instructions (skills / slash commands / CLAUDE.md / code-gen prompts). Starts from a static description/body consistency audit, prefers each host's first-party tooling, and states what a candidate-vs-baseline comparison must establish before it is worth running at all. Meta-skill, invoke ONLY when the user explicitly asks for an empirical evaluation of a prompt or skill, or for the description / body consistency check. Do NOT auto-invoke after every skill edit; this is operator-triggered by name.
+description: Methodology for improving agent-facing instructions (skills / slash commands / CLAUDE.md / code-gen prompts). Starts from a static description/body consistency audit, prefers each host's first-party tooling, and states what a candidate-vs-baseline comparison must establish before it is worth running at all. Meta-skill, invoke ONLY when the user explicitly asks for an empirical evaluation of a prompt or skill, or for the description / body consistency check. Do NOT auto-invoke after every skill edit; it runs only on an explicit request for one of those two things.
 ---
 
 # Empirical Prompt Tuning
@@ -14,7 +14,7 @@ So work in order: audit statically, use what the host already gives you, and bui
 
 ## Suitable explicit requests
 
-This skill runs only when an operator asks for it by name. The situations below are the ones worth asking about — they are not triggers, and none of them makes this skill start on its own.
+This skill runs only when an operator explicitly asks for an empirical evaluation of a prompt or skill, or for the description / body consistency check. The situations below are the ones worth asking about — they are not triggers, and none of them makes this skill start on its own.
 
 - An operator wants a skill / slash command / task prompt checked after it was created or substantially revised
 - An operator wants an agent's unexpected behaviour attributed to ambiguity on the instruction side
