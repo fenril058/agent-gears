@@ -2,7 +2,8 @@
 name: task-delegation
 description: >-
   Use after the current host permits subagent delegation, when selecting bounded independent tasks to delegate or writing a delegation brief.
-  Bases the decision on task independence and total delegation cost, keeps design and final judgment in the main session, and defines the required Scope, Deliverable, and Output Format.
+  Uses task independence and total delegation cost to decide whether delegation that is merely permitted is worthwhile or to shape delegation that is explicitly required.
+  Keeps design and final judgment in the main session and defines the required Scope, Deliverable, and Output Format.
 ---
 
 # Task Delegation Policy
@@ -14,8 +15,10 @@ This skill does not authorize delegation.
 Use it only after the current host permits subagent delegation, and obey that host's authorization rules.
 
 Permission to delegate is not the same as a requirement to delegate.
-When delegation is permitted but neither the user nor an applicable workflow explicitly requires it, decide whether to delegate using task independence and total delegation cost.
-When the user or an applicable workflow explicitly requires delegation, do not cancel that requirement solely because work in the main session would cost less.
+A user request or an instruction in the procedure being followed may require delegation, but that requirement does not replace the host's permission.
+The host's authorization rules determine whether delegation may proceed, even when stated in terms of cost.
+When delegation is permitted but not explicitly required, decide whether to delegate using task independence and total delegation cost.
+When delegation is permitted and explicitly required, do not cancel it solely because work in the main session would cost less.
 Within that requirement's constraints, this skill still determines the delegated scope, agent type, number of launches, whether to continue an existing agent or spawn a new one, and the delegation brief.
 
 ## Keep judgment in the main session
