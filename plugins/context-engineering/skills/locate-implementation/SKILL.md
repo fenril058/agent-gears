@@ -1,6 +1,6 @@
 ---
 name: locate-implementation
-description: Locate candidate implementation files and line ranges for a concrete behavior or symptom described in natural language when the repository terminology, symbols, and paths are unknown and the code likely spans multiple subsystems. Use fastcontext only for this bounded repository-location task. Do not use it for known files or symbols, small searches, architecture or design analysis, issue prioritization, or questions requiring non-repository evidence.
+description: Locate candidate implementation files and line ranges for a concrete behavior or symptom described in natural language when the repository terminology, symbols, and paths are unknown and the code likely spans multiple subsystems. Use fastcontext only for this bounded repository-location task. fastcontext may send repository content to its configured OpenAI-compatible endpoint; require explicit user permission before any API call when the endpoint is non-loopback or cannot be classified. Do not use it for known files or symbols, small searches, architecture or design analysis, issue prioritization, or questions requiring non-repository evidence.
 compatibility: >-
   Requires the fastcontext CLI on PATH plus an OpenAI-compatible API (env vars FC_API_KEY, FC_MODEL, FC_BASE_URL; legacy names are also supported).
   Neither is bundled with the skill; if either is missing, report it as a setup gap and then fall back to Grep/Read.
@@ -40,10 +40,37 @@ Never use `fastcontext` for:
 - `FC_MODEL` (`MODEL`)
 - `FC_BASE_URL` (`BASE_URL`)
 
+### Endpoint classification and permission
+
+Before any `fastcontext` API call, inspect the URL string in `FC_BASE_URL`, or `BASE_URL` only when `FC_BASE_URL` is unset.
+Do not make a network request, perform a DNS lookup, or run a `fastcontext` probe to classify it.
+Do not print API keys, authentication headers, or an unfiltered environment-variable listing.
+
+Classify the endpoint from the URL string alone:
+
+- **Loopback:** the parsed host is exactly `localhost` (case-insensitive) or is a loopback IPv4 or IPv6 address.
+- **Non-loopback:** the URL has a determinate host that is not loopback. Private-network, VPN, and LAN addresses are non-loopback.
+- **Indeterminate:** the URL is absent or cannot be parsed, or its host cannot be determined.
+
+Do not resolve a hostname or infer that its address is loopback.
+For a loopback endpoint, no additional permission about sending data externally is required.
+For a non-loopback or indeterminate endpoint, obtain explicit user permission before the first API call.
+Show only the destination scheme, host, and port.
+For the port, use an explicit port or the scheme's standard default when known; use `unknown` for any value that cannot be determined.
+Do not show the path, query, user information, credentials, or API key.
+Also state that repository content may be sent and that API usage or charges may occur.
+
+Do not repeat the confirmation if the user has already explicitly requested this run while demonstrating that they understand both the destination and the transmission of repository content.
+A general request to investigate or to use `fastcontext` does not authorize sending repository content to an external or indeterminate endpoint.
+If permission is not obtained, do not run `fastcontext`; state the reason in one line and fall back to targeted Grep, Glob, and direct reads.
+
 Keep credentials outside the repository and the Nix store.
 For Ollama, use a non-empty dummy key and a base URL such as `http://localhost:11434/v1`.
 
 During initial setup, verify the real endpoint once with `fastcontext -q "test" --max-turns 1`.
+This probe is an API call, so apply the same endpoint classification before running it.
+For a non-loopback or indeterminate endpoint, show the scheme, host, and port, warn that API usage or charges may occur, and obtain explicit permission before the probe.
+Permission for the probe alone does not authorize a later search that may transmit repository content; obtain that permission separately unless the user has already explicitly granted it.
 Do not repeat this probe before normal searches, and never start it while another `fastcontext` process is running.
 
 ## Query narrowly
@@ -97,6 +124,7 @@ Use an Explore subagent only when delegation is authorized.
 Distinguish these cases:
 
 - Missing CLI or credentials: report a setup gap.
+- Permission not obtained for a non-loopback or indeterminate endpoint: report that `fastcontext` was skipped and use the fallback.
 - Connection refusal or endpoint failure: report an unconfirmed execution failure, not a configuration conclusion.
 - More than 90 seconds: report that the search exceeded its wall-clock budget.
 - Completed with no output: report an empty result only after confirming successful completion.
