@@ -12,13 +12,15 @@ That does not make every doubt worth measuring.
 A comparison between "with the instruction" and "without it" is only evidence if the arm that is supposed to be without it genuinely cannot reach it — and establishing that is harder than writing the instruction was.
 So work in order: audit statically, use what the host already gives you, and build a measurement only when a specific unresolved behaviour survives both.
 
-## When to use
+## Suitable explicit requests
 
-- Right after creating or substantially revising a skill / slash command / task prompt
-- When an agent does not behave as expected and you want to attribute the cause to ambiguity on the instruction side
-- When hardening high-importance instructions (frequently used skills, automation-core prompts)
+This skill runs only when an operator asks for it by name. The situations below are the ones worth asking about — they are not triggers, and none of them makes this skill start on its own.
 
-Not for one-off throwaway prompts, and not for encoding the writer's subjective preferences.
+- An operator wants a skill / slash command / task prompt checked after it was created or substantially revised
+- An operator wants an agent's unexpected behaviour attributed to ambiguity on the instruction side
+- An operator wants a high-importance instruction hardened (a frequently used skill, an automation-core prompt)
+
+Not worth asking about for one-off throwaway prompts, or for encoding the writer's subjective preferences.
 
 ## 1. Static consistency audit
 
@@ -36,7 +38,10 @@ An instruction that duplicates or contradicts them is a defect visible without r
 ## 2. First-party tooling
 
 Before building anything, use what the host provides for running, tracing, and evaluating its own instructions.
-It is maintained by the people who change the runtime, it usually exposes the trace you actually need, and it costs nothing to keep working.
+It is maintained by the people who change the runtime, and it costs nothing to keep working.
+
+Calibrate it before trusting a result. Establish what the tool actually measures, what its unit of comparison is, which evidence it captures, and when it stops.
+Being first-party does not by itself establish reachability-level baseline isolation — the conditions in step 3 still have to be met before a result reads as a candidate's causal effect.
 
 ## 3. Custom measurement
 
@@ -52,7 +57,7 @@ A measurement that leaves the decision unchanged either way is not worth its cos
 Enumerate what the deliverable must satisfy before the run, and do not move it afterwards.
 Never put the requirements into the execution prompt.
 An arm that is handed the checklist can implement it directly, which collapses the difference the comparison exists to detect.
-Score afterwards, from the deliverable.
+Score afterwards, from the deliverable and the observable evidence you captured.
 
 ### Score on observable evidence
 

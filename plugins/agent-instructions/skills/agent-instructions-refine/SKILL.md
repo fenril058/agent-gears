@@ -63,8 +63,8 @@ When unsure, flag it for the user instead of dropping it. A missing safeguard is
 
 ## Combine with
 
-- `empirical-prompt-tuning` is the measured QA loop for instruction text (operator-triggered).
-  This skill is the direct editing procedure — run [[empirical-prompt-tuning]] afterward to verify the slimmed file still works.
+- `empirical-prompt-tuning` checks instruction text (operator-triggered by name, never automatic).
+  This skill is the direct editing procedure. When an operator asks whether the slimmed file still works, [[empirical-prompt-tuning]] starts from a static description / body audit and the host's own tooling; a candidate-vs-baseline comparison happens only on explicit request, and only when its isolation conditions can be met.
 - Apply the always-on rule against undefined terms while editing.
   Invoke [[no-neologism]] only when the task calls for a dedicated terminology audit.
 

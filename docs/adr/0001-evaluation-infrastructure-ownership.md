@@ -59,5 +59,10 @@ Git 履歴は、その瞬間には参照されない。
 その時点の first-party tooling と、そこで構成できる隔離境界から再判断する。
 
 host または model の前提が変わったときは、全体 benchmark ではなく health check を行う。
+health check は静的監査と first-party tooling による非因果的な点検であり、それ自体は候補の因果的な効果を主張しない。
 対象は、常時ルールと新しい system/tool description の競合確認、暗黙起動して副作用を持つ skill の near-miss、実利用で観測された失敗に限る。
+
+health check の結果として比較測定へ進む場合は、上に定めた再開条件をすべて満たす必要がある。
+health check は custom measurement の例外ではない。
+
 host/model をまたいだ結果を平均して単一の総合評価にはしない。

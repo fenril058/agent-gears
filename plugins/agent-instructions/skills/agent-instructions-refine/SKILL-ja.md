@@ -65,7 +65,10 @@ description: CLAUDE.md や AGENTS.md などのエージェント向け指示フ�
 
 ## 併用
 
-- `empirical-prompt-tuning` は指示文の実測 QA ループ(operator 起動)。この skill は直接編集の手順 — スリム化後に [[empirical-prompt-tuning]] を回して、まだ機能することを確かめる。
+- `empirical-prompt-tuning` は指示文を点検する skill(operator が名指しで起動する。自動では動かない)。
+  この skill は直接編集の手順。
+  スリム化後にまだ機能するかを operator が問うなら、[[empirical-prompt-tuning]] は `description` と本文の静的な監査と host 自身の tooling から始める。
+  候補あり / 候補なしの比較は、明示的に依頼され、かつ隔離条件を満たせる場合に限る。
 - 編集中は、未定義語を避ける常時ルールを適用する。
   用語だけを詳しく監査する必要がある場合に限り [[no-neologism]] を起動する。
 

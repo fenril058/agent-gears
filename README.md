@@ -43,9 +43,9 @@ task-delegation は範囲の定まった作業の委譲を扱い、subagent-cons
 ### agent-instructions (指示テキスト自体を書き、測る)
 
 - agent-instructions-refine: CLAUDE.md / AGENTS.md を圧縮する。コードから導出できる情報を削り、残りを検証可能な命令文に書き直す。
-- empirical-prompt-tuning: 書いた指示をバイアスを排した実行者に動かさせ、自己申告と指示側メトリクスの両面で評価して反復する。
+- empirical-prompt-tuning: 書いた指示の `description` と本文の整合を静的に監査する。host の first-party tooling を優先し、比較測定は隔離条件が揃う場合に限る(operator の明示起動のみ)。
 
-対で回す。片方が削り、もう片方が削った結果まだ機能するかを測る。
+対で使う。片方が削り、もう片方が削った結果を点検する。点検は静的監査から始め、測定は明示的に依頼されたときだけ行う。
 
 ### critique (決める前に案を叩く)
 
@@ -252,8 +252,6 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
   - MIT なので取り込んで改変する方針に変えた(上流を取り直さない)。
     これに伴い、上流の運用追補を置いていた `NOTES-local.md` は `SKILL.md` / `SKILL-ja.md` へ畳んで削除し、
     上流生成の `README.md`(中身は上流からのインストール手順)も削除した。
-    畳んだ内容には [waxa-eval](https://github.com/mizchi/skills/tree/main/meta/waxa-eval)(MIT)由来の知見を
-    session 内ループ向けに書き直したものを含む。waxa CLI 本体は未導入。
 - **yasunori0418/skills 由来**(`learning` の `navigating` / `quizzing` / `tutoring`):
   - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
   - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
