@@ -9,7 +9,8 @@ compatibility: >-
 
 # Locate Implementation (fastcontext)
 
-Use `fastcontext` as a bounded, read-only locator.
+Use `fastcontext` as a bounded locator that is read-only with respect to repository files.
+It does not modify those files, but it may transmit repository content to its configured endpoint.
 Return candidate files and line ranges for the main agent to verify; do not delegate design or final judgment to it.
 
 ## Eligibility gate
@@ -40,32 +41,38 @@ Never use `fastcontext` for:
 - `FC_MODEL` (`MODEL`)
 - `FC_BASE_URL` (`BASE_URL`)
 
-### Endpoint classification and permission
+Keep credentials outside the repository and the Nix store.
+For Ollama, use a non-empty dummy key and a base URL such as `http://localhost:11434/v1`.
+
+## Endpoint classification and permission
 
 Before any `fastcontext` API call, inspect the URL string in `FC_BASE_URL`, or `BASE_URL` only when `FC_BASE_URL` is unset.
 Do not make a network request, perform a DNS lookup, or run a `fastcontext` probe to classify it.
 Do not print API keys, authentication headers, or an unfiltered environment-variable listing.
+Parse the string with a local standards-compliant URL parser and use its hostname or host component, excluding URL userinfo and the port; do not identify the host by visually scanning or splitting the string.
+If no such parser is available or parsing fails, classify the endpoint as indeterminate.
+In a parsed URL, userinfo is separate from and appears before the host, so `http://localhost@collector.example.com/v1` has host `collector.example.com`.
 
 Classify the endpoint from the URL string alone:
 
-- **Loopback:** the parsed host is exactly `localhost` (case-insensitive) or is a loopback IPv4 or IPv6 address.
+- **Loopback:** the parsed host is exactly `localhost` (case-insensitive), an IPv4 address in `127.0.0.0/8`, or the IPv6 address `::1`.
 - **Non-loopback:** the URL has a determinate host that is not loopback. Private-network, VPN, and LAN addresses are non-loopback.
 - **Indeterminate:** the URL is absent or cannot be parsed, or its host cannot be determined.
 
+`0.0.0.0` and `::` are unspecified addresses, not loopback addresses; classify them as non-loopback.
 Do not resolve a hostname or infer that its address is loopback.
 For a loopback endpoint, no additional permission about sending data externally is required.
-For a non-loopback or indeterminate endpoint, obtain explicit user permission before the first API call.
+For a non-loopback or indeterminate endpoint, complete the following disclosure and permission exchange before the first API call.
 Show only the destination scheme, host, and port.
 For the port, use an explicit port or the scheme's standard default when known; use `unknown` for any value that cannot be determined.
-Do not show the path, query, user information, credentials, or API key.
+Do not show the path, query, userinfo, credentials, or API key.
 Also state that repository content may be sent and that API usage or charges may occur.
+Ask an explicit question in the conversation that includes this disclosure, and receive the user's answer before the tool call.
+A tool-level command-approval prompt does not count as this permission.
 
 Do not repeat the confirmation if the user has already explicitly requested this run while demonstrating that they understand both the destination and the transmission of repository content.
 A general request to investigate or to use `fastcontext` does not authorize sending repository content to an external or indeterminate endpoint.
 If permission is not obtained, do not run `fastcontext`; state the reason in one line and fall back to targeted Grep, Glob, and direct reads.
-
-Keep credentials outside the repository and the Nix store.
-For Ollama, use a non-empty dummy key and a base URL such as `http://localhost:11434/v1`.
 
 During initial setup, verify the real endpoint once with `fastcontext -q "test" --max-turns 1`.
 This probe is an API call, so apply the same endpoint classification before running it.
@@ -75,6 +82,7 @@ Do not repeat this probe before normal searches, and never start it while anothe
 
 ## Query narrowly
 
+Classify the endpoint and obtain any required permission before running the query.
 Name the behavior, boundary, or symptom and ask only for candidate locations.
 Use `--citation` and default to `--max-turns 1`.
 

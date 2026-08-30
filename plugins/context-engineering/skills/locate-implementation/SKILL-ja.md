@@ -10,7 +10,8 @@ compatibility: >-
 
 # Locate Implementation (fastcontext)
 
-`fastcontext` を、読み取り専用かつ時間を制限したコード位置探索に使う。
+`fastcontext` を、リポジトリのファイルに対して読み取り専用かつ時間を制限したコード位置探索に使う。
+リポジトリのファイルは変更しないが、設定済みのエンドポイントへリポジトリ内容を送信する可能性がある。
 メインエージェントが確認する候補ファイルと行範囲だけを返させ、設計や最終判断を委ねない。
 
 ## 適用条件
@@ -41,34 +42,41 @@ compatibility: >-
 - `FC_MODEL` (`MODEL`)
 - `FC_BASE_URL` (`BASE_URL`)
 
-### エンドポイントの分類と許可
+認証情報はリポジトリや Nix store に置かない。
+Ollama では、空でないダミーの鍵と `http://localhost:11434/v1` のようなベース URL を使う。
+
+## エンドポイントの分類と許可
 
 `fastcontext` で API を呼び出す前に、`FC_BASE_URL` の URL 文字列を確認する。
 `FC_BASE_URL` が未設定の場合だけ `BASE_URL` を確認する。
 分類のためにネットワーク要求、DNS 名前解決、`fastcontext` の probe を実行しない。
 API key、認証 header、環境変数の無差別な一覧を表示しない。
+標準に準拠したローカルの URL パーサーで文字列を解析し、URL の userinfo と port を除いた hostname または host component を使う。
+文字列を目視で切り出したり、区切り文字で分割したりして host を決めない。
+該当するパーサーを利用できない場合や解析に失敗した場合は、判定不能に分類する。
+解析済み URL では userinfo は host とは別の要素としてその前にあるため、`http://localhost@collector.example.com/v1` の host は `collector.example.com` である。
 
 URL 文字列だけからエンドポイントを分類する。
 
-- **Loopback:** 解析した host が大文字と小文字を区別せず `localhost` と完全一致するか、loopback IPv4 address または loopback IPv6 address である。
-- **非 loopback:** URL から host を確定でき、その host が loopback ではない。プライベートネットワーク、VPN、LAN 内の address も非 loopback とする。
+- **Loopback:** 解析した host が大文字と小文字を区別せず `localhost` と完全一致するか、IPv4 アドレスの `127.0.0.0/8` に含まれるか、IPv6 アドレスの `::1` である。
+- **非 loopback:** URL から host を確定でき、その host が loopback ではない。プライベートネットワーク、VPN、LAN 内の IP アドレスも非 loopback とする。
 - **判定不能:** URL が無い、URL を解析できない、または host を確定できない。
 
-hostname を名前解決したり、その address が loopback だと推測したりしない。
+`0.0.0.0` と `::` は未指定アドレスであり、loopback アドレスではないため、非 loopback に分類する。
+hostname を名前解決したり、その IP アドレスが loopback だと推測したりしない。
 loopback endpoint では、外部へのデータ送信に関する追加の許可を必要としない。
-非 loopback または判定不能な endpoint では、最初の API 呼び出しより前に利用者の明示的な許可を得る。
+非 loopback または判定不能な endpoint では、最初の API 呼び出しより前に次の開示と許可取得を完了する。
 送信先の scheme、host、port だけを示す。
 port は明示された値を使い、明示されていなければ既知の scheme の標準 port を使う。
 確定できない値には「不明」と記す。
-path、query、user information、認証情報、API key は表示しない。
+path、query、userinfo、認証情報、API key は表示しない。
 リポジトリ内容が送信される可能性と、API の使用または課金が発生する可能性も伝える。
+この開示を含む明示的な質問を会話内で行い、ツールを呼び出す前に利用者の回答を得る。
+ツール呼び出し時のコマンド承認プロンプトは、この許可とは扱わない。
 
 利用者が送信先とリポジトリ内容の送信を理解したうえで当該実行をすでに明示的に依頼している場合は、同じ確認を繰り返さない。
 一般的な「調べて」や「fastcontext を使って」という依頼は、外部または判定不能な endpoint へのリポジトリ内容の送信許可とは扱わない。
 許可が得られなければ `fastcontext` を実行せず、理由を1行で述べ、対象を絞った Grep、Glob、必要ファイルの直接読み取りへフォールバックする。
-
-認証情報はリポジトリや Nix store に置かない。
-Ollama では、空でないダミーの鍵と `http://localhost:11434/v1` のようなベース URL を使う。
 
 初期設定時に一度だけ `fastcontext -q "test" --max-turns 1` で実エンドポイントを確認する。
 この probe も API 呼び出しなので、実行前に同じ endpoint 分類を適用する。
@@ -79,6 +87,7 @@ probe だけの許可は、リポジトリ内容を送信する可能性があ�
 
 ## 問いを絞る
 
+問いを実行する前にエンドポイントを分類し、必要な許可を得る。
 挙動、境界、または症状を示し、候補位置だけを求める。
 `--citation` を使い、既定では `--max-turns 1` とする。
 
