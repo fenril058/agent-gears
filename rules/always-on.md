@@ -43,10 +43,15 @@
 
 - worktree は並列作業(複数セッション/エージェントの同時進行)を意図するときだけ使う。
   worktree はセッション分割によるcontext断絶と人間の切り替えの手間を伴うため、並列を意図しない単発作業ではメインの checkout で `git switch`/`git checkout` して branch を切り替える。
-- worktree の作成経路は、その環境に設定された setup hook と環境準備(依存関係、gitignored ファイル、`direnv allow` など)を完了させるものでなければならない。
-  この要件を満たすと確認できない経路で作られた worktree を、満たしたものとして扱わない。
-- 準備の完了を確認してから実装、ビルド、テスト、`direnv exec` を行う。
-  準備は background で走ることがあるため、worktree が存在することを準備完了と見なさない。
+- 新規 worktree は既定では `wt switch --create <branch>`(worktrunk)で作る。
+  現在のセッションで、host 固有の作成経路が `wt switch --create` を実際に呼び Worktrunk lifecycle を通ると確認できる場合だけ、その経路で代替してよい。
+- `wt` が無い、hook の承認で停止した、Worktrunk integration が未導入・無効・故障している、経路を確認できない、のいずれかなら、別の作成方法へ黙って fallback せず停止して報告する。
+- Worktrunk lifecycle を通ったことと、環境準備が完了したことを同一視しない。
+  pre-start は blocking で、`wt switch --create` が返る前に完了する。
+  post-start は background で、worktree が使える時点では完了していない。
+- 作業開始前に完了している必要がある処理は pre-start に置かれていなければならない。
+  post-start にある処理に依存する操作の前には、プロジェクト固有の readiness、終了状態、または log(`wt config state logs`)を確認する。
+  worktree の存在や `wt switch` の成功を post-start 完了の証拠にしない。
 - 実装ファイルの変更は、対象 worktree を cwd または書き込み可能な workspace root として開始したセッションだけで行う。
 - 別のセッションから兄弟 worktree に対する実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
   読み取り専用のレビューは既存セッションから行ってよい。

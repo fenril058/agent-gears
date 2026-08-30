@@ -2,20 +2,27 @@
 
 ## worktree
 
-- Worktrunk plugin の `WorktreeCreate` hook がセッションに読み込まれている場合、Claude Code の native worktree 作成を使ってよい。
-  hook が `wt switch --create` を実行するので、worktrunk が管理する通常の worktree になり、`rules/always-on.md` の環境準備の要件を満たす。
-  成立しているときは、要求した branch 名がそのまま使われ、worktree は worktrunk の layout(リポジトリの兄弟ディレクトリ)に作られる。
+- `WorktreeCreate` hook がセッションに読み込まれていれば、Claude Code の native worktree 作成は `wt switch --create` を呼び、Worktrunk lifecycle を通る。
+  これで確認できるのは、Worktrunk の作成経路を通ったことと、blocking な pre-start が完了したことまで。
+  background の post-start の完了と成功はこれに含まれないので、依存する操作の前に別途確認する(`rules/always-on.md`)。
+- どちらの経路になったかは、作成された path と branch 名で判別する。
+  hook 経由なら要求した branch 名がそのまま使われ、worktrunk の layout(リポジトリの兄弟ディレクトリ)に作られる。
+  hook 無しなら Claude Code 組み込みの経路になり、リポジトリ内の `.claude/worktrees/` に、branch 名を加工して(`/` が `+` になり `worktree-` が前置される)作られる。
+  path と branch 名は経路の判別にだけ使う。
+  環境準備が完了した証拠にはならない。
+  `wt list` は `git worktree list` を列挙するだけで、どちらの経路の worktree も表示するので判別に使えない。
 - plugin がインストール済みでも、セッションに読み込まれていなければ hook は動かない。
   `worktrunk:` namespace の skill が使えることが、読み込まれている観測可能な手がかりになる。
-  使えなければ `/reload-plugins` で読み込む。
-- hook が読み込まれていると確認できないセッションでは、native worktree 作成を安全な経路と見なさない。
-  hook 無しでは Claude Code 組み込みの経路になり、worktree はリポジトリ内の `.claude/worktrees/` に作られ、branch 名は加工される(`/` が `+` になり `worktree-` が前置される)。
-  この worktree は worktrunk の setup を通らないため、`rules/always-on.md` の環境準備の要件を満たさない。
-- どちらの経路になったかは、作成された path と branch 名で判別する。
-  `wt list` に出ることは判別に使えない。
-  `wt list` は `git worktree list` を列挙するので、どちらの経路の worktree も表示される。
-- サブエージェントの worktree isolation が同じ hook を通るかは未確認。
-  確かめるまで、通ると仮定しない。
+  使えなければ `/reload-plugins` を試す。
+  ただしこれは復旧手段のひとつにすぎない。
+- reload 後も hook を確認できない、または plugin が未導入・無効・故障している場合は、native 作成を使わない。
+  `rules/always-on.md` の既定経路(`wt switch --create`)に戻る。
+  現在の Claude セッションを対象 worktree に移せないなら、停止して報告する。
+- `Agent` の `isolation: "worktree"` も同じ `WorktreeCreate` hook を通る(worktrunk plugin の一次資料による)。
+  ただし Claude Code は内部 agent ID を `name` として渡すため、`worktrunk.agent-<id>` という throwaway branch の worktree になる。
+- hook を通ることと、実装用 worktree の運用要件を満たすことは別。
+  canonical な feature branch、path、workspace root、後続の統合方法は満たされず、これらは実行して確認してもいない。
+  よって Agent isolation は通常の実装委譲には使わず、`rules/always-on.md` の workspace root 規則に従う。
 
 ## Codex への委譲
 
