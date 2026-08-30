@@ -30,14 +30,16 @@
 
 ## Git 操作
 
-- 「`origin/main` の最新を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
+- 読み取り専用の依頼、network unavailable、または `.git` に書き込めない状況では `git fetch` を実行しない。
+  その場合は「現在の `origin/main` が最新かは未確認」と明記し、最新性を主張しない。
+  実行可能な場合だけ、「`origin/main` の最新を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
 
 ## リポジトリ配置 (ghq)
 
 - GitHub 等の clone は ghq 管理下に置く(`~/ghq/<host>/<owner>/<repo>`)。
 - ただし `<owner>/<repo>` は **`ghq get` した URL** で決まり、現在の `origin` とは一致しないことがある。
   upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
-- よって path を `origin` から推測しない。実 path は `ghq list --full-path <repo>` で確認する。
+- よって path を `origin` から推測しない。実 path は `ghq list --exact --full-path <repo>` で確認する。
 
 ## worktree(エージェント隔離)
 
@@ -61,4 +63,4 @@
 
 ## Markdownの整形ルール
 
-- 一文ごとに改行し、段落の区切りは空行で示す。
+- リポジトリ内の Markdown 文書は、一文ごとに改行し、段落の区切りを空行で示す。
