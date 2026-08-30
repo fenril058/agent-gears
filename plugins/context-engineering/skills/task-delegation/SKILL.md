@@ -1,7 +1,7 @@
 ---
 name: task-delegation
 description: >-
-  Use when deciding whether to delegate work to a subagent, or when writing a delegation brief.
+  Use after the current host permits subagent delegation, when selecting bounded independent tasks to delegate or writing a delegation brief.
   Bases the decision on task independence and total delegation cost, keeps design and final judgment in the main session, and defines the required Scope, Deliverable, and Output Format.
 ---
 
@@ -10,8 +10,13 @@ description: >-
 Delegate by task independence, not by model price.
 A subagent is useful when it can complete a bounded unit of work without repeatedly consulting the main session and the main session can verify the result from a concise report or diff.
 
-Delegation is allowed only when the user or host instructions authorize spawning a subagent.
-This skill governs the decision after delegation is allowed; it never overrides the host's rules.
+This skill does not authorize delegation.
+Use it only after the current host permits subagent delegation, and obey that host's authorization rules.
+
+Permission to delegate is not the same as a requirement to delegate.
+When delegation is permitted but neither the user nor an applicable workflow explicitly requires it, decide whether to delegate using task independence and total delegation cost.
+When the user or an applicable workflow explicitly requires delegation, do not cancel that requirement solely because work in the main session would cost less.
+Within that requirement's constraints, this skill still determines the delegated scope, agent type, number of launches, whether to continue an existing agent or spawn a new one, and the delegation brief.
 
 ## Keep judgment in the main session
 
@@ -40,7 +45,7 @@ Choose a subagent capable of the work; model price is a secondary implementation
 
 ## Account for total delegation cost
 
-Do not delegate when the total overhead is likely to exceed doing the work in the main session.
+When delegation is permitted but not required, do not delegate when the total overhead is likely to exceed doing the work in the main session.
 Include all of the following, not just model price:
 
 - reconstructing the relevant context in the subagent;
@@ -49,6 +54,7 @@ Include all of the following, not just model price:
 - reviewing and integrating the result.
 
 Keep the work in the main session when it is short, tightly coupled to the current decision, or already supported by context the main session holds.
+When delegation is explicitly required, use total cost to shape and limit the delegation rather than as the sole reason to cancel it.
 Price and rate limits may break a tie only after independence and total overhead have been considered.
 
 ## Write the brief
