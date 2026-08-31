@@ -52,12 +52,11 @@ When a term conflicts with the existing language in `CONTEXT.md`, call it out im
 When a term is vague or overloaded, propose a precise canonical term. "You're saying
 'account' — do you mean the Customer or the User? Those are different things."
 
-This is the project-internal counterpart to `no-neologism`, and the two pull in opposite
-directions on purpose. `no-neologism` governs **terms of art**: use the field's
-established word, don't coin your own. This skill governs **the ubiquitous language**:
-within one project, pick one canonical word for one concept and be opinionated about it.
-When a field-standard term exists, it wins and becomes the canonical one; the opinionated
-choice only applies among words the field leaves equally open.
+Keep the field's terminology and the project's ubiquitous language apart. For a **term of
+art**, use the field's established word — don't coin your own. For **the ubiquitous
+language**, pick one canonical word for one concept within this project and be opinionated
+about it. When a field-standard term exists, it wins and becomes the canonical one; the
+opinionated choice only applies among words the field leaves equally open.
 
 ### Discuss concrete scenarios
 
@@ -125,5 +124,3 @@ State the resolved directory before writing the first ADR.
   reviewer reads the context first and follows the link.
 - **durable-knowledge-export**: the durable tier, outside the repo. Cross-cutting
   knowledge about the system goes there, not into an ADR.
-- **no-neologism**: field-standard terminology. See "sharpen fuzzy language" above for how
-  the two divide.

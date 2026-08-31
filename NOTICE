@@ -3,10 +3,9 @@ Copyright (c) 2026 fenril058 (ril)
 
 This product is licensed under the MIT License (see LICENSE). The MIT License
 covers the repository as a whole and all original work in it, including
-project-records/durable-knowledge-export, writing/no-neologism,
-agent-instructions/agent-instructions-refine, the context-engineering skills
-other than subagent-consultation, cmd/mdidx, and the packaging/distribution
-machinery (install.sh, nix/, scripts/, flake.nix, etc.).
+project-records/durable-knowledge-export, agent-instructions/agent-instructions-refine,
+the context-engineering skills other than subagent-consultation, cmd/mdidx, and the
+packaging/distribution machinery (install.sh, nix/, scripts/, flake.nix, etc.).
 
 The skills listed below are derived from third parties. Each retains its own
 license/notice file, which governs it. All are MIT or public domain and thus

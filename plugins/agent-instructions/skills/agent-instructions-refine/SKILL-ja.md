@@ -69,8 +69,6 @@ description: CLAUDE.md や AGENTS.md などのエージェント向け指示フ�
   この skill は直接編集の手順。
   スリム化後にまだ機能するかを operator が問うなら、[[empirical-prompt-tuning]] は `description` と本文の静的な監査と host 自身の tooling から始める。
   候補あり / 候補なしの比較は、明示的に依頼され、かつ隔離条件を満たせる場合に限る。
-- 編集中は、未定義語を避ける常時ルールを適用する。
-  用語だけを詳しく監査する必要がある場合に限り [[no-neologism]] を起動する。
 
 Anthropic の "Write an effective CLAUDE.md" の指針に基づく
 (<https://code.claude.com/docs/en/best-practices>)。

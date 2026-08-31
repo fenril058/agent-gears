@@ -21,7 +21,7 @@ critique / project-records / code-review   ← ワークフロー層
         ↓                                    (基盤を呼ぶ)
 context-engineering                        ← 基盤層
 agent-instructions                         ← 指示テキスト自体を書き、測る
-writing                                    ← 文章の規範(用語規則は全層から参照)
+writing                                    ← 文章の規範(日本語の原稿向け)
 learning                                   ← AI支援後の理解を深める
 ```
 
@@ -87,11 +87,10 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 - japanese-tech-writing: 日本語の技術文書・書籍原稿の整形・パラグラフライティング・論証の厳密さ・冗長の排除。
 - argument-gap-edit: 論証の筋を点検し、段落を再配置する。
-- no-neologism: 未定義語・勝手な造語を確立した術語へ直す、必要時の用語監査。
 
-前2つは日本語原稿向け、no-neologism は散文・コード・回答の用語監査を明示的に行うときに使う。
-勝手な造語を避ける原則自体は常時ルールで適用し、通常の執筆だけを理由に no-neologism を起動しない。
-`no-neologism` が扱うのは分野の術語であり、プロジェクト内部の語彙は `project-records` の `domain-modeling` が扱う。
+どちらも日本語原稿向け。
+未定義語・勝手な造語を避ける原則自体は常時ルールで適用し、術語・訳語の選び方は `japanese-tech-writing` の「視点と語り」が扱う。
+プロジェクト内部の語彙は `project-records` の `domain-modeling` が扱う。
 
 ## 構成
 
@@ -148,7 +147,6 @@ plugins/
     skills/
       japanese-tech-writing/  日本語技術文書の文章規範
       argument-gap-edit/      論証の筋を点検・再配置する編集
-      no-neologism/           未定義語・造語の点検手順(核ルールは rules/always-on.md)
 rules/always-on.md   全エージェント共通の常時ルール(個人設定)
 rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
 AGENTS.md            このリポジトリで作業する全エージェント向けの repo-local 指示(配布しない)
@@ -174,7 +172,7 @@ docs/adr/            覆しにくい決定の記録(ADR)。追記と supersede �
 そこで **指示が中心で言語中立な skill は英語版 `SKILL.md` を正本** とし、日本語は保守ミラー `SKILL-ja.md` として併置する(agentがロードするのは `SKILL.md` のみ)。
 
 - **英語正本 + `SKILL-ja.md`**:
-  - `writing` の `no-neologism` を含む、下記以外のすべて。
+  - 下記以外のすべて。
 - **日本語 `SKILL.md` のまま**:
   - `writing` の `japanese-tech-writing` / `argument-gap-edit`。規範の中身・例文が日本語前提のため。
 - **`TEMPLATE.md` は日本語のまま**:
@@ -234,7 +232,7 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
   - `project-records` の `domain-modeling`。
     - ライセンスは **MIT**、`plugins/project-records/skills/domain-modeling/LICENSE` 参照。
     - ADR ディレクトリを上流の `docs/adr/` 決め打ちから解決式に変更した(既存リポジトリの慣習・`.adr-dir` 等を探す)。
-    - supersede 規則、3層の振り分け、`no-neologism` との分担を追記した。
+    - supersede 規則、3層の振り分け、術語と ubiquitous language の分担を追記した。
 - `project-records` の `durable-knowledge-export` は **自作**。
     - 揮発層(`conversation-context-export`)・記録層(`domain-modeling`)の対として、
       ブランチを越える永続知見を**リポジトリの外**(GitHub wiki、または `AGENT_KNOWLEDGE_REPO` が指す knowledge リポジトリ)へ書き出す。
