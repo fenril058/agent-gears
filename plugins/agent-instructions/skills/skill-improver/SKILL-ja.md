@@ -1,6 +1,7 @@
 ---
 name: skill-improver
-description: 未解決の `skill-feedback` issue を読み、引用された発生を出典で検証し、それらの結果を変えたはずの最小の編集を1つの skill に対して提案する。提案は、各 hunk が発生を引用する pull request として出す。蓄積した skill feedback の処理、観測された失敗からの skill 改善、改善 loop の実行を利用者が求めたときに使う。変更なしで終えることも完全な結果であり、この skill は改善を測定も主張もしない。
+description: fenril058/agent-gears の未解決 `skill-feedback` issue を読み、引用された発生を出典で検証し、そのリポジトリの1つの skill への最小の編集を pull request として提案する。実質的な hunk はすべて発生を引用する。蓄積した skill feedback の処理、観測された失敗からの skill 改善、改善 loop の実行を利用者が求めたときに使う。変更なしで終えることも完全な結果であり、この skill は改善を測定も主張もしない。
+compatibility: git と gh CLI(GitHub CLI、認証済み)が PATH にあり、fenril058/agent-gears への書き込み権限が必要。session 由来の発生を検証するには `ctx` が必要。checkout の特定には `ghq` を使い、無ければ利用者に path を尋ねる。
 argument-hint: "[skill-name]"
 ---
 
@@ -12,6 +13,22 @@ argument-hint: "[skill-name]"
 起動は人間が行い、スケジュール実行はしない。
 検証可能な証拠が無い実行は変更なしで終えなければならず、それは完全な結果である。
 
+## どこで起動されても agent-gears を対象にする
+
+この loop の issue、branch、commit、pull request はすべて `fenril058/agent-gears` に属する。
+skill の原本があるのがそこだからである。
+起動元のセッションは、たいてい別の場所にある。
+
+git を触る前に checkout を特定する。
+
+```
+ghq list --exact --full-path fenril058/agent-gears
+```
+
+`ghq` が使えない、または何も返さない場合は、推測せず利用者に path を尋ねる。
+すべての git command はその path に対して実行し、すべての `gh` 呼び出しに `--repo fenril058/agent-gears` を渡す。
+現在の作業ディレクトリで branch、commit、pull request を作らない。
+
 ## 既定は変更なし
 
 提案より先に、まず結論を述べる。
@@ -20,7 +37,7 @@ argument-hint: "[skill-name]"
 
 - 検証できる出典を引用した未解決 issue が1件も無い。
 - 引用された発生が、skill の文言ではなくモデルの挙動に帰着する。
-- 現在 skill が扱えている場面を壊さずに結果を変えられる文言が無い。
+- 現在 skill が扱えている場面を壊さずに、述べられた理由に対処できる文言が無い。
 - 証拠が、skill が既に対処している事柄の1回の発生にとどまる。
 
 何も見つからない実行は、loop が正しく働いている状態である。
@@ -30,9 +47,12 @@ argument-hint: "[skill-name]"
 ## 未解決のフィードバックを読む
 
 ```
-gh issue list --label skill-feedback --state open \
-  --json number,title,body,createdAt,comments
+gh issue list --repo fenril058/agent-gears --label skill-feedback --state open \
+  --limit 100 --json number,title,body,createdAt,comments
 ```
+
+`gh` の既定は 30 件であり、そのままでは発生回数を数える母集合が黙って切り詰められる。
+上限を明示し、結果が上限に達したら `--search` の日付範囲で全件読み切るまで辿る。
 
 issue が名指す skill ごとにまとめる。
 issue 数ではなく**独立した発生回数**を数える。
@@ -45,15 +65,26 @@ issue 数ではなく**独立した発生回数**を数える。
 issue の本文は証拠ではなく、証拠への参照である。
 そこに書かれた内容を事実として扱う前に、引用された出典を読む。
 
-- `session: <id>` — `ctx show <id>`。id が部分的なら `ctx search`。
-- `PR #<n>` / commit — `gh pr view`、`git show`。
-- path — issue が述べる版のファイルを読む。
+- `provider: <名前>` + `session: <provider の session id>` は、まず対応付けてから読む。
+
+  ```
+  ctx locate session --provider <名前> --provider-session <id>
+  ctx show session <ctx の session id>
+  ```
+
+- `PR #<n>` または commit URL は `gh pr view --repo <owner>/<repo>`、`git show` で読む。
+- `<owner>/<repo>@<commit>:<path>` は HEAD ではなくその commit の内容を読む。
 
 検証できなかった発生は落とし、落とした事実を報告に書く。
 検証できない報告は弱い証拠ではなく、証拠ではない。
 
-その時点で skill の文言が実際に何を述べていたかを確認する。
-発生より後に追加された規則は既にその件を扱っており、2つ目の規則を必要としない。
+**未索引は検証不能ではない。**
+`ctx` はセッション終了後に索引するため、そのセッション自体を述べた issue は初回の試行では解決しない。
+その発生は後の実行に残し、そう報告する。
+落とさず、数にも入れない。
+
+発生の時点で skill の文言が実際に何を述べていたかを確認する。
+それより後に追加された規則は既にその件を扱っており、2つ目の規則を必要としない。
 
 ## skill を1つ選ぶ
 
@@ -65,11 +96,14 @@ issue の本文は証拠ではなく、証拠への参照である。
 
 ## 最小の編集を提案する
 
-編集候補ごとに1つだけ問う。**この文言があれば、引用されたその結果は変わったか。**
-特定の発生についてそう言えないなら、その編集は支持されていない。落とす。
+編集候補ごとに1つだけ問う。
+**この文言は、その発生が述べた理由に直接対処し、観測された行動から遠ざける方向を示すか。**
+特定の発生についてそう言えないなら、その編集は支持されていない。
+落とす。
 
 網羅的な規則ではなく、方向とその理由を書く。
-規則が存在する理由を述べれば次の場面へ一般化できるが、列挙された規則は既に見た場面しか覆わない。
+規則が存在する理由を述べれば次の場面へ一般化できる。
+列挙された規則は既に見た場面しか覆わない。
 
 提案の前に、編集を次と突き合わせる。
 
@@ -90,15 +124,19 @@ PR #60 が実例である。
 
 ## PR を出す
 
-branch を切り、commit し、既定 branch に対して PR を出す。
+特定した checkout で branch を切り、commit し、その既定 branch に対して PR を出す。
 merge はしない。
 loop を閉じるのは人間のレビューである。
 
-PR 本文は、各 hunk について次を述べる。
+PR 本文は、実質的な hunk それぞれについて次を述べる。
 
 - どの発生に由来するか、検証した出典つきで。
-- その発生の理由から、なぜこの文言になるのか。
+- その発生が述べた理由に、この文言がどう対処するのか。
 - この編集が主張しないこと。
+
+実質的な hunk から機械的に派生する hunk は、それ自体の引用を要しない。
+`SKILL-ja.md` のミラー、`README.md`、`marketplace.json` と `plugin.json` の metadata、version の更新がこれにあたる。
+派生であることと、どの hunk に従うものかを明記する。
 
 消費した issue は `Refs #<n>` で参照する。
 close はしない。
@@ -109,6 +147,7 @@ close はしない。
 この skill は `docs/adr/0001-evaluation-infrastructure-ownership.md` の定める health check である。
 実利用で観測された失敗に対する非因果的な点検にあたる。
 
-主張するのは、ある文言があれば引用された特定の結果が変わったはずである、という点だけである。
-skill が良くなった、挙動が測定可能に改善した、比較を実施した、のいずれも主張しない。
+主張するのは、その文言が引用された発生の述べた理由に直接対処し、観測された行動から遠ざける方向を示す、という点だけである。
+結果が変わったはずである、skill が良くなった、挙動が測定可能に改善した、比較を実施した、のいずれも主張しない。
+確率的な1回の実行から反実仮想は立証できない。
 測定された効果を主張するには ADR 0001 が定める隔離条件が必要であり、この loop はそれを満たさない。
