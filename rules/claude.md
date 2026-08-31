@@ -2,7 +2,7 @@
 
 ## worktree
 
-- canonical な feature branch を必要とする並列委譲では、`Agent` の `isolation: "worktree"` を直接選ばず、`worktrunk` skill の parallel sub-Agent 手順に従う。
+- 指定した branch 名をそのまま使い、後続の統合手順もその branch を前提とする並列委譲では、`Agent` の `isolation: "worktree"` を直接選ばず、`worktrunk` skill の parallel sub-Agents 手順に従う。
 
 ## Codex への委譲
 

@@ -61,8 +61,9 @@ worktree, the write is allowed only if all of these hold:
 - The write target is exactly `.dev/contexts/{sanitized branch name}.md`.
 - The user has explicitly authorized this one-time cross-worktree write.
 
-This skill never builds, tests, runs `direnv exec`, or performs Git operations, so that
-single file write is everything it does in the target worktree.
+This skill never builds, tests, runs `direnv exec`, or changes Git state — step 1 only
+reads metadata — so that single file write is the only change it makes in the target
+worktree.
 
 If any condition doesn't hold, tell the user and ask them to switch to a session whose
 workspace root is the target worktree instead.

@@ -48,8 +48,11 @@
 
 ## worktree
 
-- `wt` が使えるなら、worktree の作成・切替・削除には raw な `git worktree` を使わず `wt` を通す。
-  ホスト固有の手順は Worktrunk の plugin / skill に従う。
+- `wt` が使えるなら、worktree の作成・切替・削除に `git worktree` を直接使わず `wt` を通す。
+  ホスト固有の作成経路が `wt` を通ると確認できないなら、その経路に頼らず `wt` を直接呼ぶ。
+  手順は、そのホストに Worktrunk の skill(`worktrunk` / `wt-switch-create`)があればそれに従う。
+- `wt` の成功や worktree の存在は、background で走る post-start の完了を意味しない。
+  post-start に依存する操作の前に、その完了を確認する。
 - 自分から worktree を作るのは、並列作業(複数セッション/エージェントの同時進行)を意図するときだけ。
   利用者が worktree を明示的に要求した場合は、この判断を挟まない。
 - worktree の path を渡されたことだけを、その worktree へ書き込める根拠にしない。
