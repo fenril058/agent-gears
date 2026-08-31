@@ -39,8 +39,12 @@ learning                                   ← AI支援後の理解を深める
 
 - agent-instructions-refine: CLAUDE.md / AGENTS.md を圧縮する。コードから導出できる情報を削り、残りを検証可能な命令文に書き直す。
 - empirical-prompt-tuning: 書いた指示の `description` と本文の整合を静的に監査する。host の first-party tooling を優先し、比較測定は隔離条件が揃う場合に限る(operator の明示起動のみ)。
+- skill-feedback: skill が外した観測を、その場で `skill-feedback` ラベルの issue に1件記録する。期待とその理由、検証できる出典を書く。
+- skill-improver: 未解決の feedback issue を出典で検証し、1つの skill への最小の編集を PR で提案する。既定は「変更なし」。
 
-対で使う。片方が削り、もう片方が削った結果を点検する。点検は静的監査から始め、測定は明示的に依頼されたときだけ行う。
+前2つは対で使う。片方が削り、もう片方が削った結果を点検する。点検は静的監査から始め、測定は明示的に依頼されたときだけ行う。
+後2つは改善 loop を成す。skill-feedback が観測を貯め、skill-improver が検証済みの観測だけを編集へ変える。
+起動は手動で、定期実行しない。方針は `docs/adr/0002-skill-improvement-loop.md`。
 
 ### critique (決める前に案を叩く)
 
@@ -113,6 +117,8 @@ plugins/
     skills/
       agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
       empirical-prompt-tuning/    指示の静的な整合確認と、測定を始める条件(mizchi/skills 由来・MIT)
+      skill-feedback/             skill が外した観測を issue に記録する
+      skill-improver/             feedback から skill の編集を PR で提案する
   critique/                       plugin: 決める前に案を叩く
     .claude-plugin/plugin.json
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)

@@ -17,8 +17,8 @@
     {
       "name": "agent-instructions",
       "source": "./plugins/agent-instructions",
-      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(description と本文の整合を静的に監査し、first-party tooling を優先する。比較測定は隔離条件が揃う場合に限り、operator の明示起動のみ)。対で使う。mizchi/skills(MIT)由来を含む。",
-      "version": "0.1.0",
+      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(description と本文の整合を静的に監査し、first-party tooling を優先する。比較測定は隔離条件が揃う場合に限り、operator の明示起動のみ)、skill-feedback(skill が外した観測を issue に1件記録する)、skill-improver(検証済みの観測から1つの skill への最小の編集を PR で提案する。既定は変更なし)。前2つは対で使い、後2つは改善 loop を成す。mizchi/skills(MIT)由来を含む。",
+      "version": "0.2.0",
       "author": { "name": "fenril058" },
       "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
     },

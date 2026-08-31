@@ -23,6 +23,8 @@
 - 覆しにくい決定は `docs/adr/` に記録する。追記と supersede のみで、既存の ADR は書き換えない。
   汎用 eval infrastructure を所有しない決定と、custom measurement を再開できる条件は
   `docs/adr/0001-evaluation-infrastructure-ownership.md`。skill の A/B を始める前にここを読む。
+  観測された失敗から skill を更新する loop(`skill-feedback` / `skill-improver`)の方針と、
+  捏造を防ぐ構造は `docs/adr/0002-skill-improvement-loop.md`。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。

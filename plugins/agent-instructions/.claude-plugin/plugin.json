@@ -1,7 +1,7 @@
 {
   "name": "agent-instructions",
-  "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md の圧縮と規則化)、empirical-prompt-tuning(指示の静的な整合監査と、比較測定を始める条件)。",
-  "version": "0.1.0",
+  "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md の圧縮と規則化)、empirical-prompt-tuning(指示の静的な整合監査と、比較測定を始める条件)、skill-feedback / skill-improver(観測された失敗から skill を更新する loop)。",
+  "version": "0.2.0",
   "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
   "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
 }
