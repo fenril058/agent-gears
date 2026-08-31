@@ -44,38 +44,33 @@ project.
 A finding that must survive the branch does not belong here at all; route it per
 "Related skills" below.
 
-## Worktree note
+## Worktree scope
 
-The write in step 3 targets `.dev/contexts/`, not implementation files, but it still
-lands inside one specific worktree. The conditions below are this skill's own contract;
-they stand on their own and do not defer to an always-on rule.
+Export only to the Git worktree that contains the current session's workspace root.
+Run every Git and `gh` command below in that worktree, and resolve every `.dev/` path against its root, so the metadata, context file, and PR all refer to the same branch.
 
-If your session's workspace root **is** the target worktree, write normally — no extra
-check needed.
-
-If you are running from a session whose workspace root is a **different** (sibling)
-worktree, the write is allowed only if all of these hold:
-
-- The target worktree is explicitly included in this session's filesystem sandbox
-  writable range.
-- The write target is exactly `.dev/contexts/{sanitized branch name}.md`.
-- The user has explicitly authorized this one-time cross-worktree write.
-
-This skill never builds, tests, runs `direnv exec`, or changes Git state — step 1 only
-reads metadata — so that single file write is the only change it makes in the target
-worktree.
-
-If any condition doesn't hold, tell the user and ask them to switch to a session whose
-workspace root is the target worktree instead.
+Never export to a different (sibling) worktree, even if the filesystem sandbox permits the write or the user authorizes it.
+Ask the user to switch to a session whose workspace root is the intended worktree and invoke this skill there.
 
 ## Procedure
 
 ### 1. Fetch metadata
 
-Run with the Bash tool:
+Use the host-provided session workspace root, not the Bash tool's current working directory, to locate the target worktree:
 
 ```
-git branch --show-current && git rev-parse --short HEAD && gh pr view --json number -q .number
+git -C "{session workspace root}" rev-parse --show-toplevel
+```
+
+Record the output as `{worktree root}`.
+If the session workspace root is not inside a Git worktree, stop and report that the export has no valid target.
+
+Run the metadata commands in that worktree within one Bash invocation:
+
+```
+git -C "{worktree root}" branch --show-current &&
+git -C "{worktree root}" rev-parse --short HEAD &&
+(cd "{worktree root}" && gh pr view --json number -q .number)
 ```
 
 Get the branch name, source commit, and PR number. For "Updated at" use the current
@@ -98,7 +93,7 @@ Below, the sanitized branch name is called the "sanitized branch name".
 
 ### 2. Check for an existing file
 
-Check whether `.dev/contexts/{sanitized branch name}.md` already exists.
+Check whether `{worktree root}/.dev/contexts/{sanitized branch name}.md` already exists.
 
 If it exists, read it with the Read tool. Then judge whether **you exported it in this
 conversation (same session) or another session wrote it (different session)**:
@@ -113,7 +108,7 @@ Based on this, apply the "rules for updating an existing file" in step 3.
 Read [TEMPLATE.md](TEMPLATE.md) in the same directory as this SKILL.md and create the
 file in its structure.
 
-If the `.dev/contexts/` directory does not exist, create it.
+If the `{worktree root}/.dev/contexts/` directory does not exist, create it.
 
 Include the "suggested skills" section of the template when there are skills the next
 worker should invoke to continue (e.g. conversation-context-import, sanity-review, a
@@ -124,7 +119,7 @@ are none.
 identifiable information must not appear in the file. This matters doubly because step
 4 posts the same content to a PR comment, which publishes it.
 
-Write to `.dev/contexts/{sanitized branch name}.md` with the Write tool.
+Write to `{worktree root}/.dev/contexts/{sanitized branch name}.md` with the Write tool.
 
 ### 4. Post to a PR comment
 
@@ -138,7 +133,9 @@ unredacted secrets or personal information (step 3's redaction rule).
 Run with the Bash tool:
 
 ```
-gh repo view --json owner,name -q '.owner.login + "/" + .name' && gh api user -q .login
+cd "{worktree root}" &&
+gh repo view --json owner,name -q '.owner.login + "/" + .name' &&
+gh api user -q .login
 ```
 
 Line 1 is the repo's `{owner}/{repo}`, line 2 is the current GitHub username.
@@ -149,6 +146,7 @@ Run the following to search the PR comments for the conversation-context comment
 only comments whose body starts with the TEMPLATE.md heading `# {branch name} 対話コンテキスト`:
 
 ```
+cd "{worktree root}" &&
 gh api repos/{owner}/{repo}/issues/{PR number}/comments --paginate -q '.[] | select(.body | startswith("# {branch name} 対話コンテキスト")) | {id: .id, login: .user.login}'
 ```
 
@@ -169,7 +167,8 @@ issues.
 Post a new comment:
 
 ```
-gh pr comment {PR number} --body-file .dev/contexts/{sanitized branch name}.md
+cd "{worktree root}" &&
+gh pr comment {PR number} --body-file "{worktree root}/.dev/contexts/{sanitized branch name}.md"
 ```
 
 ##### If an existing comment is found and you are the author
@@ -177,7 +176,8 @@ gh pr comment {PR number} --body-file .dev/contexts/{sanitized branch name}.md
 Update the existing comment:
 
 ```
-gh api repos/{owner}/{repo}/issues/comments/{comment ID} --method PATCH -F body=@.dev/contexts/{sanitized branch name}.md
+cd "{worktree root}" &&
+gh api repos/{owner}/{repo}/issues/comments/{comment ID} --method PATCH -F "body=@{worktree root}/.dev/contexts/{sanitized branch name}.md"
 ```
 
 ##### If an existing comment is found and another user is the author

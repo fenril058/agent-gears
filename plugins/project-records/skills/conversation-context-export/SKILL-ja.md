@@ -33,32 +33,34 @@ compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh 
 
 ブランチを越えて残すべき発見はそもそもここに置かない。下の「関連スキル」に従って振り分ける。
 
-## worktree に関する注意
+## worktree の対象範囲
 
-ステップ3の書き込み先は `.dev/contexts/` であり実装ファイルではないが、特定のworktreeの中に書く操作ではある。
-以下の条件はこのスキル自身の契約であり、常時ルールを参照しない。
+現在のセッションの workspace root を含む Git worktree にだけ export する。
+以下の Git コマンドと `gh` コマンドはすべてその worktree で実行し、`.dev/` の各 path はその worktree の root から解決する。
+これにより、metadata、コンテキストファイル、PR がすべて同じ branch を参照する。
 
-セッションのworkspace rootが対象worktreeそのものであれば、追加の確認なしにそのまま書き込んでよい。
-
-セッションのworkspace rootが対象worktreeとは**別の**(兄弟)worktreeである場合、書き込みは次をすべて満たすときに限り許可される。
-
-- 対象worktreeが、このセッションのfilesystem sandboxの書き込み可能範囲に明示的に含まれている
-- 書き込み対象が `.dev/contexts/{サニタイズ済みブランチ名}.md` ちょうどである
-- ユーザーがこの一回限りの兄弟worktreeへの書き込みを明示的に許可している
-
-このスキルはビルド・テスト・`direnv exec`・Gitの状態変更を一切行わない(ステップ1はmetadataの読み取りのみ)。
-対象worktreeに加える変更は、上記の1ファイルの書き込みだけである。
-
-いずれかの条件を満たさない場合は、その旨をユーザーに伝え、対象worktreeをworkspace rootにしたセッションへの切り替えを依頼する。
+filesystem sandbox が書き込みを許可している場合や、ユーザーの明示的な許可がある場合でも、別の(兄弟)worktree には export しない。
+別の worktree への export を求められたら、その worktree を workspace root にしたセッションへ切り替え、そこでこの skill を呼び出すよう依頼する。
 
 ## 手順
 
 ### 1. メタデータを取得する
 
-Bashツールで以下を実行する:
+Bash ツールの現在の作業ディレクトリではなく、ホストが示すセッションの workspace root を使って対象 worktree を特定する。
 
 ```
-git branch --show-current && git rev-parse --short HEAD && gh pr view --json number -q .number
+git -C "{セッションの workspace root}" rev-parse --show-toplevel
+```
+
+出力を `worktree root` として記録する。
+セッションの workspace root が Git worktree 内にない場合は停止し、export の有効な対象がないことを報告する。
+
+同じ worktree 内で、以下のメタデータ取得を1回の Bash 呼び出しにまとめて実行する。
+
+```
+git -C "{worktree root}" branch --show-current &&
+git -C "{worktree root}" rev-parse --short HEAD &&
+(cd "{worktree root}" && gh pr view --json number -q .number)
 ```
 
 ブランチ名、source commit、PR番号を取得する。Updated atには現在の日時(YYYY-MM-DD HH:mm:ss)を記入する。
@@ -80,7 +82,7 @@ git branch --show-current && git rev-parse --short HEAD && gh pr view --json num
 
 ### 2. 既存ファイルの確認
 
-`.dev/contexts/{サニタイズ済みブランチ名}.md` が既に存在するか確認する。
+`{worktree root}/.dev/contexts/{サニタイズ済みブランチ名}.md` が既に存在するか確認する。
 
 存在する場合は、Readツールで読み込む。次に、そのファイルが **この会話内で自分がexportしたものか(同一セッション)、それとも別のセッションが書き出したものか(別セッション)** を判定する。
 
@@ -93,13 +95,13 @@ git branch --show-current && git rev-parse --short HEAD && gh pr view --json num
 
 このSKILL.mdと同じディレクトリにある [TEMPLATE.md](TEMPLATE.md) を読み込み、その構造に従ってファイルを作成する。
 
-`.dev/contexts/` ディレクトリが存在しない場合は作成する。
+`{worktree root}/.dev/contexts/` ディレクトリが存在しない場合は作成する。
 
 次の作業者が続きで呼ぶべき skill があれば(conversation-context-import、sanity-review、今回の作業で使ったドメイン skill など)、テンプレートの「推奨スキル」セクションに理由を一言添えて記載する。無ければセクションごと省略する。
 
 **秘匿情報をredactする** — APIキー、トークン、パスワード、個人を特定できる情報をファイルに含めない。ステップ4で同じ内容をPRコメントに投稿する(=公開される)ため、これは二重に重要である。
 
-Writeツールで `.dev/contexts/{サニタイズ済みブランチ名}.md` に書き出す。
+Write ツールで `{worktree root}/.dev/contexts/{サニタイズ済みブランチ名}.md` に書き出す。
 
 ### 4. PRコメントへの投稿
 
@@ -112,7 +114,9 @@ Writeツールで `.dev/contexts/{サニタイズ済みブランチ名}.md` に�
 Bashツールで以下を実行する:
 
 ```
-gh repo view --json owner,name -q '.owner.login + "/" + .name' && gh api user -q .login
+cd "{worktree root}" &&
+gh repo view --json owner,name -q '.owner.login + "/" + .name' &&
+gh api user -q .login
 ```
 
 1行目がリポジトリの `{owner}/{repo}`、2行目が現在のGitHubユーザー名となる。
@@ -122,6 +126,7 @@ gh repo view --json owner,name -q '.owner.login + "/" + .name' && gh api user -q
 Bashツールで以下を実行し、PRコメント一覧から対話コンテキストのコメントを検索する。TEMPLATE.mdの見出し形式 `# {ブランチ名} 対話コンテキスト` で始まるコメントのみを対象とする:
 
 ```
+cd "{worktree root}" &&
 gh api repos/{owner}/{repo}/issues/{PR番号}/comments --paginate -q '.[] | select(.body | startswith("# {ブランチ名} 対話コンテキスト")) | {id: .id, login: .user.login}'
 ```
 
@@ -138,7 +143,8 @@ gh api repos/{owner}/{repo}/issues/{PR番号}/comments --paginate -q '.[] | sele
 新規コメントを投稿する:
 
 ```
-gh pr comment {PR番号} --body-file .dev/contexts/{サニタイズ済みブランチ名}.md
+cd "{worktree root}" &&
+gh pr comment {PR番号} --body-file "{worktree root}/.dev/contexts/{サニタイズ済みブランチ名}.md"
 ```
 
 ##### 既存コメントが見つかり、投稿者が自分の場合
@@ -146,7 +152,8 @@ gh pr comment {PR番号} --body-file .dev/contexts/{サニタイズ済みブラ�
 既存コメントを更新する:
 
 ```
-gh api repos/{owner}/{repo}/issues/comments/{コメントID} --method PATCH -F body=@.dev/contexts/{サニタイズ済みブランチ名}.md
+cd "{worktree root}" &&
+gh api repos/{owner}/{repo}/issues/comments/{コメントID} --method PATCH -F "body=@{worktree root}/.dev/contexts/{サニタイズ済みブランチ名}.md"
 ```
 
 ##### 既存コメントが見つかり、投稿者が別のユーザーの場合
