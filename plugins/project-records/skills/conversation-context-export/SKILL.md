@@ -44,29 +44,13 @@ project.
 A finding that must survive the branch does not belong here at all; route it per
 "Related skills" below.
 
-## Worktree note
+## Worktree scope
 
-The write in step 3 targets `.dev/contexts/`, not implementation files, but it still
-lands inside one specific worktree. The conditions below are this skill's own contract;
-they stand on their own and do not defer to an always-on rule.
+Export only to the Git worktree that contains the current session's workspace root.
+Run every Git and `gh` command below in that worktree, and resolve every `.dev/` path against its root, so the metadata, context file, and PR all refer to the same branch.
 
-If your session's workspace root **is** the target worktree, write normally — no extra
-check needed.
-
-If you are running from a session whose workspace root is a **different** (sibling)
-worktree, the write is allowed only if all of these hold:
-
-- The target worktree is explicitly included in this session's filesystem sandbox
-  writable range.
-- The write target is exactly `.dev/contexts/{sanitized branch name}.md`.
-- The user has explicitly authorized this one-time cross-worktree write.
-
-This skill never builds, tests, runs `direnv exec`, or changes Git state — step 1 only
-reads metadata — so that single file write is the only change it makes in the target
-worktree.
-
-If any condition doesn't hold, tell the user and ask them to switch to a session whose
-workspace root is the target worktree instead.
+Never export to a different (sibling) worktree, even if the filesystem sandbox permits the write or the user authorizes it.
+Ask the user to switch to a session whose workspace root is the intended worktree and invoke this skill there.
 
 ## Procedure
 
