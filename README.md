@@ -32,13 +32,8 @@ learning                                   ← AI支援後の理解を深める
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
-- task-delegation: タスクの独立性に基づく委譲の判断基準と依頼文の書き方。
-  委譲の可否はホストの指示に従い、モデル価格だけで決めない。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 - codex-consultation: Claude CodeでCodexを相談先に選んだときのpersistent thread、権限、結果回収を扱う実行adapter。
-
-後ろ2つは目的が異なる。
-task-delegation は範囲の定まった作業の委譲を扱い、subagent-consultation は独立した判断を求める相談を扱う。
 
 ### agent-instructions (指示テキスト自体を書き、測る)
 
@@ -109,12 +104,10 @@ plugins/
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       locate-implementation/  fastcontext で未知の挙動・症状の候補箇所を絞る
-      task-delegation/   タスクの独立性に基づく委譲ポリシー
       subagent-consultation/  サブエージェントへのセカンドオピニオン(往復検証)
       codex-consultation/  Claude CodeからCodexへ相談する実行adapter
     agents/
       search.md          コードベース探索・調査(Sonnet)
-      bulk-edit.md       機械的・反復的な編集
   agent-instructions/             plugin: 指示テキスト自体を書き、測る
     .claude-plugin/plugin.json
     skills/
@@ -364,11 +357,6 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
 - **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
 - **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
-- **タスク委譲**: 委譲するときは `task-delegation` skill に従い、タスクの独立性と委譲コストを確認してから Task/Agent ツールを使う。
-  サブエージェントの起動はホストの指示が許可する場合に限る。
-  設計、優先順位、レビュー、最終判断はメインセッションに残す。
-  異なるのは定義ファイルの形式と起動手段だけである。
-  起動ツールの名前は Codex のビルドによって変わるので、実際の Codex 側から読み取る。
 
 ## 新しい skill を足すとき
 
