@@ -1,6 +1,6 @@
 {
   "name": "context-engineering",
-  "description": "エージェントがどう読み・探し・委譲・相談されるかを設計する skill 群と、安価モデルへの委譲先エージェント定義。",
+  "description": "エージェントがどう読み・探し・委譲・相談されるかを設計する skill 群と、読み取り量の多い調査の委譲先エージェント定義。",
   "version": "0.3.0",
   "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
   "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent", "codex"]
