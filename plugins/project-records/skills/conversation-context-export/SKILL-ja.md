@@ -35,7 +35,8 @@ compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh 
 
 ## worktree に関する注意
 
-ステップ3の書き込み先は `.dev/contexts/` であり実装ファイルではないが、常時ルール(`CLAUDE.md` / `AGENTS.md` / `copilot-instructions.md`)のworktreeルールの対象ではある。
+ステップ3の書き込み先は `.dev/contexts/` であり実装ファイルではないが、特定のworktreeの中に書く操作ではある。
+以下の条件はこのスキル自身の契約であり、常時ルールを参照しない。
 
 セッションのworkspace rootが対象worktreeそのものであれば、追加の確認なしにそのまま書き込んでよい。
 
@@ -45,7 +46,8 @@ compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh 
 - 書き込み対象が `.dev/contexts/{サニタイズ済みブランチ名}.md` ちょうどである
 - ユーザーがこの一回限りの兄弟worktreeへの書き込みを明示的に許可している
 
-このスキルはビルド・テスト・`direnv exec`・Git操作を一切行わないため、worktreeルールが定めるそれらの禁止事項は関係しない。
+このスキルはビルド・テスト・`direnv exec`・Gitの状態変更を一切行わない(ステップ1はmetadataの読み取りのみ)。
+対象worktreeに加える変更は、上記の1ファイルの書き込みだけである。
 
 いずれかの条件を満たさない場合は、その旨をユーザーに伝え、対象worktreeをworkspace rootにしたセッションへの切り替えを依頼する。
 

@@ -46,25 +46,15 @@
   upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
 - よって path を `origin` から推測しない。実 path は `ghq list --exact --full-path <repo>` で確認し、同名リポジトリが複数 owner にある場合は `ghq list --exact --full-path <owner>/<repo>` で特定する。
 
-## worktree(エージェント隔離)
+## worktree
 
-- worktree は並列作業(複数セッション/エージェントの同時進行)を意図するときだけ使う。
-  worktree はセッション分割によるcontext断絶と人間の切り替えの手間を伴うため、並列を意図しない単発作業ではメインの checkout で `git switch`/`git checkout` して branch を切り替える。
-- 新規 worktree は既定では `wt switch --create <branch>`(worktrunk)で作る。
-  現在のセッションで、host 固有の作成経路が `wt switch --create` を実際に呼び Worktrunk lifecycle を通ると確認できる場合だけ、その経路で代替してよい。
-- `wt` が無い、hook の承認で停止した、Worktrunk integration が未導入・無効・故障している、経路を確認できない、のいずれかなら、別の作成方法へ黙って fallback せず停止して報告する。
-- Worktrunk lifecycle を通ったことと、環境準備が完了したことを同一視しない。
-  pre-start は blocking で、`wt switch --create` が返る前に完了する。
-  post-start は background で、worktree が使える時点では完了していない。
-- 作業開始前に完了している必要がある処理は pre-start に置かれていなければならない。
-  post-start にある処理に依存する操作の前には、プロジェクト固有の readiness、終了状態、または log(`wt config state logs`)を確認する。
-  worktree の存在や `wt switch` の成功を post-start 完了の証拠にしない。
-- 実装ファイルの変更は、対象 worktree を cwd または書き込み可能な workspace root として開始したセッションだけで行う。
-- 別のセッションから兄弟 worktree に対する実装変更、ビルド、テスト、`direnv exec`、Git 操作を行わない。
-  読み取り専用のレビューは既存セッションから行ってよい。
-- これらを伴わない限定的な書き込みは、前提条件を明示した個別 skill(`conversation-context-export` 等)経由でのみ許可する。
-- 対象 worktree を書き込み可能な workspace root にできないホストでは、そのホストのサブエージェントに実装作業を委譲しない。
-  worktree の path を伝えるだけで書き込み可能になるとは仮定しない。
+- `wt` が使えるなら、worktree の作成・切替・削除に `git worktree` を直接使わず `wt` を通す。
+  ホスト固有の作成経路が `wt` を通ると確認できないなら、その経路に頼らず `wt` を直接呼ぶ。
+  手順は、そのホストに Worktrunk の skill(`worktrunk` / `wt-switch-create`)があればそれに従う。
+- 自分から worktree を作るのは、並列作業(複数セッション/エージェントの同時進行)を意図するときだけ。
+  利用者が worktree を明示的に要求した場合は、この判断を挟まない。
+- worktree の path を渡されたことだけを、その worktree へ書き込める根拠にしない。
+  ホストの書き込み可能範囲と、操作対象がその worktree であることを確認する。
 
 ## Markdownの整形ルール
 

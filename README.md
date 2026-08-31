@@ -259,6 +259,10 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
 
 ## 前提ツール
 
+- [Worktrunk](https://worktrunk.dev/) — worktree の作成、切替、削除に使用する。
+  - `wt` 本体と Claude Code / Codex 向けの Worktrunk plugin と skill は別リポジトリで一括管理し、このリポジトリからは配布しない。
+  - 作者の環境では、`wt` が利用できる場合、対応する Worktrunk plugin と skill も導入済みである。
+  - skill を利用できないホストは、`rules/always-on.md` に従って `wt` を直接呼ぶ。
 - [fastcontext](https://github.com/microsoft/fastcontext) — 未知の挙動・症状に関係する候補箇所の探索。
   - OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` / `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。
   - 鍵はコミットせず各自設定する。

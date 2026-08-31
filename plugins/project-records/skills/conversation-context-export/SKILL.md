@@ -46,9 +46,9 @@ A finding that must survive the branch does not belong here at all; route it per
 
 ## Worktree note
 
-The write in step 3 targets `.dev/contexts/`, not implementation files, but it is still
-subject to the worktree rule in your always-on instructions (`CLAUDE.md` / `AGENTS.md` /
-`copilot-instructions.md`).
+The write in step 3 targets `.dev/contexts/`, not implementation files, but it still
+lands inside one specific worktree. The conditions below are this skill's own contract;
+they stand on their own and do not defer to an always-on rule.
 
 If your session's workspace root **is** the target worktree, write normally — no extra
 check needed.
@@ -61,8 +61,9 @@ worktree, the write is allowed only if all of these hold:
 - The write target is exactly `.dev/contexts/{sanitized branch name}.md`.
 - The user has explicitly authorized this one-time cross-worktree write.
 
-This skill never builds, tests, runs `direnv exec`, or performs Git operations, so those
-restrictions in the worktree rule never apply here.
+This skill never builds, tests, runs `direnv exec`, or changes Git state — step 1 only
+reads metadata — so that single file write is the only change it makes in the target
+worktree.
 
 If any condition doesn't hold, tell the user and ask them to switch to a session whose
 workspace root is the target worktree instead.
