@@ -56,6 +56,9 @@ jobs:
       # tolerable()(check-skill-spec.sh の skills-ref 出力パース)の単体テスト。
       # skills-ref を呼ばないので nix 不要、この job だけで完結する。
       - run: bash scripts/check-skill-spec-tolerable.test.sh
+      # install.sh が削除済み skill / agent の残骸を外すことの回帰テスト(#63)。
+      # 配布先を一時ディレクトリへ向けて実行するので runner の $HOME は汚さない。
+      - run: bash scripts/install-stale-links.test.sh
 
   python:
     name: extract_context.py unit tests

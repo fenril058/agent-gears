@@ -336,6 +336,9 @@ bash install.sh             # 実行(冪等。実ファイルは .bak.<時刻> �
 bash install.sh --uninstall # このリポジトリを指す symlink だけ外す
 ```
 
+通常実行と `--uninstall` のどちらも、リポジトリから消えた skill / agent 定義が残した dangling symlink を配布先から外す。
+外すのは参照先が失われたものだけで、リポジトリの外を指す link には触らない。
+
 配布先:
 
 | 対象 | Claude Code | Codex | GitHub Copilot |

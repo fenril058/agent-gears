@@ -8,6 +8,7 @@
 #   agents/*.md    -> ~/.claude/agents/<file>   (Claude Code 固有)
 #
 # 冪等。既存 symlink は張り直す。実ファイル/実ディレクトリは .bak.<時刻> に退避してから張る。
+# リポジトリから消えた skill / agent 定義が残した dangling symlink も外す。
 #
 # 使い方:
 #   bash install.sh            実行
@@ -113,12 +114,53 @@ remove_obsolete_links() {
   done
 }
 
+# 配布先ディレクトリ — このリポジトリが「名前ごとに1本」link を張る場所。
+# 末尾の2つは現役の配布先ではないが、旧版が張った残骸を探すために走査する。
+link_dirs() {
+  printf '%s\n' \
+    "$CLAUDE_HOME/skills" \
+    "$AGENTS_HOME/skills" \
+    "$COPILOT_HOME/skills" \
+    "$CLAUDE_HOME/agents" \
+    "$CODEX_HOME/skills"
+}
+
+# remove_stale_links — 配布先に残る、$REPO 配下の実在しない path を指す symlink を外す。
+#
+# plan() と obsolete_plan() は「現存する」skill / agent 定義から配布先を組み立てるので、
+# リポジトリから消えたものの link はどちらの表にも現れず、通常実行でも --uninstall でも
+# 外れない。ここだけは対応表ではなく配布先側から走査する。
+#
+# 「このリポジトリを指す symlink だけ外す」契約は保つ。参照先が $REPO 配下でない link は
+# 利用者のものとして触らず、$REPO 配下でも実体があれば現役として残す。よって外れるのは
+# 参照先を失った link だけで、これは既に何も読み込ませていない。
+remove_stale_links() {
+  local dir dest target
+  while IFS= read -r dir; do
+    [ -d "$dir" ] || continue
+    for dest in "$dir"/*; do
+      [ -L "$dest" ] || continue
+      target="$(readlink "$dest")"
+      case "$target" in
+      "$REPO"/*) ;;
+      *) continue ;;
+      esac
+      if [ -e "$target" ]; then
+        continue
+      fi
+      run "rm '$dest'"
+      echo "  stale    $dest -> $target"
+    done
+  done < <(link_dirs)
+}
+
 if [ "$UNINSTALL" = 1 ]; then
   echo "Uninstalling symlinks pointing into $REPO ..."
   plan | while IFS=$'\t' read -r src dest; do
     unlink_if_ours "$dest" "$src"
   done
   remove_obsolete_links
+  remove_stale_links
   echo "Done. Restart Claude Code / Codex to apply."
   exit 0
 fi
@@ -127,6 +169,7 @@ echo "Installing from $REPO"
 [ "$DRY_RUN" = 1 ] && echo "(dry-run: 変更は行いません)"
 
 remove_obsolete_links
+remove_stale_links
 plan | while IFS=$'\t' read -r src dest; do
   link "$src" "$dest"
 done
