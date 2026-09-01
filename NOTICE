@@ -35,9 +35,9 @@ as required. They are vendored and adapted, not tracked upstream.
     policy such skills default to MIT. See that directory's LICENSE.
 
 - plugins/learning/
-    navigating, quizzing, and tutoring are derived from yasunori0418/skills
-    (MIT). They were adapted to use this repository's context-engineering
-    skills. See plugins/learning/LICENSE.
+    navigating and quizzing are derived from yasunori0418/skills (MIT).
+    They were adapted to use this repository's context-engineering skills.
+    See plugins/learning/LICENSE.
 
 - cmd/mdidx/
     A faithful Go reimplementation of oubakiou/md2idx (MIT), byte-compatible

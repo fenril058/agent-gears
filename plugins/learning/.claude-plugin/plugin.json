@@ -1,7 +1,7 @@
 {
   "name": "learning",
-  "description": "AI支援で生じた理解不足を、コード案内・理解確認・個別指導によって解消する skill 群。",
+  "description": "AI支援で生じた理解不足を、コード案内と理解確認によって解消する skill 群。",
   "version": "0.1.0",
   "author": { "name": "fenril058", "email": "fenril.nh@gmail.com" },
-  "keywords": ["learning", "understanding", "code-reading", "quiz", "tutoring"]
+  "keywords": ["learning", "understanding", "code-reading", "quiz"]
 }

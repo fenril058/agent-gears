@@ -81,7 +81,6 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 - navigating: ユーザー自身がコードを読み、説明するコードリーディング案内。
 - quizzing: 計画・実装・コードベースの理解を一問ずつ確認する。
-- tutoring: 理解度を確認しながら、1つの概念ずつ段階的に説明する。
 
 ### writing (文章の規範)
 
@@ -140,7 +139,6 @@ plugins/
     skills/
       navigating/                 ユーザー自身が読むコードリーディング案内
       quizzing/                   一問ずつ行う理解確認
-      tutoring/                   理解度に応じた段階的な個別指導
   writing/                        plugin: 文章の規範(一部 k16shikano の gist 由来・public domain)
     .claude-plugin/plugin.json
     NOTICE
@@ -243,7 +241,7 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
   - MIT なので取り込んで改変する方針に変えた(上流を取り直さない)。
     これに伴い、上流の運用追補を置いていた `NOTES-local.md` は `SKILL.md` / `SKILL-ja.md` へ畳んで削除し、
     上流生成の `README.md`(中身は上流からのインストール手順)も削除した。
-- **yasunori0418/skills 由来**(`learning` の `navigating` / `quizzing` / `tutoring`):
+- **yasunori0418/skills 由来**(`learning` の `navigating` / `quizzing`):
   - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
   - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
   - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `locate-implementation` / `markdown-context` を使う記述へ変更した。
