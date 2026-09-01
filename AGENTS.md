@@ -13,7 +13,7 @@
   配布先(`~/.claude` 等)やレイアウト規約を変えたら両方直す。
   配布先集合の一致は CI の `scripts/check-distribution.sh` が検証する。
 - plugin の `name`/`version`/`keywords` は `marketplace.json` と各 `plugin.json` に重複。
-  一致は CI の `scripts/check-plugin-meta.sh` が検証する。
+  一致と README の Claude plugin install 例の plugin 集合は CI の `scripts/check-plugin-meta.sh` が検証する。
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
   `marketplace.json` の `source` は `"./plugins/<name>"` 形式で書く。
   Claude Code は `"./"` 始まりの相対パスしか受け付けず、`"<name>"` だと一覧表示は通るのに

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# check-plugin-meta.sh — marketplace.json と各 plugin.json の整合を検証する。
+# check-plugin-meta.sh — marketplace.json と各 plugin メタデータの整合を検証する。
 #
 # plugin の name / version / keywords は marketplace.json と plugin.json に重複する。
 # 片方だけ更新するとずれるので一致を必須にする(特に version bump で漏れやすい)。
@@ -20,6 +20,25 @@ fs_names="$(for f in plugins/*/.claude-plugin/plugin.json; do jq -r '.name' "$f"
 if [ "$mp_names" != "$fs_names" ]; then
   echo "NG: marketplace.json のプラグイン集合が plugins/ と不一致(< marketplace, > plugins/)" >&2
   diff <(printf '%s\n' "$mp_names") <(printf '%s\n' "$fs_names") >&2 || true
+  fail=1
+fi
+
+# README の Claude plugin install 例に全 plugin が1回ずつ出ているか。
+# marketplace 名も JSON から引き、例の追従漏れや重複を集合比較で検出する。
+marketplace_name="$(jq -r '.name' "$mp")"
+readme_names="$(
+  awk -v marketplace="$marketplace_name" '
+    $1 == "/plugin" && $2 == "install" && NF == 3 {
+      suffix = "@" marketplace
+      if (length($3) > length(suffix) && substr($3, length($3) - length(suffix) + 1) == suffix) {
+        print substr($3, 1, length($3) - length(suffix))
+      }
+    }
+  ' README.md | sort
+)"
+if [ "$mp_names" != "$readme_names" ]; then
+  echo "NG: README の Claude plugin install 例が marketplace.json のプラグイン集合と不一致(< marketplace, > README)" >&2
+  diff <(printf '%s\n' "$mp_names") <(printf '%s\n' "$readme_names") >&2 || true
   fail=1
 fi
 
@@ -64,6 +83,6 @@ for i in $(seq 0 $((n - 1))); do
 done
 
 if [ "$fail" = 0 ]; then
-  echo "OK: marketplace.json と各 plugin.json の name/version/keywords は一致"
+  echo "OK: marketplace.json、各 plugin.json、README の plugin メタデータは一致"
 fi
 exit "$fail"
