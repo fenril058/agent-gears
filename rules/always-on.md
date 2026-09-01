@@ -38,6 +38,11 @@
   リモート先端が現在の `origin/main` と一致しない場合、または network unavailable などで確認できない場合は「リモートの最新 `main` を含むかは未確認」と明記し、最新性を主張しない。
   それ以外では、「リモートの最新 `main` を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
 
+## PR 本文
+
+- PR 本文に、差分・テストコード・CI 結果から直接確認でき、変更で陳腐化する件数・バージョン・ファイル一覧を転記しない。
+  これらは受入条件・比較結果・意思決定の根拠になる場合だけ記載する。
+
 ## リポジトリ配置 (ghq)
 
 - GitHub 等の clone は ghq 管理下に置く(`~/ghq/<host>/<owner>/<repo>`)。
