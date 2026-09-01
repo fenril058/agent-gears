@@ -65,8 +65,6 @@ When unsure, flag it for the user instead of dropping it. A missing safeguard is
 
 - `empirical-prompt-tuning` checks instruction text. It runs only on an explicit request for an empirical evaluation or for a description / body consistency check, never automatically.
   This skill is the direct editing procedure. When an operator asks whether the slimmed file still works, [[empirical-prompt-tuning]] starts from a static description / body audit and the host's own tooling; a candidate-vs-baseline comparison happens only on explicit request, and only when its isolation conditions can be met.
-- Apply the always-on rule against undefined terms while editing.
-  Invoke [[no-neologism]] only when the task calls for a dedicated terminology audit.
 
 Based on Anthropic's "Write an effective CLAUDE.md" guidance
 (<https://code.claude.com/docs/en/best-practices>).
