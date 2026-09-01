@@ -57,10 +57,10 @@
     {
       "name": "learning",
       "source": "./plugins/learning",
-      "description": "AI支援で生じた理解不足を解消する skill 群: navigating(ユーザー自身が読むコード案内)、quizzing(一問ずつ行う理解確認)、tutoring(理解度に応じた段階的な個別指導)。yasunori0418/skills(MIT)由来。",
+      "description": "AI支援で生じた理解不足を解消する skill 群: navigating(ユーザー自身が読むコード案内)、quizzing(計画・設計文書・コードの理解を一問ずつ確認)。yasunori0418/skills(MIT)由来。",
       "version": "0.1.0",
       "author": { "name": "fenril058" },
-      "keywords": ["learning", "understanding", "code-reading", "quiz", "tutoring"]
+      "keywords": ["learning", "understanding", "code-reading", "quiz"]
     }
   ]
 }
