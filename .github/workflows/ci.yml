@@ -120,8 +120,8 @@ jobs:
           primary-key: nix-${{ runner.os }}-consistency-${{ hashFiles('**/flake.lock', '**/*.nix') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-consistency-
           gc-max-store-size-linux: 1G
-      # install.sh と nix/hm-module.nix の配布先集合が一致するか / marketplace.json と
-      # 各 plugin.json の name・version・keywords が一致するかを検証する。
+      # install.sh と nix/hm-module.nix の配布先集合が一致するか / marketplace.json・
+      # 各 plugin.json・README の plugin メタデータが一致するかを検証する。
       - run: nix shell nixpkgs#jq --command bash scripts/check-distribution.sh
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
       # 外部由来 skill の LICENSE / NOTICE が PROVENANCE.json の宣言どおり置かれているか。

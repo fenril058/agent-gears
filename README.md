@@ -279,6 +279,7 @@ GitHub Copilot 向けには専用のマーケットプレイス経路はなく�
 /plugin install critique@fenril058-agent-skills
 /plugin install project-records@fenril058-agent-skills
 /plugin install code-review@fenril058-agent-skills
+/plugin install learning@fenril058-agent-skills
 /plugin install writing@fenril058-agent-skills
 ```
 
@@ -369,7 +370,7 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
 4. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
 5. 公開するなら `marketplace.json` の該当 plugin に含まれることを確認(skills/ 配下は自動検出)。
    plugin を新設したなら `marketplace.json` と `plugins/<plugin>/.claude-plugin/plugin.json` の両方に書く
-   (`name` / `version` / `keywords` の一致を `scripts/check-plugin-meta.sh` が検証する)。
+   (`name` / `version` / `keywords` の一致とこの README の install 例への追記を `scripts/check-plugin-meta.sh` が検証する)。
 6. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
 7. 重要 skill は `empirical-prompt-tuning` の静的な整合確認(`description` と本文が食い違っていないか)を行う。
    実測を伴う A/B は、隔離境界を構成できる場合に限る。条件は `docs/adr/0001-evaluation-infrastructure-ownership.md`。
