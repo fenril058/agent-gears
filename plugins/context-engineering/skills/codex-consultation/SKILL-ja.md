@@ -69,7 +69,8 @@ codex-cli 0.152.0 では、`-s read-only` にこのflagを付けても名前解�
 回答fileが途中終了でも片づくよう、相談全体をひとつのcommandで実行する:
 
 ```bash
-ans=$(mktemp --tmpdir codex-consultation.XXXXXXXX) && trap 'rm -f "$ans"' EXIT
+ans=$(mktemp "${TMPDIR:-/tmp}/codex-consultation.XXXXXXXX") || exit 1
+trap 'rm -f "$ans"' EXIT
 printf '[codex-consultation] answer file: %s\n' "$ans"
 codex exec --ephemeral -C <対象worktreeの絶対path> \
   -s <read-only|workspace-write> \
@@ -77,7 +78,9 @@ codex exec --ephemeral -C <対象worktreeの絶対path> \
   -o "$ans" \
   "<呼び出し元のprompt>" < /dev/null
 rc=$?
-printf '\n===ANSWER(rc=%s)===\n' "$rc"; cat "$ans"
+printf '\n===ANSWER(rc=%s)===\n' "$rc"
+cat "$ans"
+exit "$rc"
 ```
 
 - `-C <path>` で対象worktreeを作業rootにする。
@@ -88,6 +91,11 @@ printf '\n===ANSWER(rc=%s)===\n' "$rc"; cat "$ans"
 - promptはCLI引数として渡す。標準入力ではない。
 - `-o "$ans"` でCodexの最終messageがそこに書かれる。
   stdoutにはbanner、実行commandのtranscript、token数も混ざるので、回答は `===ANSWER===` marker以降から読み、transcriptは実行状況の報告に使う。
+- `mktemp "${TMPDIR:-/tmp}/..."` はGNUでもBSDでも動く書き方である。`--tmpdir` はGNU専用。
+  `|| exit 1` は temp file を作れなかったときに fail closed にする。空の `$ans` のまま相談を実行しない。
+- `exit "$rc"` は `codex exec` の終了状態をcommand全体の終了状態として残す。
+  これが無いと `cat` の成功によって、失敗した相談が 0 で返り、後述の分類と実際の返り値が食い違う。
+  `trap` はそのまま走る。
 
 ### 回答file
 
@@ -135,6 +143,18 @@ resumeすべきsessionも残るjobも無いため、processをkillすれば相�
 
 範囲を定めた相談が繰り返し上限を超えるなら、必要なのは長寿命のjobではなくpromptの絞り込みである。
 同じ内容で再実行せず、その旨を呼び出し元へ伝える。
+
+### timeoutがbackground taskとして返ってきた場合
+
+Claude Codeは、timeoutに達したBash呼び出しを単に失敗させない。
+commandをbackground taskへ移し、task IDとoutput pathを返す。
+上限を超えたcommandは結果ではなく `moved to the background (ID: ...)` を返す。
+
+これはCodexのlifecycleではなくhostのlifecycleだが、上へ渡せばcontractが壊れる点は同じである。
+ここで吸収する。hostのtask停止機構(`TaskStop` に返されたIDを渡す。processごとkillされる)で直ちに停止し、相談をtimeout失敗として報告する。
+task ID、output path、後で確認するようにという示唆を `subagent-consultation` へ渡さない。
+
+hostのlifecycleをadapterの内側で処理するのはcontractの範囲内である。外へ露出させるのが範囲外である。
 
 ## 2往復目
 

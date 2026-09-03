@@ -70,7 +70,8 @@ So a consultation that needs remote information runs with `-s workspace-write`, 
 Do the whole consultation in one command, so the answer file is cleaned up even when the run is cut short:
 
 ```bash
-ans=$(mktemp --tmpdir codex-consultation.XXXXXXXX) && trap 'rm -f "$ans"' EXIT
+ans=$(mktemp "${TMPDIR:-/tmp}/codex-consultation.XXXXXXXX") || exit 1
+trap 'rm -f "$ans"' EXIT
 printf '[codex-consultation] answer file: %s\n' "$ans"
 codex exec --ephemeral -C <target worktree absolute path> \
   -s <read-only|workspace-write> \
@@ -78,7 +79,9 @@ codex exec --ephemeral -C <target worktree absolute path> \
   -o "$ans" \
   "<the caller's prompt>" < /dev/null
 rc=$?
-printf '\n===ANSWER(rc=%s)===\n' "$rc"; cat "$ans"
+printf '\n===ANSWER(rc=%s)===\n' "$rc"
+cat "$ans"
+exit "$rc"
 ```
 
 - `-C <path>` runs Codex in the target worktree.
@@ -89,6 +92,11 @@ printf '\n===ANSWER(rc=%s)===\n' "$rc"; cat "$ans"
 - Pass the prompt as a command-line argument, not on stdin.
 - `-o "$ans"` makes Codex write its final message there.
   stdout carries the banner, the command transcript, and the token count as well, so read the answer from the part after the `===ANSWER===` marker and keep the transcript for the execution facts.
+- `mktemp "${TMPDIR:-/tmp}/..."` is the spelling that works on both GNU and BSD; `--tmpdir` is GNU-only.
+  `|| exit 1` fails closed when the temp file cannot be created, rather than running the consultation with an empty `$ans`.
+- `exit "$rc"` keeps `codex exec`'s status as the command's status.
+  Without it a successful `cat` reports 0 for a failed consultation, and the taxonomy below stops matching what the command actually returned.
+  The `trap` still runs.
 
 ### The answer file
 
@@ -129,6 +137,17 @@ Report the timeout, the bound that applied, whether it was host-limited, and any
 
 If a bounded consultation repeatedly exceeds the bound, the answer is a narrower prompt, not a longer-lived job.
 Say so to the caller instead of retrying unchanged.
+
+### A timeout that comes back as a background task
+
+Claude Code does not simply fail a Bash call that hits its timeout.
+It moves the command to a background task and hands back a task ID and an output path: a command past its timeout returns `moved to the background (ID: ...)` instead of a result.
+
+That is a host lifecycle rather than a Codex one, but handing it upward would break the contract just the same.
+Absorb it here instead: stop that task at once with the host's task-stop mechanism (`TaskStop` with the returned ID, which kills the process), and report the consultation as a timeout failure.
+Never pass the task ID, the output path, or a suggestion to check on it later to `subagent-consultation`.
+
+Handling a host lifecycle inside the adapter is within the contract; exposing one is not.
 
 ## Second round
 
