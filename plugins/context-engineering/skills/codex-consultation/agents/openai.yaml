@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Consultation"
-  short_description: "Run persistent Codex consultations safely"
-  default_prompt: "Consult Codex on this question and return its execution result for synthesis."
+  short_description: "Run one synchronous Codex CLI consultation"
+  default_prompt: "Consult Codex on this question and return its answer and execution result for synthesis."

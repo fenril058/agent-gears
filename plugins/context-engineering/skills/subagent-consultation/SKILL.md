@@ -1,10 +1,12 @@
 ---
 name: subagent-consultation
 description: >-
-  Consult a subagent (the Agent tool) for a second opinion. Use when the user says
-  "consult a subagent", "ask a subagent", "have a subagent review this", or similar.
-  Send the subagent a prompt built from the current conversation, then digest the
-  result against your own view and report a summary to the user.
+  Consult an independent agent for a second opinion. Use when the user says "consult a
+  subagent", "ask a subagent", "have a subagent review this", or similar. Build a prompt
+  from the current conversation, run it on whichever consultant this host can reach —
+  a subagent through the Agent tool, or another vendor's CLI through an execution
+  adapter — then digest the result against your own view and report a summary to the
+  user.
 ---
 
 # Subagent consultation procedure
@@ -22,9 +24,11 @@ Three parties appear in this procedure:
 
 - **User**: the human requesting the consultation.
 - **Consulting agent**: you, running this procedure. You take the user's request,
-  consult the subagent, and report to the user.
-- **Consultant (subagent)**: a subagent launched via the Agent tool. It provides the
-  second opinion.
+  consult the consultant, and report to the user.
+- **Consultant**: the independent agent that provides the second opinion. What supplies
+  it depends on the host — a subagent launched via the Agent tool, or another vendor's
+  CLI run through an execution adapter ("Platform implementations" below). The rest of
+  this document says "the subagent" for it, whichever mechanism supplied it.
 
 When reporting to the user, use your own agent name in the heading (e.g. "Claude
 Code's view", "Cline's view").
@@ -108,18 +112,36 @@ independent of yours. Prefer, in this order:
 A consultation is judgment work: use a model capable of that judgment.
 
 A cross-family consultant costs more to use. It cannot see this conversation, its tool
-access and permissions differ, and it may run asynchronously. Write the prompt to stand
-completely on its own (section 2 already requires this) and expect a slower round-trip.
+access and permissions differ, and a round-trip is slower. Write the prompt to stand
+completely on its own (section 2 already requires this).
 
 If whoever invoked this skill stated which kind of consultant the task needs, follow
 that. See "Platform implementations" below for what actually exists on this host.
 
 ### Launching
 
-Launch the consultant via the Agent tool:
+Launch the consultant with the mechanism its tier uses on this host ("Platform
+implementations" below). For an Agent-tool consultant:
 
 - `prompt`: the prompt designed in section 2.
 - `description`: a 3-5 word summary of the consultation.
+
+### Consultation failure vs. execution degradation
+
+A consultation ends in one of two ways, and they call for opposite responses.
+
+A **consultation failure** is the absence of an answer: the consultant's CLI is not
+installed, the run hit its time bound, the process exited non-zero, or the output says
+only that it could not proceed. There is nothing to digest, and the fallback is yours,
+not the adapter's — an execution adapter reports the failure and stops there. Move down
+the preference order to the next available consultant and run the same consultation
+there. If none is left, say so and give your own view alone. Either way, state in the
+report which consultant answered, and which one failed and how.
+
+A **usable result with execution degradation** is a real answer from a run where some
+command failed — a fetch, a test, a build, a diagnostic. Do not fall back on that one.
+Use the answer, and handle the gap as section 4's "If you detect a subagent execution
+failure" describes.
 
 ### Deciding on a second round-trip
 
@@ -213,24 +235,26 @@ time to the user.
 
 ### Claude Code
 
-Every consultant is reached through the `Agent` tool, by `subagent_type`:
+The two tiers are reached by different mechanisms:
 
-- **Different family**: use `codex-consultation` (Codex / GPT), when that skill and the Codex plugin are installed.
-  This skill owns prompt design and synthesis; `codex-consultation` is only the
-  Codex-specific execution adapter. Supply it with the complete prompt, the target
-  worktree's absolute path, whether tests/builds/diagnostics may be required, whether
-  remote information is required, and whether this is a fresh or continued round.
-- **Same family**: `subagent_type: general-purpose`, `model: opus` (or `fable`).
-  A fresh session with no memory of this conversation.
+- **Different family**: the Codex CLI, through the `codex-consultation` skill (Skill
+  tool), when that skill is installed and `codex` is on PATH. This skill owns prompt
+  design and synthesis; `codex-consultation` is only the Codex-specific execution
+  adapter. Supply it with the complete prompt, the target worktree's absolute path,
+  whether tests/builds/diagnostics may be required, and whether remote information is
+  required. It runs Codex in the foreground and returns a usable answer or a consultation
+  failure within that one call; it never hands back a job to collect later.
+- **Same family**: the `Agent` tool with `subagent_type: general-purpose`,
+  `model: opus` (or `fable`). A fresh session with no memory of this conversation.
 
 Do not consult the `search` agent: it is a task delegate for bounded work, not a consultant responsible for an independent judgment.
 
 For a same-family consultant, address `SendMessage` to the consultant's ID or name
 for the second round. A fresh `Agent` call starts cold.
 
-For Codex, call `codex-consultation` again as a continuation. It resumes the same
-persistent Codex thread even if Claude invokes a fresh wrapper agent. Send only the
-delta described in section 3.
+Codex cannot be continued. `codex exec` is single-shot and `codex-consultation` keeps
+no thread, so a second Codex round is a fresh call carrying the full restatement
+described in section 3 ("Only when the consultant cannot be continued...").
 
 ### Codex
 

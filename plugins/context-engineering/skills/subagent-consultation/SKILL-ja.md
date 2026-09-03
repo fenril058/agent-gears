@@ -1,9 +1,11 @@
 ---
 name: subagent-consultation
 description: >-
-  Agentツール(subagent)と相談するスキル。
+  独立した相談先にセカンドオピニオンを求めるスキル。
   ユーザーが「subagentと相談して」「subagentに聞いて」「subagentにレビューしてもらって」と言った時に使用する。
-  現在の会話コンテキストに基づいてsubagentにプロンプトを送り、結果を要約して報告する。
+  現在の会話コンテキストからプロンプトを組み立て、その実行環境で使える相談先
+  (Agentツールのsubagent、または実行adapter経由の他ベンダーCLI)で実行し、
+  結果を要約して報告する。
 ---
 
 # subagent 相談手順書
@@ -19,7 +21,10 @@ description: >-
 
 - **ユーザー**: 相談を依頼する人間
 - **相談元Agent**: この手順を実行しているAgent自身。ユーザーからの要請を受けて相談先Agentと相談し、結果をユーザーに報告する
-- **相談先Agent(subagent)**: Agentツールで起動されるsubagent。セカンドオピニオンを提供する
+- **相談先Agent**: セカンドオピニオンを提供する独立したAgent。
+  何がそれを供給するかは実行環境による。Agentツールで起動するsubagentのこともあれば、
+  実行adapter経由で動く他ベンダーのCLIのこともある(後述の「実行環境ごとの実装」)。
+  以降この文書では、どの機構で供給されたかによらず「subagent」と呼ぶ
 
 ユーザーへの報告時、見出しに自分のAgent名を使うこと(例: 「Claude Codeの見解」「Clineの見解」等)。
 
@@ -94,18 +99,34 @@ subagentに渡すプロンプトを相談元Agentが設計する。以下の指�
 相談先には判断できるモデルを使う。
 
 別ファミリの相談先は使用コストが高い。
-この会話を見ておらず、tool の権限も違い、非同期で動くこともある。
-プロンプトは単体で完結するように書き(セクション2で既に要求している)、往復が遅くなることを見込むこと。
+この会話を見ておらず、tool の権限も違い、往復も遅い。
+プロンプトは単体で完結するように書くこと(セクション2で既に要求している)。
 
 このskillの呼び出し元がどの種類の相談先を要するか明示している場合はそれに従う。
 実際に何が使えるかは後述の「実行環境ごとの実装」を参照。
 
 ### 起動
 
-Agentツールで以下の形式で相談先を起動する:
+その階層がこのホストで使う機構で相談先を起動する(後述の「実行環境ごとの実装」)。
+Agentツールで起動する相談先の場合:
 
 - `prompt`: セクション2で設計したプロンプト
 - `description`: 相談内容を3-5語で要約したもの
+
+### consultation failure と execution degradation の区別
+
+相談の終わり方は2種類あり、取るべき対応は正反対である。
+
+**consultation failure** は回答が無いことを指す。
+相談先のCLIが導入されていない、実行が上限時間に達した、processが非0終了した、進められない旨しか出力していない、などである。
+咀嚼すべき回答が無く、fallbackを決めるのは実行adapterではなくこのskillである。adapterは失敗を報告してそこで止まる。
+優先順位の次の相談先へ降りて、同じ相談をそこで実行する。
+残っていなければその旨を述べ、相談元Agent単独の見解を報告する。
+いずれの場合も、どの相談先が回答し、どれがどう失敗したかを報告に書く。
+
+**usable result with execution degradation** は、一部のcommand(fetch、test、build、診断)が失敗した実行から得られた実在の回答である。
+これでは別の相談先へ移らない。
+回答は使い、欠落の扱いはセクション4「subagentの実行失敗を検知した場合」に従う。
 
 ### 追加往復の判断
 
@@ -187,14 +208,15 @@ subagentが何らかの失敗をしたパターンを認識したら、次回以
 
 ### Claude Code
 
-相談先はすべて `Agent` ツールの `subagent_type` で指定して呼ぶ:
+2つの階層は別の機構で呼ぶ:
 
-- **別ファミリ**: `codex-consultation` skillとCodex pluginが導入されている場合、
-  `codex-consultation` を使う(Codex / GPT)。
+- **別ファミリ**: Codex CLI。`codex-consultation` skillが導入され `codex` がPATHにある場合、
+  Skillツールで `codex-consultation` を呼ぶ。
   prompt設計と回答の統合はこのskillが担当し、`codex-consultation` はCodex固有の実行だけを担当する。
-  完結したprompt、対象worktreeの絶対path、test/build/診断が必要になり得るか、remote情報が必要か、
-  新規roundか継続roundかを渡す。
-- **同ファミリ**: `subagent_type: general-purpose` に `model: opus`(または `fable`)。
+  完結したprompt、対象worktreeの絶対path、test/build/診断が必要になり得るか、remote情報が必要かを渡す。
+  Codexをforegroundで実行し、その1回の呼び出しの中で usable answer か consultation failure を返す。
+  後から回収するjobは返さない。
+- **同ファミリ**: `Agent` ツールで `subagent_type: general-purpose` に `model: opus`(または `fable`)。
   この会話の記憶を持たない新しいセッションになる。
 
 `search` agent には相談しない。
@@ -203,9 +225,9 @@ subagentが何らかの失敗をしたパターンを認識したら、次回以
 同ファミリの相談先では、2往復目は相談先のIDか名前を指定した `SendMessage` で継続する。
 `Agent` を呼び直すとcold startになる。
 
-Codexでは、`codex-consultation` を継続として再度呼ぶ。
-Claude側で新しいwrapper agentを呼んでも、同じpersistent Codex threadをresumeする。
-セクション3で定めた差分だけを送る。
+Codexは継続できない。
+`codex exec` は単発実行で `codex-consultation` はthreadを保持しないため、Codexの2往復目は
+セクション3の「継続できない場合に限り…」で定めた全文再掲を載せた新規呼び出しになる。
 
 ### Codex
 

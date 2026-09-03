@@ -1,43 +1,53 @@
 ---
 name: codex-consultation
 description: >-
-  Run a persistent Codex consultation from Claude Code through the Codex plugin.
-  Use only as the Codex-specific execution adapter selected by
-  subagent-consultation, or when explicitly asked to consult Codex while preserving
-  its thread for follow-up. Handle cwd, sandbox capability, job result retrieval,
-  continuation, and execution failures; leave prompt design and answer synthesis to
+  Run one synchronous Codex consultation from Claude Code by invoking the Codex CLI
+  directly in the foreground. Use only as the Codex-specific execution adapter selected
+  by subagent-consultation, or when explicitly asked to consult Codex. Handle the
+  install check, working directory, sandbox capability, network access, the timeout, and
+  execution failures; leave prompt design, round-trip decisions, and answer synthesis to
   the caller.
 ---
 
 # Codex consultation adapter
 
-Execute a consultation through `codex:codex-rescue` while preserving the Codex
-thread for a possible second round. Return the Codex answer and execution facts to
-the calling skill. Do not judge, summarize, or merge the answer yourself.
+Run one consultation through the Codex CLI and return the answer and the execution facts to the calling skill.
+Do not judge, summarize, or merge the answer yourself.
+
+**One call, one result.**
+A consultation request completes inside the call that made it, as either a usable answer or a consultation failure.
+Never return a job identifier, a status or result command, or anything else the caller has to retrieve by hand.
+Do not route the run through `codex:codex-rescue`, a background job, or any other Codex plugin lifecycle: those hand back a job the caller cannot collect, and the review that asked for the consultation stalls waiting for a human.
 
 ## Inputs
 
 Require the caller to supply:
 
 - The complete consultation prompt.
+  It must stand on its own: Codex sees nothing of the caller's conversation, and nothing of an earlier round (see "Second round").
 - The target worktree's absolute path.
 - Whether the consultation is static or verification-capable.
 - Whether remote information is required.
-- Whether this is a fresh consultation or a continuation.
 
-If the target path or consultation prompt is missing, return that omission instead
-of guessing.
+If the target path or the consultation prompt is missing, return that omission instead of guessing.
+
+## Check that the CLI is there
+
+```text
+command -v codex
+```
+
+If `codex` is not on PATH, return "Codex CLI is not installed" as a consultation failure and stop.
+Do not substitute another consultant: `subagent-consultation` owns that fallback.
 
 ## Select execution capability
 
-Use read-only execution only when the work is clearly limited to static inspection.
+Use `-s read-only` only when the work is clearly limited to static inspection.
 
-Use write-capable execution when Codex may run tests, builds, linters, reproduction
-commands, or diagnostics that create caches, temporary files, generated artifacts,
-or other filesystem output. A review or diagnosis is not inherently read-only.
+Use `-s workspace-write` when Codex may run tests, builds, linters, reproduction commands, or diagnostics that create caches, temporary files, generated artifacts, or other filesystem output.
+A review or diagnosis is not inherently read-only.
 
-For a write-capable review or diagnosis, append this constraint to the consultation
-prompt:
+For a write-capable review or diagnosis, append this constraint to the consultation prompt:
 
 ```text
 Do not modify tracked source files or implement a fix. You may run tests, builds,
@@ -47,81 +57,140 @@ outputs.
 
 If the user requested an implementation, do not add that constraint.
 
-Remote commands such as `gh pr view`, `gh api`, fetching remote refs, and reading
-release notes require network access independently of filesystem access. Do not
-claim they are available merely because the run is write-capable.
+### Network access
 
-When the installed Codex plugin exposes a per-run network option, use it for a
-remote-required consultation. Otherwise rely on the trusted target repository's
-project-local `.codex/config.toml`:
+Remote commands such as `gh pr view`, `gh api`, fetching remote refs, and reading release notes need network access, which the sandbox blocks by default.
+Enable it with `-c sandbox_workspace_write.network_access=true`.
 
-```toml
-[sandbox_workspace_write]
-network_access = true
+That setting is namespaced to the workspace-write sandbox and does nothing in a read-only run: on codex-cli 0.152.0, `-s read-only` with the flag set still fails DNS resolution (`curl: (6) Could not resolve host`).
+So a consultation that needs remote information runs with `-s workspace-write`, whether or not it also needs to write.
+
+## Run it
+
+Do the whole consultation in one command, so the answer file is cleaned up even when the run is cut short:
+
+```bash
+ans=$(mktemp "${TMPDIR:-/tmp}/codex-consultation.XXXXXXXX") || exit 1
+trap 'rm -f "$ans"' EXIT
+printf '[codex-consultation] answer file: %s\n' "$ans"
+codex exec --ephemeral -C <target worktree absolute path> \
+  -s <read-only|workspace-write> \
+  [-c sandbox_workspace_write.network_access=true] \
+  -o "$ans" \
+  "<the caller's prompt>" < /dev/null
+rc=$?
+printf '\n===ANSWER(rc=%s)===\n' "$rc"
+cat "$ans"
+exit "$rc"
 ```
 
-Do not create or edit that config as part of a consultation. If remote access fails,
-return the failure to the caller so it can fetch the missing information and decide
-whether to continue the same Codex thread.
+- `-C <path>` runs Codex in the target worktree.
+  Do not assume the host's current directory is that worktree.
+- `--ephemeral` writes no session file, so a killed or timed-out run leaves nothing queued and nothing to collect.
+- `< /dev/null` is required.
+  Codex reads stdin as an extra `<stdin>` block and waits for EOF even when the prompt is an argument, so without it the run hangs.
+- Pass the prompt as a command-line argument, not on stdin.
+- `-o "$ans"` makes Codex write its final message there.
+  stdout carries the banner, the command transcript, and the token count as well, so read the answer from the part after the `===ANSWER===` marker and keep the transcript for the execution facts.
+- `mktemp "${TMPDIR:-/tmp}/..."` is the spelling that works on both GNU and BSD; `--tmpdir` is GNU-only.
+  `|| exit 1` fails closed when the temp file cannot be created, rather than running the consultation with an empty `$ans`.
+- `exit "$rc"` keeps `codex exec`'s status as the command's status.
+  Without it a successful `cat` reports 0 for a failed consultation, and the taxonomy below stops matching what the command actually returned.
+  The `trap` still runs.
 
-## Start the consultation
+### The answer file
 
-On Claude Code, invoke the Agent tool with `subagent_type: codex:codex-rescue`.
+Codex's final message can quote source, PR context, and whatever else the consultation touched, so the file it lands in is not a scratch artifact to leave lying around.
+`mktemp` creates it mode 0600 outside the target worktree, and the `trap ... EXIT` removes it on every path the shell can take: success, non-zero exit, and a tool call that ends early alike.
 
-Put the target worktree's absolute path in the request as `--cwd <path>`. The rescue
-agent must remove it from the prompt and pass it to
-`codex-companion.mjs task --cwd <path>` as a runtime option. Do not assume Claude
-Code's current directory is the target worktree.
+The trap does not run if the host kills the shell outright, which is why the name carries a `codex-consultation.` prefix and the path is printed before the run rather than after it.
+A leftover is then identifiable from the transcript alone; remove it on the next turn.
 
-For verification-capable work, request `--write`. For static inspection, explicitly
-request read-only behavior. Preserve the caller's foreground/background choice; if
-none was supplied, prefer foreground for a bounded consultation and background for
-a long-running investigation.
+This is a separate obligation from `--ephemeral`.
+`--ephemeral` leaves no Codex session or job behind; the trap leaves no answer file behind.
 
-Use a fresh Codex task for the first round. Keep the resulting job and thread
-identifiers. A task created under one cwd is stored in that workspace's state and
-cannot be retrieved from another cwd.
+## Bound the run
 
-If the rescue agent starts a background job, retrieve it from the same cwd with
-`/codex:status` and `/codex:result`. Do not treat a successful enqueue operation as
-the consultation answer.
+The policy default is 900 seconds: ask for a 900000 ms timeout on the Bash call.
+It is an execution-policy default, not part of the contract; a caller may specify another bound.
 
-## Handle timeouts
+That bound is what a host allows, not a constant.
+On Claude Code the ceiling on a model-requested Bash timeout is the larger of `BASH_MAX_TIMEOUT_MS` and `BASH_DEFAULT_TIMEOUT_MS` — 600000 ms out of the box, and raisable in settings or the environment.
+Where the environment allows 900000 ms or more, ask for the full 900000 ms.
 
-For a bounded foreground consultation, give the rescue agent's Bash invocation a
-timeout of at least 900 seconds when the host supports tool-call timeouts.
+Where the host's ceiling is below the policy bound, run at that ceiling and report the consultation as **host-limited**.
+Say so on every outcome, not only on a timeout, so the caller knows it got less time than the policy allows.
+Hitting that bound is a consultation failure either way; it is never a reason to move to background recovery.
 
-Use background execution from the start for repository-wide investigation,
-substantial tests or builds, or any consultation likely to exceed that bound.
+Keep the bound on the tool call alone.
+Wrapping the run in `timeout(1)` would add a second, racing deadline and a portability dependency without changing what the caller sees, so do not add one unless something outside this contract needs a process-side kill guarantee.
+`--ephemeral` already covers what matters here: however the host disposes of the process, there is no Codex session or job left to collect.
 
-If a foreground invocation times out, do not immediately start another Codex task.
-First query `/codex:status` from the same cwd. Retrieve the existing result if the
-job completed, or continue waiting if it is still running. Retry only when no job
-exists or the existing job definitively failed.
+## When it does not finish
 
-## Continue the same Codex consultant
+A tool call that hits its bound is a consultation failure.
 
-For a second round, invoke the rescue agent with `--resume` from the same absolute
-cwd. Send only the caller's rebuttal, supplements, follow-up questions, and requested
-areas for deeper investigation. Do not create a fresh Codex task.
+Do not start a second Codex run to recover the first, do not switch to background execution, and do not hand the caller anything to retrieve later.
+Report the timeout, the bound that applied, whether it was host-limited, and any partial transcript.
 
-The Claude wrapper agent may be invoked again; continuity is defined by the resumed
-Codex thread, not by reusing the wrapper agent's context.
+`--ephemeral` is what makes that safe: there is no session to resume and no job left behind, so killing the process ends the consultation cleanly.
+
+If a bounded consultation repeatedly exceeds the bound, the answer is a narrower prompt, not a longer-lived job.
+Say so to the caller instead of retrying unchanged.
+
+### A timeout that comes back as a background task
+
+Claude Code does not simply fail a Bash call that hits its timeout.
+It moves the command to a background task and hands back a task ID and an output path: a command past its timeout returns `moved to the background (ID: ...)` instead of a result.
+
+That is a host lifecycle rather than a Codex one, but handing it upward would break the contract just the same.
+Absorb it here instead: stop that task at once with the host's task-stop mechanism (`TaskStop` with the returned ID, which kills the process), and report the consultation as a timeout failure.
+Never pass the task ID, the output path, or a suggestion to check on it later to `subagent-consultation`.
+
+Handling a host lifecycle inside the adapter is within the contract; exposing one is not.
+
+## Second round
+
+`codex exec` is single-shot: a second run has no memory of the first.
+This adapter keeps no Codex thread and does not use `--resume`.
+
+A second round is therefore a fresh invocation whose prompt restates everything it needs: the original background, goal, constraints, and evaluation angles, a summary of the first answer, and the caller's rebuttal, supplements, and follow-up questions.
+The caller builds that prompt; this adapter only runs it.
+
+## Classify the outcome
+
+Every run ends as exactly one of two outcomes.
+Which one it is decides what the caller does next, so do not blur them.
+
+### Consultation failure — no usable answer
+
+- The Codex CLI is not installed.
+- The tool call hit its bound before Codex answered.
+- The `codex exec` process exited non-zero for any other reason.
+- The answer file is empty, or the answer only reports being unable to proceed.
+
+Report the failure and stop.
+Whether to fall back to another consultant is `subagent-consultation`'s decision, not this adapter's.
+
+### Usable result with execution degradation — an answer from a partly failed run
+
+Codex answered, but part of what it tried did not work: a fetch, test, build, or diagnostic command failed, remote information was unavailable, or a sandbox or network error appeared in the transcript.
+
+This is not a consultation failure and not a reason to fall back.
+Return the answer together with the execution facts, and leave it to the caller to fetch what is missing, re-evaluate the points that depended on it, and state the gap in its report.
+
+Watch the transcript for `could not fetch`, `permission denied`, `not found`, sandbox errors, network errors, and non-zero exits from commands Codex ran.
+In either outcome, never represent an unexecuted test or unavailable PR context as verified.
 
 ## Return execution facts
 
 Return all of the following to the caller:
 
-- The Codex answer without silently correcting it.
-- The job or thread identifier when available.
-- Whether the run was read-only or write-capable.
-- Which tests, builds, or diagnostics Codex reports running and their outcomes.
+- Which of the two outcomes it was.
+- The Codex answer as written, without silently correcting it.
+- Whether the run was read-only or write-capable, and whether network access was enabled.
+- The bound that applied, and whether it was host-limited.
+- Which tests, builds, or diagnostics Codex reports running, and their outcomes.
 - Any missing remote information or command failure.
 
-Treat messages such as `could not fetch`, `permission denied`, `not found`, sandbox
-errors, network errors, and failed commands as execution failures even if Codex also
-produced an answer. Never represent an unexecuted test or unavailable PR context as
-verified.
-
-The calling `subagent-consultation` skill owns follow-up decisions, independent
-verification, synthesis, and the final user-facing report.
+The calling `subagent-consultation` skill owns follow-up decisions, consultant fallback, independent verification, synthesis, and the final user-facing report.

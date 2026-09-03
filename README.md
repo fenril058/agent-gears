@@ -33,7 +33,7 @@ learning                                   ← AI支援後の理解を深める
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
-- codex-consultation: Claude CodeでCodexを相談先に選んだときのpersistent thread、権限、結果回収を扱う実行adapter。
+- codex-consultation: Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。
 
 ### agent-instructions (指示テキスト自体を書き、測る)
 
@@ -215,7 +215,8 @@ plugin 単位の `LICENSE` は複数 plugin に分散するため、複製漏れ
     - ライセンスは **MIT**。該当 skill を持つ plugin それぞれの `LICENSE` に複製してある。
     - 英語化のうえ取り込んだ。
     - `subagent-consultation` は相談の設計・往復判断・回答統合を担当する。
-      `codex-consultation` は、Claude CodeでCodexを選んだ場合のpersistent thread、sandbox capability、cwd、結果回収だけを担当する実行adapterとして取り込んだ。
+      `codex-consultation` は、Claude CodeでCodexを選んだ場合の sandbox capability、cwd、timeout、失敗の切り分けだけを担当する同期実行adapterとして取り込んだ。
+      1回の呼び出しで回答か明示的な失敗まで完結し、後から回収する job は返さない。
       呼び出し側は引き続き `subagent-consultation` だけを呼び、相談先を知らなくてよい。
     - `sanity-review` の外部 Agent 相談は `subagent-consultation` →(失敗時)main 単独の 2 段フォールバックに書き換えてある。
       相談先の種類(別モデルファミリか同ファミリか)は手順ごとに `Args:` で指定する。
