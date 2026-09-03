@@ -70,9 +70,9 @@ So a consultation that needs remote information runs with `-s workspace-write`, 
 Do the whole consultation in one command, so the answer file is cleaned up even when the run is cut short:
 
 ```bash
-ans=$(mktemp) && trap 'rm -f "$ans"' EXIT
-timeout -k 10 <effective bound in seconds> \
-  codex exec --ephemeral -C <target worktree absolute path> \
+ans=$(mktemp --tmpdir codex-consultation.XXXXXXXX) && trap 'rm -f "$ans"' EXIT
+printf '[codex-consultation] answer file: %s\n' "$ans"
+codex exec --ephemeral -C <target worktree absolute path> \
   -s <read-only|workspace-write> \
   [-c sandbox_workspace_write.network_access=true] \
   -o "$ans" \
@@ -93,34 +93,37 @@ printf '\n===ANSWER(rc=%s)===\n' "$rc"; cat "$ans"
 ### The answer file
 
 Codex's final message can quote source, PR context, and whatever else the consultation touched, so the file it lands in is not a scratch artifact to leave lying around.
-`mktemp` creates it mode 0600 outside the target worktree, and the `trap ... EXIT` removes it on every path the shell can take: success, non-zero exit, and timeout alike.
-If the host kills the shell before the trap runs, the file is still 0600 and still yours to remove on the next turn.
+`mktemp` creates it mode 0600 outside the target worktree, and the `trap ... EXIT` removes it on every path the shell can take: success, non-zero exit, and a tool call that ends early alike.
+
+The trap does not run if the host kills the shell outright, which is why the name carries a `codex-consultation.` prefix and the path is printed before the run rather than after it.
+A leftover is then identifiable from the transcript alone; remove it on the next turn.
 
 This is a separate obligation from `--ephemeral`.
 `--ephemeral` leaves no Codex session or job behind; the trap leaves no answer file behind.
 
 ## Bound the run
 
-The policy default is 900 seconds (15 minutes).
+The policy default is 900 seconds: ask for a 900000 ms timeout on the Bash call.
 It is an execution-policy default, not part of the contract; a caller may specify another bound.
 
-The effective bound is the smaller of the policy bound and the host's maximum tool-call timeout.
-Set the tool-call timeout to the effective bound — never ask the host for more than it documents — and give `timeout` the same number of seconds.
-On Claude Code the Bash tool documents a 600000 ms maximum, so the effective bound there is 600 seconds.
+That bound is what a host allows, not a constant.
+On Claude Code the ceiling on a model-requested Bash timeout is the larger of `BASH_MAX_TIMEOUT_MS` and `BASH_DEFAULT_TIMEOUT_MS` — 600000 ms out of the box, and raisable in settings or the environment.
+Where the environment allows 900000 ms or more, ask for the full 900000 ms.
 
-When the effective bound is below the policy bound, the consultation ran **host-limited**.
-Report that in the execution facts on every outcome, not only on a timeout, so the caller knows the consultation got less time than the policy allows.
+Where the host's ceiling is below the policy bound, run at that ceiling and report the consultation as **host-limited**.
+Say so on every outcome, not only on a timeout, so the caller knows it got less time than the policy allows.
+Hitting that bound is a consultation failure either way; it is never a reason to move to background recovery.
 
-`-k 10` sends KILL 10 seconds after the TERM, so the run stays bounded even when Codex does not exit on TERM.
-Where `timeout` is unavailable, the tool-call timeout is the only bound and there is no process-side kill guarantee; report that as a further degradation.
+Keep the bound on the tool call alone.
+Wrapping the run in `timeout(1)` would add a second, racing deadline and a portability dependency without changing what the caller sees, so do not add one unless something outside this contract needs a process-side kill guarantee.
+`--ephemeral` already covers what matters here: however the host disposes of the process, there is no Codex session or job left to collect.
 
 ## When it does not finish
 
-Hitting the effective bound is a consultation failure.
-`timeout` exits 124 when TERM ended the run and 137 when the KILL was needed; both are the same timeout-class failure, not a Codex CLI error.
+A tool call that hits its bound is a consultation failure.
 
 Do not start a second Codex run to recover the first, do not switch to background execution, and do not hand the caller anything to retrieve later.
-Report the timeout, the effective bound, whether it was host-limited, and any partial transcript.
+Report the timeout, the bound that applied, whether it was host-limited, and any partial transcript.
 
 `--ephemeral` is what makes that safe: there is no session to resume and no job left behind, so killing the process ends the consultation cleanly.
 
@@ -143,7 +146,7 @@ Which one it is decides what the caller does next, so do not blur them.
 ### Consultation failure — no usable answer
 
 - The Codex CLI is not installed.
-- The run hit the effective bound (`timeout` exit 124 or 137).
+- The tool call hit its bound before Codex answered.
 - The `codex exec` process exited non-zero for any other reason.
 - The answer file is empty, or the answer only reports being unable to proceed.
 
@@ -167,7 +170,7 @@ Return all of the following to the caller:
 - Which of the two outcomes it was.
 - The Codex answer as written, without silently correcting it.
 - Whether the run was read-only or write-capable, and whether network access was enabled.
-- The effective bound, and whether it was host-limited.
+- The bound that applied, and whether it was host-limited.
 - Which tests, builds, or diagnostics Codex reports running, and their outcomes.
 - Any missing remote information or command failure.
 

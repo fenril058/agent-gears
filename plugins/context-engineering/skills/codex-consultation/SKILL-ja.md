@@ -69,9 +69,9 @@ codex-cli 0.152.0 では、`-s read-only` にこのflagを付けても名前解�
 回答fileが途中終了でも片づくよう、相談全体をひとつのcommandで実行する:
 
 ```bash
-ans=$(mktemp) && trap 'rm -f "$ans"' EXIT
-timeout -k 10 <実効上限の秒数> \
-  codex exec --ephemeral -C <対象worktreeの絶対path> \
+ans=$(mktemp --tmpdir codex-consultation.XXXXXXXX) && trap 'rm -f "$ans"' EXIT
+printf '[codex-consultation] answer file: %s\n' "$ans"
+codex exec --ephemeral -C <対象worktreeの絶対path> \
   -s <read-only|workspace-write> \
   [-c sandbox_workspace_write.network_access=true] \
   -o "$ans" \
@@ -95,34 +95,40 @@ Codexの最終messageには、source、PR文脈、その相談が触れたもの
 置き場所は放置してよいscratchではない。
 
 `mktemp` は対象worktreeの外に mode 0600 でfileを作り、`trap ... EXIT` はshellが取りうるどの経路でもそれを削除する。
-成功も、非0終了も、timeoutも同じである。
-trapが走る前にhostがshellをkillした場合、fileは 0600 のままそこに残るので、次のturnで明示的に削除する。
+成功も、非0終了も、tool callが途中で終わった場合も同じである。
+
+hostがshell自体をkillした場合はtrapが走らない。
+そのために名前へ `codex-consultation.` prefixを付け、pathを実行前に出力する。
+残骸はtranscriptだけから特定できるので、次のturnで削除する。
 
 これは `--ephemeral` とは別の責務である。
 `--ephemeral` はCodexのsessionやjobを残さず、trapは回答fileを残さない。
 
 ## 実行時間の上限
 
-policyの既定は 900 秒(15分)。
+policyの既定は 900 秒。Bash呼び出しのtimeoutに 900000 ms を要求する。
 これはexecution policyの既定値であってcontract自体ではない。呼び出し元が別の上限を指定してもよい。
 
-実効上限は、policyの上限とhostのtool call timeout上限の小さいほうである。
-tool call timeoutには実効上限を設定し、hostが明記する上限より大きい値を要求しない。`timeout` にも同じ秒数を渡す。
-Claude CodeのBash toolは上限 600000 ms と明記しているので、そこでの実効上限は 600 秒になる。
+この上限は定数ではなく、hostが許す範囲で決まる。
+Claude Codeでは、modelが要求できるBash timeoutの上限は `BASH_MAX_TIMEOUT_MS` と `BASH_DEFAULT_TIMEOUT_MS` の大きいほうである。
+既定は 600000 ms だが、settingsや環境変数で引き上げられる。
+環境が 900000 ms 以上を許すなら 900000 ms をそのまま要求する。
 
-実効上限がpolicyの上限を下回る場合、その相談は **host-limited** で実行されたことになる。
-timeout時だけでなくどの結果でも実行状況に書き、policyが許す時間より短い持ち時間で実行されたことを呼び出し元に伝える。
+hostの上限がpolicyの上限を下回る場合は、その上限で実行し、相談を **host-limited** として報告する。
+timeout時だけでなくどの結果でも書き、policyが許す時間より短い持ち時間で実行されたことを呼び出し元に伝える。
+どちらの場合も、上限に達した実行は consultation failure であり、background recovery へ移る理由にはならない。
 
-`-k 10` はTERMの 10 秒後にKILLを送るので、CodexがTERMで終了しない場合でも実行時間は有界に保たれる。
-`timeout` が使えない環境では上限はtool call timeoutだけになり、process側のkill保証は無い。これも degradation として報告する。
+上限はtool call側だけに置く。
+`timeout(1)` で包むと、競合するもう1つの締め切りとportability依存が増える一方、呼び出し元から見える結果は変わらない。
+この contract の外で process 側の kill 保証が必要にならない限り追加しない。
+ここで重要な点は `--ephemeral` が既に担保している。hostがprocessをどう始末しても、回収すべきCodexのsessionやjobは残らない。
 
 ## 完了しなかった場合
 
-実効上限に達した実行は相談失敗とする。
-`timeout` の終了コードは、TERMで終わったときが 124、KILLが必要だったときが 137 である。どちらも同じtimeout系の失敗であって、Codex CLIのerrorではない。
+上限に達したtool callは相談失敗とする。
 
 1回目を回収するために2回目のCodex実行を始めない。background実行へ切り替えない。後から回収するものを呼び出し元へ渡さない。
-timeoutしたこと、実効上限、host-limitedだったか、得られている範囲のtranscriptを報告する。
+timeoutしたこと、適用された上限、host-limitedだったか、得られている範囲のtranscriptを報告する。
 
 これを安全にしているのが `--ephemeral` である。
 resumeすべきsessionも残るjobも無いため、processをkillすれば相談はそこで終わる。
@@ -147,7 +153,7 @@ resumeすべきsessionも残るjobも無いため、processをkillすれば相�
 ### consultation failure — usable answerが無い
 
 - Codex CLIが導入されていない
-- 実効上限に達した(`timeout` の終了コード 124 または 137)
+- Codexが回答する前にtool callが上限に達した
 - `codex exec` のprocessがそれ以外の理由で非0終了した
 - 回答fileが空、または進められない旨しか述べていない
 
@@ -172,7 +178,7 @@ transcriptでは `could not fetch`、`permission denied`、`not found`、sandbox
 - 2つの結果のどちらだったか
 - Codexの回答そのもの。黙って補正しない
 - read-onlyか書き込み可能か、およびnetwork accessを有効にしたか
-- 実効上限と、host-limitedだったか
+- 適用された上限と、host-limitedだったか
 - Codexが実行したと報告するtest、build、診断とその結果
 - 取得できなかったremote情報またはcommand失敗
 
