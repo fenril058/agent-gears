@@ -1,9 +1,11 @@
 ---
 name: subagent-consultation
 description: >-
-  Agentツール(subagent)と相談するスキル。
+  独立した相談先にセカンドオピニオンを求めるスキル。
   ユーザーが「subagentと相談して」「subagentに聞いて」「subagentにレビューしてもらって」と言った時に使用する。
-  現在の会話コンテキストに基づいてsubagentにプロンプトを送り、結果を要約して報告する。
+  現在の会話コンテキストからプロンプトを組み立て、その実行環境で使える相談先
+  (Agentツールのsubagent、または実行adapter経由の他ベンダーCLI)で実行し、
+  結果を要約して報告する。
 ---
 
 # subagent 相談手順書
@@ -19,7 +21,10 @@ description: >-
 
 - **ユーザー**: 相談を依頼する人間
 - **相談元Agent**: この手順を実行しているAgent自身。ユーザーからの要請を受けて相談先Agentと相談し、結果をユーザーに報告する
-- **相談先Agent(subagent)**: Agentツールで起動されるsubagent。セカンドオピニオンを提供する
+- **相談先Agent**: セカンドオピニオンを提供する独立したAgent。
+  何がそれを供給するかは実行環境による。Agentツールで起動するsubagentのこともあれば、
+  実行adapter経由で動く他ベンダーのCLIのこともある(後述の「実行環境ごとの実装」)。
+  以降この文書では、どの機構で供給されたかによらず「subagent」と呼ぶ
 
 ユーザーへの報告時、見出しに自分のAgent名を使うこと(例: 「Claude Codeの見解」「Clineの見解」等)。
 
@@ -108,18 +113,20 @@ Agentツールで起動する相談先の場合:
 - `prompt`: セクション2で設計したプロンプト
 - `description`: 相談内容を3-5語で要約したもの
 
-### 相談先が回答自体を返さなかった場合
+### consultation failure と execution degradation の区別
 
-相談先が回答ではなく明示的な失敗を返すことがある。
-CLIが導入されていない、timeoutした、非0終了した、進められない旨しか出力していない、などである。
-これは咀嚼すべき回答ではない。
-そしてfallbackを決めるのは実行adapterではなくこのskillである。adapterは失敗を報告してそこで止まる。
+相談の終わり方は2種類あり、取るべき対応は正反対である。
 
+**consultation failure** は回答が無いことを指す。
+相談先のCLIが導入されていない、実行が上限時間に達した、processが非0終了した、進められない旨しか出力していない、などである。
+咀嚼すべき回答が無く、fallbackを決めるのは実行adapterではなくこのskillである。adapterは失敗を報告してそこで止まる。
 優先順位の次の相談先へ降りて、同じ相談をそこで実行する。
 残っていなければその旨を述べ、相談元Agent単独の見解を報告する。
 いずれの場合も、どの相談先が回答し、どれがどう失敗したかを報告に書く。
 
-回答は返ったが一部のcommandが失敗していた場合は別で、セクション4「subagentの実行失敗を検知した場合」が扱う。
+**usable result with execution degradation** は、一部のcommand(fetch、test、build、診断)が失敗した実行から得られた実在の回答である。
+これでは別の相談先へ移らない。
+回答は使い、欠落の扱いはセクション4「subagentの実行失敗を検知した場合」に従う。
 
 ### 追加往復の判断
 
@@ -207,7 +214,7 @@ subagentが何らかの失敗をしたパターンを認識したら、次回以
   Skillツールで `codex-consultation` を呼ぶ。
   prompt設計と回答の統合はこのskillが担当し、`codex-consultation` はCodex固有の実行だけを担当する。
   完結したprompt、対象worktreeの絶対path、test/build/診断が必要になり得るか、remote情報が必要かを渡す。
-  Codexをforegroundで実行し、その1回の呼び出しの中で usable answer か explicit failure を返す。
+  Codexをforegroundで実行し、その1回の呼び出しの中で usable answer か consultation failure を返す。
   後から回収するjobは返さない。
 - **同ファミリ**: `Agent` ツールで `subagent_type: general-purpose` に `model: opus`(または `fable`)。
   この会話の記憶を持たない新しいセッションになる。
