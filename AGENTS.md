@@ -19,6 +19,9 @@
   Claude Code は `"./"` 始まりの相対パスしか受け付けず、`"<name>"` だと一覧表示は通るのに
   `plugin install` が `source: Invalid input` で落ちる。
   `metadata.pluginRoot` は schema にはあるが解決時に使われないので当てにしない。
+- plugin 直下の `README.md` は人間向けの運用ガイド、`SKILL.md` は agent が従う protocol。
+  同じ workflow を両方が書くので、片方だけ直すとずれる(現在は `code-review` のみ)。
+  workflow の段取り・mode の区別・入出力の呼び名を変えたら両方直す。
 - 常時ルールは `rules/always-on.md` に不変則だけ。手順は skill 側へ。
 - 覆しにくい決定は `docs/adr/` に記録する。追記と supersede のみで、既存の ADR は書き換えない。
   汎用 eval infrastructure を所有しない決定と、custom measurement を再開できる条件は

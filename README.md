@@ -73,9 +73,12 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 ### code-review (出来上がったものを検める)
 
-- sanity-review: 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
+- sanity-review: change declaration(GitHub なら PR 概要欄)・対話コンテキスト・実装コードを別々の証拠として突き合わせ、「実装者の正気」を点検する。結果ではなくプロセスをレビューし、レビュー対象 revision に bind した報告書を出す。
 - library-update-review: 依存更新 PR のレビューを行う。
 - codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
+
+full review は skill 単体ではなく、実装 session とは別の session からレビューを回す workflow である。
+どの session から何を渡して使うかは `plugins/code-review/README.md`(人間向けの運用ガイド)にある。
 
 ### learning (AI支援後の理解を深める)
 
@@ -129,8 +132,9 @@ plugins/
   code-review/                    plugin: 出来上がったものを検める(shokai/agent-skills 由来・MIT)
     .claude-plugin/plugin.json
     LICENSE
+    README.md                     人間向けの運用ガイド(推奨レビュー workflow・self-review との違い)
     skills/
-      sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
+      sanity-review/              レビュー報告書(change declaration / 対話コンテキスト / コードの照合、+ TEMPLATE.md)
       library-update-review/      依存更新 PR のレビュー
       codepatrol/                 領域ごとのセキュリティ調査(+ CHECKLIST.md / REPORT-TEMPLATE.md / checklist-vs-report.md)
   learning/                       plugin: AI支援後の理解を深める(yasunori0418/skills 由来・MIT)
