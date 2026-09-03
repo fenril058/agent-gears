@@ -146,7 +146,7 @@ git -C {worktree} status --porcelain &&
 git -C {worktree} log --oneline {comparison basis}..HEAD
 ```
 
-- **Reviewed revision**: the head commit under review — `headRefOid` on the GitHub adapter, `HEAD` otherwise.
+- **Reviewed revision**: the head commit under review — `headRefOid` on the GitHub adapter, `HEAD` otherwise. Confirm below that this worktree actually holds it.
 - **Comparison basis**: the commit or range the change is read against. `gh pr diff` shows the diff from the merge base, so on the GitHub adapter record `git merge-base {baseRefOid} {headRefOid}` — `baseRefOid` alone is the base branch's current tip and moves as that branch advances. Otherwise: the explicit range given, or the merge base with the integration branch.
 - **Uncommitted changes**: if `git status --porcelain` is non-empty and those changes are part of what you review, say so. The report is then bound to a state that cannot be recovered from the revision alone, which is itself worth reporting.
 
@@ -305,7 +305,8 @@ Each step states the Args to pass to the consultant and how to handle the result
 The goal is a **doc–code read-through**: verifying that the explanations in the change
 declaration and comments match the actual code.
 
-If there is no change declaration (step 0-2), checks 1 and 3 below are not applicable:
+If there is no change declaration (step 0-2), checks 1-3 below are not applicable —
+all three read the implementer's own statements:
 run check 4 against the context handoff if there is one, and do not reconstruct a
 declaration from the diff so that something exists to compare against.
 

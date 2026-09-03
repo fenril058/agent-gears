@@ -155,7 +155,7 @@ git -C {worktree} status --porcelain &&
 git -C {worktree} log --oneline {比較基準}..HEAD
 ```
 
-- **レビュー対象 revision**: レビュー対象の head commit。GitHub adapter では `headRefOid`、それ以外では `HEAD`。
+- **レビュー対象 revision**: レビュー対象の head commit。GitHub adapter では `headRefOid`、それ以外では `HEAD`。この worktree が実際にそれを持っているかは後述の手順で確認する。
 - **比較基準**: 変更を読む際の起点となる commit または range。`gh pr diff` は merge base からの差分を出すので、GitHub adapter では `git merge-base {baseRefOid} {headRefOid}` を記録する。`baseRefOid` 単体は base ブランチの現在の先端であり、そのブランチが進むと動く。それ以外では、明示された range か、統合先ブランチとの merge base。
 - **未コミットの変更**: `git status --porcelain` が空でなく、その変更がレビュー対象に含まれる場合はその旨を明記する。報告書は revision だけからは復元できない状態に bind されることになり、それ自体が報告に値する。
 
@@ -281,7 +281,8 @@ prompt では結論ではなく、問いと証拠を渡すこと。
 
 この手順の目的は、change declaration やコメントでの説明と実際のコードが一致しているかを確認する、**ドキュメントとコードの読み合わせ** である。
 
-change declaration が存在しない場合(手順0-2)、以下の確認事項1と3は該当なしになる。
+change declaration が存在しない場合(手順0-2)、以下の確認事項1〜3は該当なしになる。
+いずれも実装者本人の発言を読む確認だからである。
 context handoff があれば確認事項4だけを行い、照合対象を作るために diff から declaration を再構成することはしない。
 
 #### 重要: 実装者の発言のみを拾う
