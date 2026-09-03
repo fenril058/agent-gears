@@ -124,7 +124,8 @@ For auto-detection, omit `{PR number or URL}`.
 
 Fetch the following:
 
-1. PR body (the change declaration).
+1. PR body — the core of the change declaration; the implementer's own comments and
+   review bodies (items 2-4) extend it.
 2. PR comments: from `gh pr view` comments.
 3. Inline review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
@@ -148,6 +149,10 @@ git -C {worktree} log --oneline {comparison basis}..HEAD
 - **Reviewed revision**: the head commit under review — `headRefOid` on the GitHub adapter, `HEAD` otherwise.
 - **Comparison basis**: the commit or range the change is read against. `gh pr diff` shows the diff from the merge base, so on the GitHub adapter record `git merge-base {baseRefOid} {headRefOid}` — `baseRefOid` alone is the base branch's current tip and moves as that branch advances. Otherwise: the explicit range given, or the merge base with the integration branch.
 - **Uncommitted changes**: if `git status --porcelain` is non-empty and those changes are part of what you review, say so. The report is then bound to a state that cannot be recovered from the revision alone, which is itself worth reporting.
+
+Check both ends before you trust them.
+Confirm each revision exists locally with `git -C {worktree} rev-parse --verify {SHA}^{commit}` — a fresh checkout often lacks the base branch's objects, and `git merge-base` then fails rather than returning a usable basis; fetch that ref before continuing.
+Confirm the worktree's `HEAD` is the revision you are about to report: when the PR's head is not checked out here, report the revision you actually read, not the one you were asked about.
 
 The change title, the PR number if any, and the branch name go in the report header.
 For "Reviewed at" use the current datetime (YYYY-MM-DD HH:mm:ss); for "Reviewer" use your own agent name.
@@ -277,9 +282,12 @@ barely independent at all; a same-family consultant that reads the repository co
 asked to argue the other side is a real second opinion. Write prompts that hand over the
 question and the evidence, not the verdict.
 
-If a fallback occurred or no consultant was reachable, note it in the report's
-"Problems encountered during review" section, and record in the header that the review
-carried no independent consultation.
+Two different fallbacks can happen here, and they are recorded differently.
+A **tier fallback** — the step asked for a cross-family consultant and a same-family
+fresh one answered instead — still produced an independent consultation: record which
+tier answered in the header, and note the fallback in the report's "Problems encountered
+during review" section. Only when **no consultant answered at all** (step 2 above) does
+the header say the review carried no independent consultation.
 
 **When falling back to 2 (main agent alone)**, the core of this skill — the chain of
 critical thinking (a protocol where the two sides examine and rebut each other to
@@ -296,6 +304,10 @@ Each step states the Args to pass to the consultant and how to handle the result
 
 The goal is a **doc–code read-through**: verifying that the explanations in the change
 declaration and comments match the actual code.
+
+If there is no change declaration (step 0-2), checks 1 and 3 below are not applicable:
+run check 4 against the context handoff if there is one, and do not reconstruct a
+declaration from the diff so that something exists to compare against.
 
 #### Important: pick up only the implementer's statements
 
@@ -474,6 +486,8 @@ The template headings are in Japanese; write the report in the user's working la
 
 Whatever the wording, the finished report must let a later reader identify:
 
+- what was reviewed: the change's title, the review target (the PR number, or the
+  repository and the range), and the branch;
 - the reviewed revision and the comparison basis, including whether uncommitted
   working-tree changes were part of it;
 - which change declaration and which context handoff were used, and where they came from;
@@ -486,22 +500,28 @@ Whatever the wording, the finished report must let a later reader identify:
 - the review mode, plus any other degradation (missing declaration, missing handoff,
   consultant unavailable, diff too large to cover).
 
+This list is the minimum meaning a report must carry; TEMPLATE.md is one concrete shape
+of it, and its header is where most of these land.
+
 #### Report-writing guidelines
 
-- **Change declaration > Summary**: quote/excerpt the implementer's explanation and
-  organize it before-after. Do not fill gaps with imagination. If the explanation is
-  insufficient, say so plainly.
-- **Change declaration > Quality assessment**: fill in the step-2 checklist results as
-  OK/NG/N-A/unassessable. For NG, state concretely what is missing.
-- **Findings and disposition section**: collect the points raised in the sections above
-  into one place, each with the disposition you assign it. A finding whose disposition is
-  left implicit gives the fixer nothing to act on.
-- **Unresolved questions section**: the questions the review could not settle — for lack
-  of information, of a way to verify, or because only the implementer can answer.
-- **Problems encountered during review section**: if a step was skipped, distinguish
-  whether it was an external cause (a tool was unavailable, etc.) or the agent's
-  judgment. If there were no problems, write "None".
-- **Conclusion section**: state the overall judgment and recommended action.
+The template's headings are Japanese, so each guideline below names the heading it
+applies to.
+
+- **Change declaration > Summary** (`change declaration(変更の宣言)` > `サマリー`):
+  quote/excerpt the implementer's explanation and organize it before-after. Do not fill
+  gaps with imagination. If the explanation is insufficient, say so plainly.
+- **Change declaration > Quality assessment** (`品質評価`): fill in the step-2 checklist
+  results as OK/NG/N-A/unassessable. For NG, state concretely what is missing.
+- **Findings and disposition** (`指摘事項と扱い`): collect the points raised in the
+  sections above into one place, each with the disposition you assign it. A finding whose
+  disposition is left implicit gives the fixer nothing to act on.
+- **Unresolved questions** (`未解決の問い`): the questions the review could not settle —
+  for lack of information, of a way to verify, or because only the implementer can answer.
+- **Problems encountered during review** (`レビュー作業において発生した問題`): if a step
+  was skipped, distinguish whether it was an external cause (a tool was unavailable, etc.)
+  or the agent's judgment. If there were no problems, write "None".
+- **Conclusion** (`結論`): state the overall judgment and recommended action.
 - Throughout, focus on giving the reviewer the material to judge "is this change valid".
 
 #### The report is bound to one revision

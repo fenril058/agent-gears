@@ -17,7 +17,9 @@
 
 full review は、実装した session とは別の session がレビューを行い、その報告書が修正側へ戻るまでの一連の流れ(workflow)である。
 skill が担うのはそのうち reviewer の工程だけで、前後の工程は利用者が置く。
-前後が欠けたまま起動しても skill は動くが、それは独立性を欠いた degraded なレビューであり、報告書にもそう記録される。
+前後が欠けたまま起動しても skill は動くが、それは何かが欠けた degraded なレビューであり、報告書にもそう記録される。
+欠けうるものは3つに分かれる。session の独立性(誰がレビューしたか)、入力の完全性(change declaration と context handoff が揃っているか)、reviewer 内部の相談(independent consultation があったか)。
+fresh session でも handoff が無ければ、独立性はあるが入力が欠けた状態である。
 
 ### 推奨: full independent review
 

@@ -8,7 +8,7 @@
 - Reviewed at: {YYYY-MM-DD HH:mm:ss}
 - Reviewer: {Agent名}
 - Review mode: {full independent review / self-review(実装と同一session・degraded)}
-- Independent consultation: {あり({相談先の種類}) / なし({理由})}
+- Independent consultation: {あり({相談先の種類: 別モデルファミリ / 同ファミリの fresh な相談先}) / なし({どの相談先も答えなかった理由})}
 
 <!-- Review mode は正直に書く。実装を行ったsessionから実行した場合は self-review であり、
 full independent review として書いてはならない。 -->
@@ -17,7 +17,7 @@ full independent review として書いてはならない。 -->
 
 <!-- 何を証拠としてレビューしたかを、後から特定できる形で書く -->
 
-- Change declaration: {出所と識別情報(PR概要欄 / ユーザーからの説明 / なし)}
+- Change declaration: {出所と識別情報(PR概要欄(+実装者本人のコメント・レビュー本文) / ユーザーからの説明 / なし)}
 - Context handoff: {出所と識別情報(PRコメント / `.dev/contexts/{ファイル名}` / 呼び出しで渡された / なし)}
 - Code revision: 上記 Reviewed revision と Comparison basis
 
@@ -109,8 +109,9 @@ context handoff がある場合は以下を記載する:
 <!-- レビュー作業中に発生した問題を記載する。手順をスキップした場合は、外的要因かAgentの判断かを区別すること。
 
 例:
-- 相談先が利用できなかった(外的要因): 「独立した相談先を使用せず(subagent-consultationがインストールされていないため)。バグ・脆弱性調査はAgent単独で実施」
-- Agentの判断で相談しなかった: 「独立した相談先を使用せず(Agentの判断: Markdownのみの変更のため不要と判断)。バグ・脆弱性調査はAgent単独で実施」
+- どの相談先も答えなかった(外的要因): 「独立した相談先を使用せず(subagent-consultationがインストールされていないため)。バグ・脆弱性調査はAgent単独で実施」(ヘッダーの Independent consultation は「なし」)
+- tier fallback が起きた(外的要因): 「別モデルファミリの相談先が実行環境に無く、同ファミリの fresh な相談先で実施」(ヘッダーの Independent consultation は「あり(同ファミリの fresh な相談先)」)
+- Agentの判断で相談しなかった(手順6は疑わしい点がある場合のみ相談する): 「手順6は相談せず(Agentの判断: 対話コンテキストの記述に疑わしい点がなかった)」
 - context handoff がなかった: 「context handoff なし。考慮漏れ確認はスキップ」
 - change declaration がなかった: 「change declaration なし。品質評価は評価不能」
 - self-review である: 「実装と同一sessionからの self-review。implementation session からの独立性なし」

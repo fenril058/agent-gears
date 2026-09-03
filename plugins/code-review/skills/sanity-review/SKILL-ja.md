@@ -131,7 +131,7 @@ gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,h
 
 以下の情報を取得する:
 
-1. PR本文(概要欄) = change declaration
+1. PR本文(概要欄) = change declaration の中心。実装者本人のコメントとレビュー本文(2〜4)がこれを補う
 2. PRコメント: `gh pr view` の comments
 3. インラインレビューコメント: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
@@ -158,6 +158,12 @@ git -C {worktree} log --oneline {比較基準}..HEAD
 - **レビュー対象 revision**: レビュー対象の head commit。GitHub adapter では `headRefOid`、それ以外では `HEAD`。
 - **比較基準**: 変更を読む際の起点となる commit または range。`gh pr diff` は merge base からの差分を出すので、GitHub adapter では `git merge-base {baseRefOid} {headRefOid}` を記録する。`baseRefOid` 単体は base ブランチの現在の先端であり、そのブランチが進むと動く。それ以外では、明示された range か、統合先ブランチとの merge base。
 - **未コミットの変更**: `git status --porcelain` が空でなく、その変更がレビュー対象に含まれる場合はその旨を明記する。報告書は revision だけからは復元できない状態に bind されることになり、それ自体が報告に値する。
+
+両端は、信用する前に確認する。
+各 revision が local に存在することを `git -C {worktree} rev-parse --verify {SHA}^{commit}` で確認する。
+fresh checkout には base ブランチの object が無いことが多く、その場合 `git merge-base` は使える基準を返すのではなく失敗する。先にその ref を fetch する。
+worktree の `HEAD` が、報告しようとしている revision であることも確認する。
+PR の head がここに checkout されていない場合は、依頼された revision ではなく、実際に読んだ revision を報告する。
 
 変更のタイトル、PR があればその番号、ブランチ名は報告書のヘッダーに使用する。
 Reviewed atには現在の日時(YYYY-MM-DD HH:mm:ss)を、Reviewerには自分のAgent名を記入する。
@@ -260,7 +266,10 @@ change declaration がまったく存在しない場合(手順0-2)は、4項目�
 逆に、同ファミリでも repository を白紙から読み、反対側の立場で論じるよう求められた相談先は、本物のセカンドオピニオンである。
 prompt では結論ではなく、問いと証拠を渡すこと。
 
-フォールバックが発生した場合や、相談先が利用できなかった場合は、報告書の「レビュー作業において発生した問題」セクションに記載し、ヘッダーには independent consultation を伴わないレビューであったことを記録する。
+ここで起きうるフォールバックは2種類あり、記録の仕方が違う。
+**tier fallback**(別ファミリを求めた手順に同ファミリの fresh な相談先が答えた場合)は、independent consultation が成立している。
+ヘッダーにはどの tier が答えたかを記録し、フォールバックしたこと自体は「レビュー作業において発生した問題」セクションに書く。
+ヘッダーに「independent consultation なし」と書くのは、**どの相談先も答えなかった場合**(上記の 2)だけである。
 
 **2(main agent単独実行)にフォールバックした場合**は、このスキルのコアである批判的思考の連鎖(互いの主張を検討・反論しあい、正確性と網羅性を向上するプロトコル)が機能していないことを意味する。往復検証が欠落した状態でのレビューは本来の精度を持たないため、報告書の「レビュー作業において発生した問題」セクション冒頭に、以下の文言をそのままbold段落として記載すること:
 
@@ -271,6 +280,9 @@ prompt では結論ではなく、問いと証拠を渡すこと。
 ### 手順3: 実装者の説明と実装の整合性確認
 
 この手順の目的は、change declaration やコメントでの説明と実際のコードが一致しているかを確認する、**ドキュメントとコードの読み合わせ** である。
+
+change declaration が存在しない場合(手順0-2)、以下の確認事項1と3は該当なしになる。
+context handoff があれば確認事項4だけを行い、照合対象を作るために diff から declaration を再構成することはしない。
 
 #### 重要: 実装者の発言のみを拾う
 
@@ -422,10 +434,13 @@ context handoff に書かれた「事実」が本当に正しいか、コード�
 報告書は**会話に出力する**(ファイルに保存しない)。
 次工程へ渡すのはレビュアー自身である(PRに貼る、あるいはその実行環境の共有手段で渡す)。
 
+TEMPLATE の見出しは日本語だが、報告書は利用者の作業言語で書く。
+
 #### 報告書の contract
 
 書き方によらず、完成した報告書からは後の読み手が次を特定できなければならない。
 
+- 何をレビューしたか。変更のタイトル、review target(PR 番号、または repository と範囲)、ブランチ
 - レビュー対象 revision と比較基準。未コミットの作業ツリー変更が含まれていたかどうかも含む
 - どの change declaration とどの context handoff を使ったか、およびその出所
 - 指摘事項と、それぞれの扱い(要修正 / 修正が望ましい / 実装者への質問 / 現状で許容)
@@ -433,6 +448,8 @@ context handoff に書かれた「事実」が本当に正しいか、コード�
 - reviewer とレビュー日時
 - independent consultation を実際に行ったか、行ったならどの種類の相談先か
 - レビューの mode と、その他の degradation(宣言の不在、handoff の不在、相談先の不在、差分が大きく網羅できなかった等)
+
+この一覧は報告書が備えるべき最小の意味である。TEMPLATE.md はその具体形のひとつで、上記の多くはヘッダーに落ちる。
 
 #### 報告書作成のガイドライン
 
