@@ -22,7 +22,7 @@ reviewer pastes on GitHub to mark the review complete, and to explain fixes if a
 
 ## Procedure
 
-### Step 0: Fetch PR info
+### Step 0: Fetch PR info and bind the reviewed revisions
 
 If a PR number or URL is given as an argument, target that PR. Otherwise auto-detect
 the PR linked to the current branch.
@@ -30,7 +30,7 @@ the PR linked to the current branch.
 Either way, fetch PR info:
 
 ```
-gh pr view {PR number or URL} --json number,title,body,url,author,comments,headRefName
+gh pr view {PR number or URL} --json number,title,body,url,author,comments,headRefName,headRefOid
 ```
 
 For auto-detection, omit `{PR number or URL}`.
@@ -46,7 +46,25 @@ Fetch the following:
 2. PR comments: from `gh pr view` comments.
 3. Inline review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. Diff: `gh pr diff {number}`
+5. The diff for the exact revisions established below.
+   `gh pr diff {number}` is one option when you can identify the exact head and comparison basis it used.
+
+#### Bind the report, diff, and inspected code to exact revisions
+
+Before reading the code, establish the exact commit SHA for the Reviewed head and the exact commit SHA actually used as the diff's Comparison basis.
+Record commit SHAs rather than a branch name or a moving branch tip.
+
+Maintain this invariant throughout the review:
+
+```text
+report's Reviewed head = diff's head = revision of the code actually inspected
+Comparison basis = exact commit used as the start of the diff actually reviewed
+```
+
+How you obtain the diff and inspect the code is not prescribed.
+Verify that the code you inspect is exactly the Reviewed head and that uncommitted worktree changes are not mixed into it as though they belonged to that PR revision.
+Before completing the report, confirm that its Reviewed head and Comparison basis are the exact commits used for the diff and code inspection.
+If you cannot verify the inspected code against the Reviewed head, do not complete the review as a review of that commit; report the problem to the user and stop.
 
 ### Step 1: Load the conversation context
 
@@ -261,6 +279,7 @@ Skip this step if there is no conversation context.
 **Code review is not a double-check of the work result. Review the process, not the
 result.**
 
+Do not accept statements in the conversation context as correct premises; verify them against the code and other available information.
 What was done is visible in the code. What was *considered and not done* is the
 information design review needs. Verify whether the "process" written in the
 conversation context — design decisions, rejection reasons, intentional non-actions —

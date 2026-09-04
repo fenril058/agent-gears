@@ -73,7 +73,7 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 ### code-review (出来上がったものを検める)
 
-- sanity-review: 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
+- [sanity-review](plugins/code-review/README.md#sanity-review): 対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書を作成する。結果ではなくプロセスをレビューする。
 - library-update-review: 依存更新 PR のレビューを行う。
 - codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
 
@@ -129,6 +129,7 @@ plugins/
   code-review/                    plugin: 出来上がったものを検める(shokai/agent-skills 由来・MIT)
     .claude-plugin/plugin.json
     LICENSE
+    README.md                     人間向けの sanity-review 利用ガイド
     skills/
       sanity-review/              対話コンテキスト込みの PR レビュー報告書(+ TEMPLATE.md)
       library-update-review/      依存更新 PR のレビュー
