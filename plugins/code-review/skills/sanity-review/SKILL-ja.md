@@ -18,7 +18,7 @@ feature/bugfix/refactoring PRをレビューし、レビュー報告書を作成
 
 ## 手順
 
-### 手順0: PR情報の取得
+### 手順0: PR情報の取得とレビュー対象revisionの確定
 
 引数でPR番号またはURLが指定されている場合はそのPRを対象とする。
 指定がない場合は、現在のブランチに紐づくPRを自動検出する。
@@ -26,7 +26,7 @@ feature/bugfix/refactoring PRをレビューし、レビュー報告書を作成
 いずれの場合も、以下のコマンドでPR情報を取得する:
 
 ```
-gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,headRefName
+gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,headRefName,headRefOid
 ```
 
 自動検出の場合は `{PR番号またはURL}` を省略する。
@@ -41,7 +41,23 @@ PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用�
 2. PRコメント: `gh pr view` の comments
 3. インラインレビューコメント: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. 差分: `gh pr diff {number}`
+5. Reviewed headとComparison basisとして記録するexact commit間の差分
+
+#### 報告書・差分・実際に読むコードをexact revisionへ結びつける
+
+コードを読む前に、Reviewed headのexact commit SHAと、差分の起点として実際に使うComparison basisのexact commit SHAを確定する。
+Comparison basisは別途特定し、base branchの現在の先端を差分の起点だと仮定しない。
+branch名や移動しうるbranchの先端ではなく、commit SHAを記録する。
+
+レビュー中は、次のinvariantを維持する:
+
+```text
+報告書のReviewed head = 差分のhead = 実際に読んだコードのrevision
+Comparison basis = 実際にレビューした差分の起点となるexact commit
+```
+
+実際に読むコードがReviewed headそのものであることを確認し、worktreeの未コミット変更をそのPR revisionの一部として混入させない。
+実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
 
 ### 手順1: 対話コンテキストの読み込み
 
@@ -217,6 +233,7 @@ Args: よく相談して。別モデルファミリの相談先を優先して�
 
 **コードレビューは作業結果のダブルチェックではない。結果ではなくプロセスをレビューする。**
 
+対話コンテキストに書かれた主張を、そのまま正しい前提として扱わず、コードと利用可能な他の情報に照らして検証する。
 やった事はコードを読めばわかる。検討した上でやらなかった事こそ、設計のレビューに必要な情報である。
 対話コンテキストに書かれた設計判断・却下理由・意図的な非対応の「プロセス」が正しいかを検証する。
 

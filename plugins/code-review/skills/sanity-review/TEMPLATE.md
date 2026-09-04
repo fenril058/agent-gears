@@ -3,6 +3,8 @@
 - {PRタイトル}
 - PR: #{番号}
 - Branch: `{ブランチ名}`
+- Reviewed head: `{実際にレビューしたheadのexact commit SHA}`
+- Comparison basis: `{実際にレビューした差分の起点となるexact commit SHA}`
 - Reviewed at: {YYYY-MM-DD HH:mm:ss}
 - Reviewer: {Agent名}
 
