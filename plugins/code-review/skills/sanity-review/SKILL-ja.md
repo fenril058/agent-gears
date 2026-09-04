@@ -41,11 +41,12 @@ PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用�
 2. PRコメント: `gh pr view` の comments
 3. インラインレビューコメント: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. 以下で確定するexact revision間の差分。`gh pr diff {number}` は、実際に使ったheadとcomparison basisを特定できる場合の選択肢の1つ
+5. Reviewed headとComparison basisとして記録するexact commit間の差分
 
 #### 報告書・差分・実際に読むコードをexact revisionへ結びつける
 
 コードを読む前に、Reviewed headのexact commit SHAと、差分の起点として実際に使うComparison basisのexact commit SHAを確定する。
+Comparison basisは別途特定し、base branchの現在の先端を差分の起点だと仮定しない。
 branch名や移動しうるbranchの先端ではなく、commit SHAを記録する。
 
 レビュー中は、次のinvariantを維持する:
@@ -55,9 +56,7 @@ branch名や移動しうるbranchの先端ではなく、commit SHAを記録す�
 Comparison basis = 実際にレビューした差分の起点となるexact commit
 ```
 
-差分を取得してコードを読む方法は規定しない。
 実際に読むコードがReviewed headそのものであることを確認し、worktreeの未コミット変更をそのPR revisionの一部として混入させない。
-報告書を完成させる前に、記載するReviewed headとComparison basisが、差分とコードの確認に実際に使ったcommitであることを確認する。
 実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
 
 ### 手順1: 対話コンテキストの読み込み

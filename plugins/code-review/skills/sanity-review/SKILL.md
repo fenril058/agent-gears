@@ -46,12 +46,12 @@ Fetch the following:
 2. PR comments: from `gh pr view` comments.
 3. Inline review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. The diff for the exact revisions established below.
-   `gh pr diff {number}` is one option when you can identify the exact head and comparison basis it used.
+5. The diff between the exact commits recorded as the Reviewed head and Comparison basis.
 
 #### Bind the report, diff, and inspected code to exact revisions
 
 Before reading the code, establish the exact commit SHA for the Reviewed head and the exact commit SHA actually used as the diff's Comparison basis.
+Determine the Comparison basis separately; do not assume that the current tip of the base branch is the diff's basis.
 Record commit SHAs rather than a branch name or a moving branch tip.
 
 Maintain this invariant throughout the review:
@@ -61,9 +61,7 @@ report's Reviewed head = diff's head = revision of the code actually inspected
 Comparison basis = exact commit used as the start of the diff actually reviewed
 ```
 
-How you obtain the diff and inspect the code is not prescribed.
 Verify that the code you inspect is exactly the Reviewed head and that uncommitted worktree changes are not mixed into it as though they belonged to that PR revision.
-Before completing the report, confirm that its Reviewed head and Comparison basis are the exact commits used for the diff and code inspection.
 If you cannot verify the inspected code against the Reviewed head, do not complete the review as a review of that commit; report the problem to the user and stop.
 
 ### Step 1: Load the conversation context
