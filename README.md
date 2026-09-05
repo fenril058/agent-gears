@@ -99,6 +99,7 @@ plugins/
   context-engineering/            plugin: 基盤(どう読み・探し・委譲されるか)
     .claude-plugin/plugin.json
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
+    README.md                     人間向けの codex-consultation timeout 設定ガイド
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       locate-implementation/  fastcontext で未知の挙動・症状の候補箇所を絞る

@@ -30,14 +30,17 @@ user-level の `~/.claude/settings.json` に書く例(host ceiling を20分に�
 }
 ```
 
-shell 環境変数として設定する例:
+shell 環境変数として設定する例(Claude Code を起動する前の親 shell で実行する):
 
 ```bash
 export BASH_MAX_TIMEOUT_MS=1200000
+claude
 ```
 
 `1200000`(20分)は host が許す ceiling を広げるだけである。
 `codex-consultation` の Bash call は引き続き 900000 ms(15分)を要求するため、通常の consultation は15分で bound される。
+`BASH_MAX_TIMEOUT_MS` は `codex-consultation` 専用の設定ではなく、Claude Code 全体の Bash timeout ceiling を広げる。
+timeout を明示しない Bash call の実際の待ち時間は `BASH_DEFAULT_TIMEOUT_MS` のままで、この変更では変わらない。
 
 この目的では `BASH_DEFAULT_TIMEOUT_MS` を変更する必要はない。
 default を上げると、timeout を明示しない他の Bash call にも影響する。
