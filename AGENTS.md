@@ -23,6 +23,12 @@
 - 覆しにくい決定は `docs/adr/` に記録する。追記と supersede のみで、既存の ADR は書き換えない。
   汎用 eval infrastructure を所有しない決定と、custom measurement を再開できる条件は
   `docs/adr/0001-evaluation-infrastructure-ownership.md`。skill の A/B を始める前にここを読む。
+- Claude Code の Bash-first regression への暫定回避は4箇所に分散している。
+  `rules/claude.md` の「path に紐づく指示のロード」節、README の「既知の上流不具合と暫定回避」節、
+  `docs/claude-code-instruction-loading.md`(判定と撤去の手順)、
+  `docs/adr/0002-claude-code-bash-first-instruction-loading.md`(決定と撤去条件)。
+  上流が直ったら、ADR 0002 の撤去条件を満たすことを確認した上で前3者をまとめて外し、
+  ADR 0002 は書き換えず supersede する ADR を足す。一部だけ残さない。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。
@@ -32,7 +38,7 @@
   複数 plugin に分散するので、skill を動かしたら移動先への複製と移動元の残骸に注意。
   宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
 
-手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「新しい skill を足すとき」。
+手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「既知の上流不具合と暫定回避」「新しい skill を足すとき」。
 
 shellcheck:
 
