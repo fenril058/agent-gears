@@ -33,7 +33,7 @@ learning                                   ← AI支援後の理解を深める
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
 - locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
-- codex-consultation: Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。
+- [codex-consultation](plugins/context-engineering/README.md#codex-consultation): Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。15分の policy timeout をフルに使うための Claude Code 側の設定は README 参照。
 
 ### agent-instructions (指示テキスト自体を書き、測る)
 
@@ -99,6 +99,7 @@ plugins/
   context-engineering/            plugin: 基盤(どう読み・探し・委譲されるか)
     .claude-plugin/plugin.json
     LICENSE                       shokai/agent-skills 由来 skill 用(MIT)
+    README.md                     人間向けの codex-consultation timeout 設定ガイド
     skills/
       markdown-context/  大きな Markdown を mdidx で部分取得(主役)/ mq(補助)
       locate-implementation/  fastcontext で未知の挙動・症状の候補箇所を絞る
