@@ -370,10 +370,14 @@ Claude Code の Auto mode は file の読み書きを dedicated `Read` / `Edit` 
 この steering に従うと、nested `CLAUDE.md` と path-scoped rules が silent にロードされなくなる。
 `Read` / `Edit` / `Write` matcher の hooks も同様に迂回され得る。
 
+Bash 経由の読み取りでは指示がロードされないことは、Claude Code 2.1.263 で確認済み(`InstructionsLoaded` hook が発火しない。手順と結果は `docs/claude-code-instruction-loading.md`)。
+
 - 根本修正の追跡先(source of truth): [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450)(`bug` / `has repro` で open)
 - hooks と回避フラグの報告: [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271)
 
-上流が直るまでの回避として、Claude Code の settings に次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされる。
+Bash-first steering が掛かるかどうかは host と version で違う(2.1.263 の headless CLI には無かった)。
+まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
+掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている(agent-gears 側では steering の掛かる host を用意できておらず未再現)。
 project 単位なら `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
 
 ```json

@@ -177,6 +177,9 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - 挙動だけを見る canary の偽陰性も確認した。
   「変更したファイルの末尾に `CANARY-<ID>` の行を足す」形の指示は、ロードされた上で prompt injection と判定されて拒否された。
   この文書の canary を記法規約の形にしているのはこのため。
+- **別環境での再確認(各1回)**: 同じ 2.1.263 / `claude-sonnet-5` を別のセッション・別のマシンで実行し、route 固定の結果を再現した。
+  Bash 固定は `loaded.log` が空のままで `status: final`(記法規約が効いていない)、`CHANGELOG.txt` も作られない。
+  dedicated tool 固定は `nested_traversal` と `path_glob_match` が並び、`status: FINAL-r<ID>` と `CHANGELOG.txt` の追記が出た。
 
 ## 上流修正後の撤去
 

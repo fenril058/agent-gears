@@ -35,7 +35,8 @@ B. 変更対象 path に適用される nested CLAUDE.md / path-scoped rules を
 
 A は tool 非依存に表現できる。
 B は、現行の Claude Code では dedicated `Read` の経路に結び付いており、Bash の読み取りでは代替できない。
-[anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271) では、`CLAUDE_CODE_THRIFTY_SONIC=0` で steering が消えると nested `CLAUDE.md` / path-scoped rules が再びロードされることが end-to-end で確認されている。
+これは 2026-09-08 に Claude Code 2.1.263 で再現確認した(Bash 経由の読み取りでは `InstructionsLoaded` hook が発火せず、nested `CLAUDE.md` も path-scoped rule も効かない。手順と結果は `docs/claude-code-instruction-loading.md`)。
+[anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271) では、`CLAUDE_CODE_THRIFTY_SONIC=0` で steering が消えると nested `CLAUDE.md` / path-scoped rules が再びロードされることが end-to-end で確認されている(この flag の効果は agent-gears 側では未再現。steering の掛かる host を用意できていないため)。
 
 つまり `cfb64572` の一般化は、上流 regression の影響を agent-gears の policy 側にも取り込んでいた。
 「手段は問わない」は、A を守りながら B を落とす読み取りを許容する。
