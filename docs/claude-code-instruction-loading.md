@@ -89,8 +89,12 @@ echo "$DIR  r$ID  r$ID2"
 ## 手順
 
 1. 対象の host で Bash-first steering が実際に掛かっているかを先に確かめる。
-   新規セッションで「ファイルの読み書きで `Read`/`Edit`/`Write` より Bash を優先するよう促す記述が system prompt にあるか」を尋ねる。
-   無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
+   新規セッションで「いま与えられている指示の中に、ファイルの読み書きで `Read`/`Edit`/`Write` より Bash を優先させるものがあるか」を、層を限定せずに尋ねる。
+   上流 #92271 では steering は meta user message として注入されると説明されている。
+   「system prompt にあるか」と層を限定して訊くと、steering があっても文字どおり「無い」と答えられ、偽陰性になる。
+   答えは自己申告なので、手順3の中立な依頼を1回流して `tool_use` の route で裏を取る。
+   対象ファイルを Bash で読むなら steering が掛かっていると読む。
+   steering が無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
 2. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
    Auto mode を有効にする。
 3. 中立な依頼を1つだけ出す。
@@ -125,11 +129,14 @@ echo "$DIR  r$ID  r$ID2"
 | 未設定 | `=0` | 読み |
 |---|---|---|
 | 有効 | 有効 | 暫定回避は不要。撤去条件の候補。 |
+| 有効 | 無効 | inconclusive。flag が悪化させたとは結論しない。 |
 | 無効 | 有効 | 上流 bug が再現している。暫定回避を続ける。 |
 | 無効 | 無効 | この flag では回避できない。ADR 0002 の前提が変わったので再検討する。 |
 
 1回の実行は決定的ではない。
-model がどの tool を選ぶかは同じ条件でもぶれるので、判定を変える(特に「有効」へ転じる)ときは ID を変えて数回繰り返す。
+model がどの tool を選ぶかは同じ条件でもぶれるので、未設定側だけ偶然 `Read`、`=0` 側だけ偶然 Bash を選ぶことは起こり得る。
+`有効 / 無効` はこの偶然で出るのが普通なので、ID を変えて複数回繰り返し、各回の route と `loaded.log` を突き合わせてから読む。
+判定を変える(特に「有効」へ転じる)ときも同じく数回繰り返す。
 
 ## headless で繰り返す
 
@@ -180,6 +187,9 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - **別環境での再確認(各1回)**: 同じ 2.1.263 / `claude-sonnet-5` を別のセッション・別のマシンで実行し、route 固定の結果を再現した。
   Bash 固定は `loaded.log` が空のままで `status: final`(記法規約が効いていない)、`CHANGELOG.txt` も作られない。
   dedicated tool 固定は `nested_traversal` と `path_glob_match` が並び、`status: FINAL-r<ID>` と `CHANGELOG.txt` の追記が出た。
+- **steering は host によっては system prompt の外から来る**: 同じ 2026-09-08 の Claude Code on the web(auto mode)のセッションでは、Bash-first steering が base system prompt ではなく turn 単位で注入される指示として観測された。
+  headless CLI に steering が無くても、同じ version の別 host には掛かっている。
+  flag の判定はそうした host で行える。手順1で層を限定して訊いてはいけないのはこのため。
 
 ## 上流修正後の撤去
 

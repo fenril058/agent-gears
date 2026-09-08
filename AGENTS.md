@@ -27,8 +27,11 @@
   `rules/claude.md` の「path に紐づく指示のロード」節、README の「既知の上流不具合と暫定回避」節、
   `docs/claude-code-instruction-loading.md`(判定と撤去の手順)、
   `docs/adr/0002-claude-code-bash-first-instruction-loading.md`(決定と撤去条件)。
-  上流が直ったら、ADR 0002 の撤去条件を満たすことを確認した上で前3者をまとめて外し、
-  ADR 0002 は書き換えず supersede する ADR を足す。一部だけ残さない。
+  役割が違うので撤去のしかたも違う。
+  上流が直ったら、ADR 0002 の撤去条件を canary で満たすことを確認した上で、
+  `rules/claude.md` の節と README の節を同じ PR でまとめて外す(この2つは撤去必須。片方だけ残さない)。
+  canary 文書は撤去対象ではない。将来の harness regression 検出に使えるので残してよい。
+  残すなら、何を撤去したかが分かるよう更新する。ADR 0002 は書き換えず、supersede する ADR を足す。
 - repo-local 指示の正本はこの `AGENTS.md`。`CLAUDE.md` は `@AGENTS.md` で取り込むだけ、
   `.github/copilot-instructions.md` はこれへの symlink。全エージェント共通の内容はここに書く。
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。
