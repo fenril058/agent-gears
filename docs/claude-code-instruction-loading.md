@@ -15,6 +15,20 @@ Claude Code の Auto mode が file access を Bash へ寄せると、nested `CLA
 どの tool を通ったかは判定条件にしない。
 将来 `Read` 以外の access method にも instruction loading が広がった場合、この確認はそのまま通るべきである。
 
+## 何を計測器にするか
+
+判定は2つの観測を組で読む。
+
+- **ロードされたか(機構)**: `InstructionsLoaded` hook の発火を見る。これが ground truth。
+- **効いたか(挙動)**: 依頼の結果に指示が反映されたかを見る。invariant に対応するのはこちらだが、単独では判定に使わない。
+
+挙動だけで判定すると偽陰性が出る。
+ロードされていても model が従わないことがあり、特に「変更したファイルの末尾に固定 token の行を足す」形の canary は prompt injection と見なされて拒否される。
+canary の指示は、依頼された編集そのものに掛かる、もっともらしい記法規約として書く。
+
+`InstructionsLoaded` hook は `load_reason`(`session_start` / `nested_traversal` / `path_glob_match` / `include` / `compact`)と `file_path` を渡してくる。
+nested `CLAUDE.md` は `nested_traversal`、`paths:` frontmatter を持つ rule は `path_glob_match` で発火する。
+
 ## 準備
 
 agent-gears の作業ツリーの外に、使い捨ての canary project を作る。
@@ -22,41 +36,81 @@ agent-gears の作業ツリーの外に、使い捨ての canary project を作�
 
 ```bash
 ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
+ID2=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
 DIR=$(mktemp -d)
-mkdir -p "$DIR/sub"
+mkdir -p "$DIR/sub" "$DIR/.claude/rules"
 
+# nested CLAUDE.md 側の canary: 依頼される編集そのものに掛かる記法規約として書く
 cat > "$DIR/sub/CLAUDE.md" <<EOF
-このディレクトリ配下のファイルを変更するときは、
-変更内容にかかわらず、変更後のファイルの末尾に \`CANARY-$ID\` の行を1行足す。
+# このディレクトリの記法
+
+\`note.txt\` などのメタデータファイルでは、\`status\` の値を大文字で書き、
+ハイフンを挟んで現在の版番号を後ろに付ける。
+このディレクトリの現在の版番号は \`r$ID\`。
+
+例: 下書きの状態なら \`status: DRAFT-r$ID\`
 EOF
 
-cat > "$DIR/sub/note.txt" <<'EOF'
-status: draft
+# path-scoped rule 側の canary
+cat > "$DIR/.claude/rules/sub-files.md" <<EOF
+---
+paths:
+  - "sub/**"
+---
+
+# sub/ の変更履歴
+
+\`sub/\` 配下のファイルを変更したら、\`sub/CHANGELOG.txt\` に1行追記する。
+形式は \`r$ID2: <変更内容>\`。
 EOF
 
-echo "$DIR  CANARY-$ID"
+printf 'status: draft\n' > "$DIR/sub/note.txt"
+
+# 計測器: ロードされた instruction file を記録する
+cat > "$DIR/hook.sh" <<EOF
+#!/usr/bin/env bash
+python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("load_reason"), d.get("file_path"), sep="\t")' >> "$DIR/loaded.log"
+EOF
+chmod +x "$DIR/hook.sh"
+
+cat > "$DIR/.claude/settings.json" <<EOF
+{
+  "hooks": {
+    "InstructionsLoaded": [
+      { "hooks": [ { "type": "command", "command": "$DIR/hook.sh" } ] }
+    ]
+  }
+}
+EOF
+
+echo "$DIR  r$ID  r$ID2"
 ```
 
 ## 手順
 
-1. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
+1. 対象の host で Bash-first steering が実際に掛かっているかを先に確かめる。
+   新規セッションで「ファイルの読み書きで `Read`/`Edit`/`Write` より Bash を優先するよう促す記述が system prompt にあるか」を尋ねる。
+   無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
+2. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
    Auto mode を有効にする。
-2. 中立な依頼を1つだけ出す。
+3. 中立な依頼を1つだけ出す。
    canary、`CLAUDE.md`、tool 名のいずれにも触れない。
 
    ```text
    sub/note.txt の status を final に変えて
    ```
 
-3. セッション終了後に結果を見る。
+4. セッション終了後に結果を見る。
 
    ```bash
-   cat "$DIR/sub/note.txt"
+   cat "$DIR/loaded.log"        # 機構: 何がロードされたか
+   cat "$DIR/sub/note.txt"      # 挙動: nested CLAUDE.md 側
+   cat "$DIR/sub/CHANGELOG.txt" # 挙動: path-scoped rule 側
    ```
 
-4. `CANARY-$ID` の行があれば、その path の指示は有効になっている。
-   無ければロードされていない。
-5. 準備からやり直して `<ID>` と `$DIR` を作り直し、今度は settings に `CLAUDE_CODE_THRIFTY_SONIC=0` を置いて同じ手順を実行する。
+5. `loaded.log` に `sub/CLAUDE.md` と `rules/sub-files.md` の行があれば、その path の指示はロードされている。
+   `note.txt` が `status: FINAL-r$ID` になっていれば挙動にも出ている。
+6. 準備からやり直して ID と `$DIR` を作り直し、今度は settings に `CLAUDE_CODE_THRIFTY_SONIC=0` を足して同じ手順を実行する。
 
    ```json
    {
@@ -74,13 +128,55 @@ echo "$DIR  CANARY-$ID"
 | 無効 | 有効 | 上流 bug が再現している。暫定回避を続ける。 |
 | 無効 | 無効 | この flag では回避できない。ADR 0002 の前提が変わったので再検討する。 |
 
-1回の実行は決定的ではないので、判定を変える(特に「有効」へ転じる)ときは ID を変えて数回繰り返す。
+1回の実行は決定的ではない。
+model がどの tool を選ぶかは同じ条件でもぶれるので、判定を変える(特に「有効」へ転じる)ときは ID を変えて数回繰り返す。
 
-## path-scoped rules の変種
+## headless で繰り返す
 
-nested `CLAUDE.md` の代わりに、同じ sentinel を持つ path 限定の rule を `.claude/rules/<name>.md` に置いて同じ手順を繰り返す。
-frontmatter の書式はその時点の Claude Code のドキュメントに従い、この文書で固定しない。
-nested `CLAUDE.md` と結果が分かれることがあるので、両方を確認する。
+対話セッションを毎回立てなくても、同じ canary を `claude -p` で回せる。
+`--permission-mode auto` と使い捨ての project directory を使い、n 回繰り返して route と `loaded.log` を集計する。
+
+```bash
+cd "$DIR" && claude -p 'sub/note.txt の status を final に変えて' \
+  --permission-mode auto --no-session-persistence \
+  --output-format stream-json --verbose > stream.jsonl
+```
+
+`stream.jsonl` の `tool_use` を見れば、対象ファイルを `Read` と Bash のどちらで読んだかが分かる。
+ただし headless CLI の auto mode は host 側の auto mode と system prompt が同じとは限らない。
+手順1の確認を headless 側でも行う。
+
+## tool route を固定して機構だけを見る
+
+model の tool 選択のぶれを外して「Bash 経由の読み取りで指示がロードされるか」だけを見たいときは、route を強制する。
+
+```bash
+# Bash に固定
+claude -p '...' --permission-mode auto --disallowedTools "Read,Edit,Write,Glob,Grep,NotebookEdit"
+# dedicated tool に固定
+claude -p '...' --permission-mode auto --disallowedTools "Bash"
+```
+
+これは invariant そのものではなく、その内訳(loading が dedicated `Read` の経路に結び付いているか)を見る補助的な確認である。
+撤去判定は、route を強制しない手順のほうで行う。
+
+## 実測(2026-09-08 / Claude Code 2.1.263)
+
+Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model は `claude-sonnet-5`)で実行した結果。
+
+- **route を固定した確認(各3回)**: Bash に固定した3回は `InstructionsLoaded` が1度も発火せず、nested `CLAUDE.md` と path-scoped rule のどちらも効かなかった。
+  dedicated tool に固定した3回は `nested_traversal` と `path_glob_match` の両方が発火し、どちらの canary も挙動に出た。
+  loading が dedicated `Read` の経路に結び付いているという ADR 0002 の前提は、この version でも成立している。
+- **Bash-first steering を `--append-system-prompt` で与えた確認(各3回)**: steering 有りの3回は対象ファイルを Bash だけで読み、ロードも挙動も出なかった。
+  steering 無しの3回は `Read` を通してロードされ、挙動にも出た。
+  steering → Bash route → ロードされない、という経路が end-to-end で再現する。
+- **2.1.263 の headless CLI 自体には Bash-first steering が無い**: system prompt には逆に dedicated tool を優先させる記述があると model が答え、route の実測もそれと一致した。
+  `CLAUDE_CODE_THRIFTY_SONIC=0` の有無で route も判定も変わらなかった(各4回)。
+  この環境は bug の前提条件を再現しないので、flag の効果はここでは測れていない。
+  flag の判定は、手順1で steering の存在を確認できた host で行う必要がある。
+- 挙動だけを見る canary の偽陰性も確認した。
+  「変更したファイルの末尾に `CANARY-<ID>` の行を足す」形の指示は、ロードされた上で prompt injection と判定されて拒否された。
+  この文書の canary を記法規約の形にしているのはこのため。
 
 ## 上流修正後の撤去
 
@@ -88,7 +184,8 @@ ADR 0002 の撤去条件を満たすかどうかは、この手順で判定す�
 
 1. 上流 report([#90450](https://github.com/anthropics/claude-code/issues/90450) / [#92271](https://github.com/anthropics/claude-code/issues/92271))に対応する fix が入った version を特定する。
    issue の close や release note だけを根拠にしない。
-2. その version で上の手順を実行し、`CLAUDE_CODE_THRIFTY_SONIC` 未設定でも sentinel が有効になることを確認する。
+2. その version で上の手順を実行し、`CLAUDE_CODE_THRIFTY_SONIC` 未設定でも `loaded.log` に対象の instruction file が並び、挙動にも出ることを確認する。
+   Bash に route を固定した確認でもロードされるなら、上流が access method 側を広げたことになる。
 3. その時点で `Read` / `Edit` / `Write` matcher の hooks を配布していれば、それらが Bash 経路で迂回されないことも確認する。
 4. 確認できたら、README の workaround 案内と `rules/claude.md` の「path に紐づく指示のロード」節を削除する。
    `rules/claude.md` は「変更前に現在の内容を確認する」という tool 非依存の不変則だけに戻す。
