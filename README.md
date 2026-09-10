@@ -375,7 +375,7 @@ Bash 経由の読み取りでは指示がロードされないことは、Claude
 - 根本修正の追跡先(source of truth): [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450)(`bug` / `has repro` で open)
 - hooks と回避フラグの報告: [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271)
 
-Bash-first steering が掛かるかどうかは host / version / model で違う(2.1.263 の headless CLI には無く、2.1.267 の headless CLI でも `claude-sonnet-5` には無く `claude-opus-5` には掛かっていた)。
+Bash-first steering が掛かるかどうかは host / version / model で違う(2.1.263 の headless CLI の `claude-sonnet-5` には無く、2.1.267 の headless CLI でも `claude-sonnet-5` には無く `claude-opus-5` には掛かっていた)。
 まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
 掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている。
 agent-gears でも、steering が掛かる条件を1つ用意して end-to-end に確認した(2026-09-11 / Claude Code 2.1.267 / Ubuntu 24.04.5 LTS on WSL2 / `claude -p --permission-mode auto --setting-sources project` / `claude-opus-5` / 各条件4回)。
@@ -401,6 +401,8 @@ agent-gears でも、steering が掛かる条件を1つ用意して end-to-end �
   これは「変更前に現在の内容を確認する」という tool 非依存の不変則とは別の要件で、読み取り全般を `Read` に固定するものではない。
 - 判定と撤去の手順は `docs/claude-code-instruction-loading.md`、決定と撤去条件は `docs/adr/0002-claude-code-bash-first-instruction-loading.md`。
   上流 issue の close や release note だけを根拠に撤去せず、実際の Claude Code version で再現確認を行う。
+  撤去条件は access method 側の修正(Bash 経由でもロードされる)と steering 側の修正(steering が無くなる)の両方を扱い、
+  単に experiment cohort の外にいるだけの「steering なし」は根拠にしない。
 
 ## 新しい skill を足すとき
 

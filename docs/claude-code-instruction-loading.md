@@ -50,10 +50,16 @@ user-level の rules は全 project に適用されるので、`$DIR` を reposi
 CLI では `--setting-sources project` を必須条件にする(canary 自身の `.claude/settings.json` と `.claude/rules/` は project source なので残る)。
 この flag は interactive 起動にも付けられるので、対話で行う場合も同じ隔離を掛ける。
 
+ただし `--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy はこの3層に含まれない(`--restricted` の説明でも managed settings は別扱いで残ると書かれている)。
+managed 側が `Read` を強制していれば未設定 arm が誤って pass し、逆に managed 側が hook を無効化していたり `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` を継承していれば偽陰性になる。
+canary は managed 配布の無い環境で回すことを前提条件にする。
+`claude doctor` の `Managed settings` / `Organization policy` の行と、継承している Claude Code 関連の env を実行前に見る。
+どちらも確認できない環境では、結果を撤去根拠にしない。
+
 ```bash
 ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
 ID2=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
-DIR=$(mktemp -d)
+DIR=$(cd "$(mktemp -d)" && pwd -P)   # hook が渡す file_path と前方一致させるため symlink を解決する
 mkdir -p "$DIR/sub" "$DIR/.claude/rules"
 
 # nested CLAUDE.md 側の canary: 依頼される編集そのものに掛かる記法規約として書く
@@ -115,17 +121,27 @@ echo "$DIR  r$ID  r$ID2"
    自己申告と route(対象ファイルを Bash で読む)が一致すれば steering の存在を支持する。
    1回の route だけでは確定しない。同じ条件でも tool 選択はぶれるので、steering が無くても偶然 Bash を選ぶことはある。
    自己申告と route が食い違う場合、または route だけで判断する場合は、ID を変えて複数回繰り返す。
-   steering が無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
+   steering が無い host では bug の前提条件が再現しないので、`CLAUDE_CODE_THRIFTY_SONIC` の A/B はそこでは測れない。
+   ただし「steering が無い」こと自体には2つの原因がある。
+   上流が steering を削除した場合と、その host / model が元から experiment cohort の外にいる場合である。
+   区別は `CLAUDE_CODE_THRIFTY_SONIC=1` を明示して行う。
+   steering が戻るなら cohort 外にいるだけで、戻らないなら gate ごと消えている。
+   撤去判定でこれをどう使うかは「上流修正後の撤去」に書く。
 2. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
    Auto mode を有効にし、user source を外す(CLI なら `--setting-sources project`)。
    A arm は「設定していない」ではなく「設定されていない」ことを確認する。
    settings に書いていなくても、親プロセスから継承した env var があればそちらが効く。
    Claude Code のセッションから canary を回すときに起こりやすい。
 
+   managed settings と organization policy も、この3層とは別に効く。
+   起動前に隔離を監査する。
+
    ```bash
    if printenv CLAUDE_CODE_THRIFTY_SONIC >/dev/null; then
      echo "A arm が継承 env で汚染されている" >&2
    fi
+   env | grep -i '^CLAUDE' || echo "Claude Code 関連の継承 env は無し"
+   claude doctor | grep -E 'Managed settings|Organization policy'
    ```
 
    interactive セッションで行う場合は workspace trust に注意する。
@@ -142,13 +158,19 @@ echo "$DIR  r$ID  r$ID2"
 
 4. セッション終了後に結果を見る。
    `InstructionsLoaded` は async なので、`loaded.log` は空のまま読まずに bounded poll してから読む。
-   待つ条件は「1行でも書かれた」ではなく、期待する2イベントが両方揃うことにする。
+   待つ条件は「1行でも書かれた」ではなく、手順5の pass 条件と同じ2行が揃うことにする。
    `[ -s "$DIR/loaded.log" ]` だと最初の hook が1行書いた時点で抜けるので、2本目がまだ実行中でも negative と読める。
+   `load_reason` だけで待つのも足りない。
+   隔離しきれなかった別の instruction file が同じ `load_reason` で発火すると、対象 file が未発火のまま抜ける。
+   `load_reason` と `file_path` の組で待つ。
 
    ```bash
-   # nested_traversal と path_glob_match が揃うまで最大30秒待つ
+   want_nested=$'nested_traversal\t'"$DIR/sub/CLAUDE.md"
+   want_glob=$'path_glob_match\t'"$DIR/.claude/rules/sub-files.md"
+
+   # 期待する2行が揃うまで最大30秒待つ
    for _ in $(seq 60); do
-     if grep -q nested_traversal "$DIR/loaded.log" && grep -q path_glob_match "$DIR/loaded.log"; then
+     if grep -Fqx "$want_nested" "$DIR/loaded.log" && grep -Fqx "$want_glob" "$DIR/loaded.log"; then
        break
      fi
      sleep 0.5
@@ -161,7 +183,8 @@ echo "$DIR  r$ID  r$ID2"
 
 5. `有効` と読むのは、機構と挙動の pass 条件をすべて満たしたときだけにする。
 
-   - 機構: `loaded.log` に `sub/CLAUDE.md` の `nested_traversal` と `.claude/rules/sub-files.md` の `path_glob_match` が両方ある。
+   - 機構: `loaded.log` に `$want_nested` と `$want_glob` の2行がそのままある(poll と同じ条件を見る)。
+     hook が渡す `file_path` の prefix が `$DIR` と食い違う環境では、log に実際に出た path で組を作り直す。
    - 挙動(nested `CLAUDE.md` 側): `sub/note.txt` が `status: FINAL-r$ID` になっている。
    - 挙動(path-scoped rule 側): `sub/CHANGELOG.txt` があり、`r$ID2:` で始まる行がある。
 
@@ -241,7 +264,8 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - **Bash-first steering を `--append-system-prompt` で与えた確認(各3回)**: steering 有りの3回は対象ファイルを Bash だけで読み、ロードも挙動も出なかった。
   steering 無しの3回は `Read` を通してロードされ、挙動にも出た。
   steering → Bash route → ロードされない、という経路が end-to-end で再現する。
-- **2.1.263 の headless CLI 自体には Bash-first steering が無い**: system prompt には逆に dedicated tool を優先させる記述があると model が答え、route の実測もそれと一致した。
+- **2.1.263 / `claude-sonnet-5` の headless CLI には Bash-first steering が無い**: system prompt には逆に dedicated tool を優先させる記述があると model が答え、route の実測もそれと一致した。
+  この時点では model を変えた確認をしていないので、「2.1.263 の headless CLI には無い」とまでは言えない(下の 2.1.267 の実測で、同じ headless CLI でも model により変わることが分かった)。
   `CLAUDE_CODE_THRIFTY_SONIC=0` の有無で route も判定も変わらなかった(各4回)。
   この環境は bug の前提条件を再現しないので、flag の効果はここでは測れていない。
   flag の判定は、手順1で steering の存在を確認でき、かつ起動時の env を設定できる host で行う必要がある。
@@ -273,6 +297,7 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - `claude -p --permission-mode auto --no-session-persistence --output-format stream-json`
 - `--setting-sources project`(user-level の agent-gears rules を除外)
 - 継承済みの `CLAUDE_*` env を除いた状態で起動(A arm が本当に unset であることを確認)
+- managed settings と organization policy が無い host(`claude doctor` の該当行で確認)
 - model は `claude-opus-5`
 - run ごとに `$DIR` と ID を作り直し、各条件4回
 
@@ -312,13 +337,31 @@ model 自体が原因というより、model / cohort が gate の既定値を�
 
 ADR 0002 の撤去条件を満たすかどうかは、この手順で判定する。
 
+上流修正は2つの形で来る。
+どちらの形を根拠にするかを先に決める。
+
+- **access method 側の修正**: Bash 経由の読み取りでも instruction がロードされるようになった形。
+- **steering 側の修正**: Bash-first steering が無くなり、既定の route が dedicated tool に戻った形。
+
+invariant は「その path の指示が実際に有効になる」なので、どちらの形でも撤去条件を満たしうる。
+判定手順が片方だけを想定していると、steering を削除した上流修正を自分で失格にしてしまう。
+
 1. 上流 report([#90450](https://github.com/anthropics/claude-code/issues/90450) / [#92271](https://github.com/anthropics/claude-code/issues/92271))に対応する fix が入った version を特定する。
    issue の close や release note だけを根拠にしない。
-2. その version で上の手順を実行し、`CLAUDE_CODE_THRIFTY_SONIC` 未設定でも `loaded.log` に対象の instruction file が並び、挙動にも出ることを確認する。
-   Bash に route を固定した確認でもロードされるなら、上流が access method 側を広げたことになる。
-3. その時点で `Read` / `Edit` / `Write` matcher の hooks を配布していれば、それらが Bash 経路で迂回されないことも確認する。
-4. 確認できたら、README の workaround 案内と `rules/claude.md` の「path に紐づく指示のロード」節を削除する。
+2. **access method 側の修正**を根拠にする場合は、「tool route を固定して機構だけを見る」の Bash 固定を実行する。
+   対象 path の2 file が `loaded.log` に並び、behavioral canary も両方出れば満たす。
+   この場合は steering の有無を問わない。
+3. **steering 側の修正**を根拠にする場合は、以前 steering を再現できた条件(host / 実行形態 / model / permission mode)をそのまま使って手順1をやり直し、steering が消えていることを確認する。
+   そのうえで `CLAUDE_CODE_THRIFTY_SONIC` 未設定の arm を複数回実行し、毎回 pass することを確認する。
+4. 3 を根拠にするときは、単に experiment cohort から外れただけでないことを確認する。
+   `CLAUDE_CODE_THRIFTY_SONIC=1` を明示しても steering が戻らないなら、gate ごと消えたと読める。
+   `=1` で steering が戻るなら cohort 外にいるだけなので、撤去根拠にしない(2.1.267 の `claude-sonnet-5` がこの状態だった)。
+   steering を一度も再現していない host / model の「steering なし」も、同じ理由で根拠にしない。
+5. その時点で `Read` / `Edit` / `Write` matcher の hooks を配布していれば、それらが Bash 経路で迂回されないことも確認する。
+6. 確認できたら、README の workaround 案内と `rules/claude.md` の「path に紐づく指示のロード」節を削除する。
    `rules/claude.md` は「変更前に現在の内容を確認する」という tool 非依存の不変則だけに戻す。
-5. ADR 0002 は書き換えず、撤去を決めた ADR を追加して supersede する。
+7. ADR 0002 は書き換えず、撤去を決めた ADR を追加して supersede する。
+
+どの形で判定する場合も、「準備」の隔離条件(user source を外す、managed 配布が無い、継承 env が無い)を満たした環境で行う。
 
 この文書自体は、将来の harness regression 検出に使えるので撤去後も残してよい。

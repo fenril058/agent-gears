@@ -83,11 +83,21 @@ undocumented な上流の実装詳細であること、撤去対象であるこ�
 確認する invariant は tool identity ではなく「変更対象 path に適用される指示が実際に有効になること」で、将来 Anthropic が `Read` 以外の access method にも instruction loading を広げた場合もそのまま通る。
 
 撤去は次を満たしたときに行う。
+上流修正は access method 側(Bash 経由でもロードされる)と steering 側(Bash-first steering が無くなる)の2つの形で来るので、どちらでも撤去条件を満たせるようにする。
+invariant は tool identity ではなく「その path の指示が実際に有効になること」なので、片方の形だけを想定した判定にはしない。
 
 1. 上流 report に対応する fix または同等の変更がリリースされている。
 2. 対象の Claude Code version で `docs/claude-code-instruction-loading.md` の手順を実行する。
-3. `CLAUDE_CODE_THRIFTY_SONIC` 未設定でも nested `CLAUDE.md` / path-scoped rules が期待どおり有効になる。
-4. その時点で dedicated tool matcher hooks を持っているなら、それらにも回帰が無い。
+3. 次のどちらかを満たす。
+   - **access method 側の修正**: Bash に route を固定した確認でも、対象 path の nested `CLAUDE.md` / path-scoped rule がロードされ、挙動にも出る。
+   - **steering 側の修正**: 以前 steering を再現できた同一条件で steering が消えており、`CLAUDE_CODE_THRIFTY_SONIC` 未設定の arm が複数回 pass する。
+4. steering 側の修正を根拠にする場合は、単に experiment cohort から外れただけでないことを区別する。
+   `CLAUDE_CODE_THRIFTY_SONIC=1` を明示しても steering が戻らないなら削除、戻るなら cohort 外なので撤去根拠にしない。
+5. その時点で dedicated tool matcher hooks を持っているなら、それらにも回帰が無い。
+
+判定は canary の隔離条件を満たした環境で行う。
+`--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy はそこに含まれない。
+managed 配布のある環境では、未設定 arm の pass も非発火も誤りうるので撤去根拠にしない。
 
 issue の close や release note だけを根拠に撤去しない。
 実際の version で再現確認を行う。
