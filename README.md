@@ -377,7 +377,9 @@ Bash 経由の読み取りでは指示がロードされないことは、Claude
 
 Bash-first steering が掛かるかどうかは host と version で違う(2.1.263 の headless CLI には無かった)。
 まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
-掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている(agent-gears 側では steering の掛かる host を用意できておらず未再現)。
+掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている。
+agent-gears 側ではこの効果を未再現(steering の掛かる host は観測済みだが、その host で起動時の env を設定して対比を取る経路がまだ無い)。
+バンドルの静的読解では、この env var は steering の experiment gate を上書きする tri-state boolean である。
 project 単位なら `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
 
 ```json

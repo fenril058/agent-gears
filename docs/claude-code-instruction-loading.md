@@ -19,7 +19,7 @@ Claude Code の Auto mode が file access を Bash へ寄せると、nested `CLA
 
 判定は2つの観測を組で読む。
 
-- **ロードされたか(機構)**: `InstructionsLoaded` hook の発火を見る。これが ground truth。
+- **ロードされたか(機構)**: `InstructionsLoaded` hook の発火を見る。発火していればロードされたと確定できる。
 - **効いたか(挙動)**: 依頼の結果に指示が反映されたかを見る。invariant に対応するのはこちらだが、単独では判定に使わない。
 
 挙動だけで判定すると偽陰性が出る。
@@ -28,6 +28,14 @@ canary の指示は、依頼された編集そのものに掛かる、もっと�
 
 `InstructionsLoaded` hook は `load_reason`(`session_start` / `nested_traversal` / `path_glob_match` / `include` / `compact`)と `file_path` を渡してくる。
 nested `CLAUDE.md` は `nested_traversal`、`paths:` frontmatter を持つ rule は `path_glob_match` で発火する。
+
+この hook は observability 用の [asynchronous event](https://code.claude.com/docs/en/hooks#instructionsloaded) なので、log の書き込みとセッション終了に race がある。
+`loaded.log` が空であることは、ロードされなかったことの証明にはならない。
+判定は次の非対称な読みにする。
+
+- log に行がある: ロードされた(確定)。
+- log が空で挙動が出ている: hook が間に合わなかった疑い。`無効` にせず inconclusive とし、再実行する。
+- log が空で挙動も出ていない: ロードされていないと読む。ただし後述の bounded poll を経てから読む。
 
 ## 準備
 
@@ -92,8 +100,10 @@ echo "$DIR  r$ID  r$ID2"
    新規セッションで「いま与えられている指示の中に、ファイルの読み書きで `Read`/`Edit`/`Write` より Bash を優先させるものがあるか」を、層を限定せずに尋ねる。
    上流 #92271 では steering は meta user message として注入されると説明されている。
    「system prompt にあるか」と層を限定して訊くと、steering があっても文字どおり「無い」と答えられ、偽陰性になる。
-   答えは自己申告なので、手順3の中立な依頼を1回流して `tool_use` の route で裏を取る。
-   対象ファイルを Bash で読むなら steering が掛かっていると読む。
+   答えは自己申告なので、手順3の中立な依頼を流して `tool_use` の route でも見る。
+   自己申告と route(対象ファイルを Bash で読む)が一致すれば steering の存在を支持する。
+   1回の route だけでは確定しない。同じ条件でも tool 選択はぶれるので、steering が無くても偶然 Bash を選ぶことはある。
+   自己申告と route が食い違う場合、または route だけで判断する場合は、ID を変えて複数回繰り返す。
    steering が無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
 2. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
    Auto mode を有効にする。
@@ -105,8 +115,11 @@ echo "$DIR  r$ID  r$ID2"
    ```
 
 4. セッション終了後に結果を見る。
+   `InstructionsLoaded` は async なので、`loaded.log` は空のまま読まずに bounded poll してから読む。
 
    ```bash
+   for _ in $(seq 10); do [ -s "$DIR/loaded.log" ] && break; sleep 0.5; done
+
    cat "$DIR/loaded.log"        # 機構: 何がロードされたか
    cat "$DIR/sub/note.txt"      # 挙動: nested CLAUDE.md 側
    cat "$DIR/sub/CHANGELOG.txt" # 挙動: path-scoped rule 側
@@ -114,6 +127,7 @@ echo "$DIR  r$ID  r$ID2"
 
 5. `loaded.log` に `sub/CLAUDE.md` と `rules/sub-files.md` の行があれば、その path の指示はロードされている。
    `note.txt` が `status: FINAL-r$ID` になっていれば挙動にも出ている。
+   poll しても log が空で、しかし挙動が出ている場合は、hook が間に合わなかった疑いとして inconclusive にし、再実行する。
 6. 準備からやり直して ID と `$DIR` を作り直し、今度は settings に `CLAUDE_CODE_THRIFTY_SONIC=0` を足して同じ手順を実行する。
 
    ```json
@@ -180,7 +194,7 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - **2.1.263 の headless CLI 自体には Bash-first steering が無い**: system prompt には逆に dedicated tool を優先させる記述があると model が答え、route の実測もそれと一致した。
   `CLAUDE_CODE_THRIFTY_SONIC=0` の有無で route も判定も変わらなかった(各4回)。
   この環境は bug の前提条件を再現しないので、flag の効果はここでは測れていない。
-  flag の判定は、手順1で steering の存在を確認できた host で行う必要がある。
+  flag の判定は、手順1で steering の存在を確認でき、かつ起動時の env を設定できる host で行う必要がある。
 - 挙動だけを見る canary の偽陰性も確認した。
   「変更したファイルの末尾に `CANARY-<ID>` の行を足す」形の指示は、ロードされた上で prompt injection と判定されて拒否された。
   この文書の canary を記法規約の形にしているのはこのため。
@@ -189,7 +203,15 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
   dedicated tool 固定は `nested_traversal` と `path_glob_match` が並び、`status: FINAL-r<ID>` と `CHANGELOG.txt` の追記が出た。
 - **steering は host によっては system prompt の外から来る**: 同じ 2026-09-08 の Claude Code on the web(auto mode)のセッションでは、Bash-first steering が base system prompt ではなく turn 単位で注入される指示として観測された。
   headless CLI に steering が無くても、同じ version の別 host には掛かっている。
-  flag の判定はそうした host で行える。手順1で層を限定して訊いてはいけないのはこのため。
+  手順1で層を限定して訊いてはいけないのはこのため。
+  ただしこの host でも **flag の効果は検証していない**。
+  観測したのは実行中のセッションであり、env は session 起動時に読まれるため、そのセッション内から `CLAUDE_CODE_THRIFTY_SONIC` を設定し直して対比を取ることはできない。
+  flag の検証には、steering が掛かる host で settings の `env` を設定してからセッションを起こす経路が要る。
+- **flag が何を制御しているかの静的確認**: 2.1.263 のバンドルに `CLAUDE_CODE_THRIFTY_SONIC` は存在し、tri-state boolean として parse されている。
+  値が設定されていればその値をそのまま返し、未設定なら experiment gate(`forced` / `cohort` / `none`)へフォールバックする分岐を gate している。
+  つまり `=0` は「gate の判定を無視して off に固定する」ものと読める。
+  これはバンドルの静的読解であって、end-to-end の効果確認ではない。
+  headless CLI で `=0` の有無が効かなかったのは、この gate がそこでは元々 off だったためと整合する。
 
 ## 上流修正後の撤去
 
