@@ -37,8 +37,11 @@ A は tool 非依存に表現できる。
 B は、現行の Claude Code では dedicated `Read` の経路に結び付いており、Bash の読み取りでは代替できない。
 これは 2026-09-08 に Claude Code 2.1.263 で再現確認した(Bash 経由の読み取りでは `InstructionsLoaded` hook が発火せず、nested `CLAUDE.md` も path-scoped rule も効かない。手順と結果は `docs/claude-code-instruction-loading.md`)。
 [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271) では、`CLAUDE_CODE_THRIFTY_SONIC=0` で steering が消えると nested `CLAUDE.md` / path-scoped rules が再びロードされることが end-to-end で確認されている。
-この flag の効果は agent-gears 側では未再現である(steering の掛かる host は観測したが、その host で起動時の env を設定して対比を取る経路がまだ無い)。
-バンドルの静的読解では、この env var は steering の experiment gate を上書きする tri-state boolean である。
+この flag の効果は agent-gears 側でも、2026-09-11 に Claude Code 2.1.267 で end-to-end に確認した。
+Ubuntu 24.04.5 LTS(WSL2)の `claude -p --permission-mode auto --setting-sources project`、model は `claude-opus-5`、user-level の agent-gears rules と継承済みの `CLAUDE_*` env を除いた状態で、各条件4回である。
+未設定は4回とも Bash-first route で `nested_traversal` / `path_glob_match` がどちらも 0/4、`=0` は4回とも dedicated `Read` を通って両方 4/4 発火し、nested `CLAUDE.md` と path-scoped rule の behavioral canary も両方出た。
+確認できたのはこの条件についてであり、全ての host / version / model への一般化ではない(control と留保は `docs/claude-code-instruction-loading.md` の実測節)。
+バンドルの静的読解でも、この env var は steering の experiment gate を上書きする tri-state boolean である。
 
 つまり `cfb64572` の一般化は、上流 regression の影響を agent-gears の policy 側にも取り込んでいた。
 「手段は問わない」は、A を守りながら B を落とす読み取りを許容する。

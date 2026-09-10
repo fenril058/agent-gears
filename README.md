@@ -370,16 +370,17 @@ Claude Code の Auto mode は file の読み書きを dedicated `Read` / `Edit` 
 この steering に従うと、nested `CLAUDE.md` と path-scoped rules が silent にロードされなくなる。
 `Read` / `Edit` / `Write` matcher の hooks も同様に迂回され得る。
 
-Bash 経由の読み取りでは指示がロードされないことは、Claude Code 2.1.263 で確認済み(`InstructionsLoaded` hook が発火しない。手順と結果は `docs/claude-code-instruction-loading.md`)。
+Bash 経由の読み取りでは指示がロードされないことは、Claude Code 2.1.263 と 2.1.267 で確認済み(`InstructionsLoaded` hook が発火しない。手順と結果は `docs/claude-code-instruction-loading.md`)。
 
 - 根本修正の追跡先(source of truth): [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450)(`bug` / `has repro` で open)
 - hooks と回避フラグの報告: [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271)
 
-Bash-first steering が掛かるかどうかは host と version で違う(2.1.263 の headless CLI には無かった)。
+Bash-first steering が掛かるかどうかは host / version / model で違う(2.1.263 の headless CLI には無く、2.1.267 の headless CLI でも `claude-sonnet-5` には無く `claude-opus-5` には掛かっていた)。
 まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
 掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている。
-agent-gears 側ではこの効果を未再現(steering の掛かる host は観測済みだが、その host で起動時の env を設定して対比を取る経路がまだ無い)。
-バンドルの静的読解では、この env var は steering の experiment gate を上書きする tri-state boolean である。
+agent-gears でも、steering が掛かる条件を1つ用意して end-to-end に確認した(2026-09-11 / Claude Code 2.1.267 / Ubuntu 24.04.5 LTS on WSL2 / `claude -p --permission-mode auto --setting-sources project` / `claude-opus-5` / 各条件4回)。
+未設定側は4回とも Bash-first route で `InstructionsLoaded` が発火せず canary も不発、`=0` 側は4回とも dedicated `Read` を通って `nested_traversal` と `path_glob_match` が発火し canary も出た。
+確認したのはこの条件についてであって、全ての host / version / model について言えるわけではない(control と留保は `docs/claude-code-instruction-loading.md` の実測節)。
 project 単位なら `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
 
 ```json

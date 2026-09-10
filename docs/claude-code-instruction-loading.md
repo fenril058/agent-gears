@@ -42,6 +42,14 @@ nested `CLAUDE.md` は `nested_traversal`、`paths:` frontmatter を持つ rule 
 agent-gears の作業ツリーの外に、使い捨ての canary project を作る。
 `<ID>` は実行のたびに新しいランダム文字列にする(前のセッションの文脈から sentinel が漏れるのを防ぐため)。
 
+作業ツリーの外に置くだけでは、agent-gears 自身の暫定回避を外せない。
+`install.sh` は `rules/claude.md` を user-level の `~/.claude/rules/agent-gears.md` として配布し、そこには「変更するファイルは一度 `Read` で開く」が入っている。
+user-level の rules は全 project に適用されるので、`$DIR` を repository の外に作っても効いたままになる。
+その状態で未設定側を走らせると、bug が残っていても mitigation 自身が `Read` を強制して canary を通してしまい、「暫定回避は不要」が循環論証になる。
+判定では user source を必ず外す。
+CLI では `--setting-sources project` を必須条件にする(canary 自身の `.claude/settings.json` と `.claude/rules/` は project source なので残る)。
+この flag は interactive 起動にも付けられるので、対話で行う場合も同じ隔離を掛ける。
+
 ```bash
 ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
 ID2=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
@@ -75,6 +83,9 @@ EOF
 printf 'status: draft\n' > "$DIR/sub/note.txt"
 
 # 計測器: ロードされた instruction file を記録する
+# 空ファイルで初期化する(negative case でも grep / cat が ENOENT にならない)
+: > "$DIR/loaded.log"
+
 cat > "$DIR/hook.sh" <<EOF
 #!/usr/bin/env bash
 python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("load_reason"), d.get("file_path"), sep="\t")' >> "$DIR/loaded.log"
@@ -106,7 +117,22 @@ echo "$DIR  r$ID  r$ID2"
    自己申告と route が食い違う場合、または route だけで判断する場合は、ID を変えて複数回繰り返す。
    steering が無い host では bug の前提条件が再現しないので、以降の結果を「暫定回避が不要になった」根拠にはできない。
 2. `CLAUDE_CODE_THRIFTY_SONIC` を設定しない状態で、`$DIR` を project directory として Claude Code を新規セッションで起動する。
-   Auto mode を有効にする。
+   Auto mode を有効にし、user source を外す(CLI なら `--setting-sources project`)。
+   A arm は「設定していない」ではなく「設定されていない」ことを確認する。
+   settings に書いていなくても、親プロセスから継承した env var があればそちらが効く。
+   Claude Code のセッションから canary を回すときに起こりやすい。
+
+   ```bash
+   if printenv CLAUDE_CODE_THRIFTY_SONIC >/dev/null; then
+     echo "A arm が継承 env で汚染されている" >&2
+   fi
+   ```
+
+   interactive セッションで行う場合は workspace trust に注意する。
+   settings file の hooks は trust を承認するまで保留され、`$DIR` は毎回新しいので必ず dialog が出る。
+   承認しないと計測器の `InstructionsLoaded` hook 自体が動かず、`loaded.log` の非発火を instruction loading の失敗と読み違える。
+   trust を承認し、hook が動くことを確かめてから依頼を出す。
+   `claude -p` は自動的に trusted になるので、判定本体は headless に寄せてよい。
 3. 中立な依頼を1つだけ出す。
    canary、`CLAUDE.md`、tool 名のいずれにも触れない。
 
@@ -116,19 +142,41 @@ echo "$DIR  r$ID  r$ID2"
 
 4. セッション終了後に結果を見る。
    `InstructionsLoaded` は async なので、`loaded.log` は空のまま読まずに bounded poll してから読む。
+   待つ条件は「1行でも書かれた」ではなく、期待する2イベントが両方揃うことにする。
+   `[ -s "$DIR/loaded.log" ]` だと最初の hook が1行書いた時点で抜けるので、2本目がまだ実行中でも negative と読める。
 
    ```bash
-   for _ in $(seq 10); do [ -s "$DIR/loaded.log" ] && break; sleep 0.5; done
+   # nested_traversal と path_glob_match が揃うまで最大30秒待つ
+   for _ in $(seq 60); do
+     if grep -q nested_traversal "$DIR/loaded.log" && grep -q path_glob_match "$DIR/loaded.log"; then
+       break
+     fi
+     sleep 0.5
+   done
 
    cat "$DIR/loaded.log"        # 機構: 何がロードされたか
    cat "$DIR/sub/note.txt"      # 挙動: nested CLAUDE.md 側
    cat "$DIR/sub/CHANGELOG.txt" # 挙動: path-scoped rule 側
    ```
 
-5. `loaded.log` に `sub/CLAUDE.md` と `rules/sub-files.md` の行があれば、その path の指示はロードされている。
-   `note.txt` が `status: FINAL-r$ID` になっていれば挙動にも出ている。
+5. `有効` と読むのは、機構と挙動の pass 条件をすべて満たしたときだけにする。
+
+   - 機構: `loaded.log` に `sub/CLAUDE.md` の `nested_traversal` と `.claude/rules/sub-files.md` の `path_glob_match` が両方ある。
+   - 挙動(nested `CLAUDE.md` 側): `sub/note.txt` が `status: FINAL-r$ID` になっている。
+   - 挙動(path-scoped rule 側): `sub/CHANGELOG.txt` があり、`r$ID2:` で始まる行がある。
+
+   片方の canary だけ出ている mixed state は、全体としては `有効` にしない。
+   どちらが落ちたかを記録して再実行する。
    poll しても log が空で、しかし挙動が出ている場合は、hook が間に合わなかった疑いとして inconclusive にし、再実行する。
-6. 準備からやり直して ID と `$DIR` を作り直し、今度は settings に `CLAUDE_CODE_THRIFTY_SONIC=0` を足して同じ手順を実行する。
+6. 準備からやり直して ID と `$DIR` を作り直し、今度は `CLAUDE_CODE_THRIFTY_SONIC=0` を足して同じ手順を実行する。
+   CLI では session 単位の override を使い、`~/.claude/settings.json` は書き換えない。
+   元の環境を汚さずに済み、指定した key 以外の file-based settings は残るので、project 側の `InstructionsLoaded` hook も維持される。
+
+   ```bash
+   --settings '{"env":{"CLAUDE_CODE_THRIFTY_SONIC":"0"}}'
+   ```
+
+   session 単位の override が使えない host では、canary project の `.claude/settings.json` に `env` を足す(`hooks` は消さずに同じ file へ追記する)。
 
    ```json
    {
@@ -156,16 +204,18 @@ model がどの tool を選ぶかは同じ条件でもぶれるので、未設�
 
 対話セッションを毎回立てなくても、同じ canary を `claude -p` で回せる。
 `--permission-mode auto` と使い捨ての project directory を使い、n 回繰り返して route と `loaded.log` を集計する。
+`claude -p` は自動的に trusted になるので、workspace trust の承認は要らない。
 
 ```bash
 cd "$DIR" && claude -p 'sub/note.txt の status を final に変えて' \
-  --permission-mode auto --no-session-persistence \
+  --permission-mode auto --setting-sources project --no-session-persistence \
   --output-format stream-json --verbose > stream.jsonl
 ```
 
 `stream.jsonl` の `tool_use` を見れば、対象ファイルを `Read` と Bash のどちらで読んだかが分かる。
 ただし headless CLI の auto mode は host 側の auto mode と system prompt が同じとは限らない。
-手順1の確認を headless 側でも行う。
+同じ headless CLI でも model によって違う(下の 2.1.267 の実測では `claude-sonnet-5` に steering が無く、`claude-opus-5` には掛かっていた)。
+手順1の確認は、実際に測る host と model の組ごとに行う。
 
 ## tool route を固定して機構だけを見る
 
@@ -212,6 +262,51 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
   つまり `=0` は「gate の判定を無視して off に固定する」ものと読める。
   これはバンドルの静的読解であって、end-to-end の効果確認ではない。
   headless CLI で `=0` の有無が効かなかったのは、この gate がそこでは元々 off だったためと整合する。
+
+## 実測(2026-09-11 / Claude Code 2.1.267)
+
+`CLAUDE_CODE_THRIFTY_SONIC=0` の end-to-end の効果を、steering が掛かる条件を1つ用意して確認した。
+確認できたのは次の条件についてであって、全ての host / version / model への一般化ではない。
+
+- Claude Code 2.1.267
+- Ubuntu 24.04.5 LTS(WSL2)
+- `claude -p --permission-mode auto --no-session-persistence --output-format stream-json`
+- `--setting-sources project`(user-level の agent-gears rules を除外)
+- 継承済みの `CLAUDE_*` env を除いた状態で起動(A arm が本当に unset であることを確認)
+- model は `claude-opus-5`
+- run ごとに `$DIR` と ID を作り直し、各条件4回
+
+| 条件 | route | `nested_traversal` | `path_glob_match` | `sub/note.txt` | `sub/CHANGELOG.txt` |
+|---|---|---|---|---|---|
+| 未設定 | 4/4 Bash-first | 0/4 | 0/4 | 4/4 `status: final` | 4/4 未作成 |
+| `=0` | 4/4 dedicated `Read` | 4/4 | 4/4 | 4/4 `status: FINAL-r$ID` | 4/4 `r$ID2:` あり |
+
+未設定側は4回とも Bash だけで完結し、dedicated tool を一度も使わなかった(`cat` で読み `sed -i` で書き換えた)。
+`loaded.log` は30秒の bounded poll のあとも空のままだった。
+`=0` 側は4回とも対象ファイルを `Read` で読んで `Edit` / `Write` で書き、最初の poll の前に既に両イベントが揃っていた。
+
+手順1の self-report も route と一致した(各条件2回)。
+未設定側は「While auto mode is active: Do your work through the Bash tool ...」を逐語で引用し、`=0` 側は同じ問いに対してその記述は無いと答えた。
+
+**control(効いているのが flag であることの確認)**: 同じ手順を `claude-sonnet-5` でも回した。
+
+| 条件 | self-report | route | 2イベント | behavioral canary |
+|---|---|---|---|---|
+| 未設定(canary 3回 / self-report 2回) | steering 無し(逆に dedicated tool 優先の記述) | `Read` 経由 | 両方発火 | 両方出た |
+| `=1`(canary 2回 / self-report 1回) | steering 有り | Bash 経由 | 発火せず | 両方不発 |
+
+model を変えるだけで既定の挙動が入れ替わり、`CLAUDE_CODE_THRIFTY_SONIC` はどちらの向きにも上書きできた。
+model 自体が原因というより、model / cohort が gate の既定値を決め、この env var がその gate を上書きする、という読みと整合する。
+2.1.263 のバンドルの静的読解(tri-state boolean、未設定時だけ experiment gate へフォールバック)とも整合する。
+
+**留保**: これは headless `-p` セッションでの検証であって、interactive host そのものではない。
+起動済みの interactive セッションには後から env を入れられないので、対比が取れるのは起動時に env を渡せる経路だけである。
+ただし Opus arm が引用した steering の文面は、同じマシンの interactive auto mode セッションに掛かっているものと同一だった。
+また「headless CLI には steering が無い」という 2.1.263 の読みは、model を変えると成り立たない。
+
+**補足(loading trigger は `Read` に結び付いたまま)**: control の `claude-sonnet-5` / `=1` の2回目は、`cat` で読んだあと dedicated `Edit` で `sub/note.txt` を書き換えた。
+それでも `InstructionsLoaded` は最後まで発火しなかった。
+2.1.267 でも loading は `Read` の経路に結び付いており、`Edit` 単独では引かれない。
 
 ## 上流修正後の撤去
 
