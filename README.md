@@ -381,7 +381,8 @@ Bash-first steering が掛かるかどうかは host / version / model で違う
 agent-gears でも、steering が掛かる条件を1つ用意して end-to-end に確認した(2026-09-11 / Claude Code 2.1.267 / Ubuntu 24.04.5 LTS on WSL2 / `claude -p --permission-mode auto --setting-sources project` / `claude-opus-5` / 各条件4回)。
 未設定側は4回とも Bash-first route で `InstructionsLoaded` が発火せず canary も不発、`=0` 側は4回とも dedicated `Read` を通って `nested_traversal` と `path_glob_match` が発火し canary も出た。
 確認したのはこの条件についてであって、全ての host / version / model について言えるわけではない(control と留保は `docs/claude-code-instruction-loading.md` の実測節)。
-project 単位なら `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
+個人で project 単位に回避するなら `.claude/settings.local.json`、その project の全員で共有すると判断した場合は `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
+`.claude/settings.json` は commit して collaborator 全員に配る project setting なので、undocumented で撤去対象のフラグを既定でそこに置かない。
 
 ```json
 {
