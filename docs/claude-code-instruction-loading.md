@@ -50,14 +50,24 @@ user-level の rules は全 project に適用されるので、`$DIR` を reposi
 CLI では `--setting-sources project` を必須条件にする(canary 自身の `.claude/settings.json` と `.claude/rules/` は project source なので残る)。
 この flag は interactive 起動にも付けられるので、対話で行う場合も同じ隔離を掛ける。
 
-ただし `--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy はこの3層に含まれない(`--restricted` の説明でも managed settings は別扱いで残ると書かれている)。
+ただし `--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy、および managed `CLAUDE.md` はこの3層に含まれない(`--restricted` の説明でも managed settings は別扱いで残ると書かれている)。
 managed 側が `Read` を強制していれば未設定 arm が誤って pass し、逆に managed 側が hook を無効化していたり `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` を継承していれば偽陰性になる。
 canary は managed 配布の無い環境で回すことを前提条件にする。
-確認は、同じ環境で interactive の Claude Code を `--setting-sources project` 付きで起動し、`/status` の `Setting sources` を見る。
-ここに managed source が並ぶ環境の run は、撤去判定の根拠にしない。
-managed source の有無を確認できない環境の run も、同じ理由で根拠にしない。
-headless で canary を回す場合も、この `/status` で隔離を確認したのと同じ host / user environment で実行する。
-`claude doctor` は補助的な diagnostics として使ってよいが、active な settings source の一覧ではないので、「managed 配布が無いこと」の証明には使わない。
+
+managed 配布には settings 系と instruction 系があり、確認する画面が違う。
+片方だけでは隔離が閉じない。
+
+- **managed settings / organization policy**: `/status` の `Setting sources` で見る。
+- **managed `CLAUDE.md` などの instruction**: `/context` の `Memory files` で見る。
+  これは settings source ではないので `/status` には出てこない。
+  managed `CLAUDE.md` が `Read` を強制する内容なら、未設定 arm が誤って pass する。
+
+どちらも、同じ環境で interactive の Claude Code を `--setting-sources project` 付きで起動して確認する。
+`/context` は空の使い捨て directory を cwd にして見る。
+project にも user にも `CLAUDE.md` が無いのに `Memory files` が出るなら、その3層の外から instruction がロードされている。
+`/status` に managed source が並ぶ環境、`/context` に managed `CLAUDE.md` がある環境、どちらも確認できない環境の run は、撤去判定の根拠にしない。
+headless で canary を回す場合も、この2つの確認を済ませたのと同じ host / user environment で実行する。
+`claude doctor` は補助的な diagnostics として使ってよいが、active な settings source の一覧でも memory file の一覧でもないので、「managed 配布が無いこと」の証明には使わない。
 
 ```bash
 ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
@@ -146,8 +156,9 @@ echo "$DIR  r$ID  r$ID2"
    env | grep -i '^CLAUDE' || echo "Claude Code 関連の継承 env は無し"
    ```
 
-   managed source は shell からは見えないので、「準備」のとおり interactive セッションの `/status` の `Setting sources` で確認する。
-   managed source が並ぶ run と、確認できない環境の run は、撤去判定に使わない。
+   managed 配布は shell からは見えないので、「準備」のとおり interactive セッションで確認する。
+   settings 系は `/status` の `Setting sources`、managed `CLAUDE.md` などの instruction 系は `/context` の `Memory files` を見る。
+   どちらかで managed 配布が見つかる run と、確認できない環境の run は、撤去判定に使わない。
 
    interactive セッションで行う場合は workspace trust に注意する。
    settings file の hooks は trust を承認するまで保留され、`$DIR` は毎回新しいので必ず dialog が出る。
@@ -328,8 +339,10 @@ model を変えるだけで既定の挙動が入れ替わり、`CLAUDE_CODE_THRI
 model 自体が原因というより、model / cohort が gate の既定値を決め、この env var がその gate を上書きする、という読みと整合する。
 2.1.263 のバンドルの静的読解(tri-state boolean、未設定時だけ experiment gate へフォールバック)とも整合する。
 
-**留保**: この run では managed source の有無を `/status` で確認していない(実行時に見たのは `claude doctor` の診断行だけで、これは active な settings source の一覧ではない)。
-未設定 arm と `=0` arm は同じ環境なので flag の A/B としては成立するが、撤去判定の根拠にするなら「準備」の `/status` 確認を満たした run で取り直す。
+**留保**: この run では managed 配布の有無を「準備」の手順で確認していない。
+`/status` の `Setting sources` も `/context` の `Memory files` も見ておらず、実行時に見たのは `claude doctor` の診断行だけである。
+これは settings source の一覧でも memory file の一覧でもない。
+未設定 arm と `=0` arm は同じ環境なので flag の A/B としては成立するが、撤去判定の根拠にするなら現在の隔離条件を満たした run で取り直す。
 
 これは headless `-p` セッションでの検証であって、interactive host そのものではない。
 起動済みの interactive セッションには後から env を入れられないので、対比が取れるのは起動時に env を渡せる経路だけである。
