@@ -158,6 +158,7 @@ cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
 PROVENANCE.json      外部由来 skill の出所と帰属表示ファイルの置き場所(唯一の宣言元)
 scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / 帰属表示の配置 / skills-ref による SKILL.md 仕様検証)
 docs/adr/            覆しにくい決定の記録(ADR)。追記と supersede のみで、書き換えない
+docs/claude-code-instruction-loading.md  path に紐づく指示が実際に効くかの確認手順(canary)と暫定回避の撤去手順
 ```
 
 ### 常時ルール vs skill
@@ -360,6 +361,48 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
   `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
 - **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
 - **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
+
+## 既知の上流不具合と暫定回避(Claude Code)
+
+**これは撤去対象の暫定回避で、agent-gears の恒久仕様ではない。**
+
+Claude Code の Auto mode は file の読み書きを dedicated `Read` / `Edit` / `Write` より Bash(`cat` / `sed` / `grep` / heredoc)へ寄せる。
+この steering に従うと、nested `CLAUDE.md` と path-scoped rules が silent にロードされなくなる。
+`Read` / `Edit` / `Write` matcher の hooks も同様に迂回され得る。
+
+Bash 経由の読み取りでは指示がロードされないことは、Claude Code 2.1.263 と 2.1.267 で確認済み(`InstructionsLoaded` hook が発火しない。手順と結果は `docs/claude-code-instruction-loading.md`)。
+
+- 根本修正の追跡先(source of truth): [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450)(`bug` / `has repro` で open)
+- hooks と回避フラグの報告: [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271)
+
+Bash-first steering が掛かるかどうかは host / version / model で違う(2.1.263 の headless CLI の `claude-sonnet-5` には無く、2.1.267 の headless CLI でも `claude-sonnet-5` には無く `claude-opus-5` には掛かっていた)。
+まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
+掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている。
+agent-gears でも、steering が掛かる条件を1つ用意して end-to-end に確認した(2026-09-11 / Claude Code 2.1.267 / Ubuntu 24.04.5 LTS on WSL2 / `claude -p --permission-mode auto --setting-sources project` / `claude-opus-5` / 各条件4回)。
+未設定側は4回とも Bash-first route で `InstructionsLoaded` が発火せず canary も不発、`=0` 側は4回とも dedicated `Read` を通って `nested_traversal` と `path_glob_match` が発火し canary も出た。
+確認したのはこの条件についてであって、全ての host / version / model について言えるわけではない(control と留保は `docs/claude-code-instruction-loading.md` の実測節)。
+個人で project 単位に回避するなら `.claude/settings.local.json`、その project の全員で共有すると判断した場合は `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
+`.claude/settings.json` は commit して collaborator 全員に配る project setting なので、undocumented で撤去対象のフラグを既定でそこに置かない。
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_THRIFTY_SONIC": "0"
+  }
+}
+```
+
+- `CLAUDE_CODE_THRIFTY_SONIC` は documented user-facing setting ではなく、上流の実装・実験フラグである。
+  agent-gears の正式な runtime dependency として扱わない。
+- **agent-gears はこの設定を自動では行わない。**
+  `install.sh` も home-manager モジュールも `~/.claude/settings.json` を含む user settings を読み書きしない。
+  配布するのは skill / agent 定義 / rules の symlink だけである。設定するかどうかは利用者が決める。
+- flag を設定しない場合に備えて、`rules/claude.md` にも同じ期間だけの compatibility 規則(変更するファイルは一度 `Read` で開く)を置いている。
+  これは「変更前に現在の内容を確認する」という tool 非依存の不変則とは別の要件で、読み取り全般を `Read` に固定するものではない。
+- 判定と撤去の手順は `docs/claude-code-instruction-loading.md`、決定と撤去条件は `docs/adr/0002-claude-code-bash-first-instruction-loading.md`。
+  上流 issue の close や release note だけを根拠に撤去せず、実際の Claude Code version で再現確認を行う。
+  撤去条件は access method 側の修正(Bash 経由でもロードされる)と steering 側の修正(steering が無くなる)の両方を扱い、
+  単に experiment cohort の外にいるだけの「steering なし」は根拠にしない。
 
 ## 新しい skill を足すとき
 
