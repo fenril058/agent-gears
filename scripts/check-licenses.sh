@@ -6,9 +6,8 @@
 # 現れない)ので、PROVENANCE.json が唯一の宣言元になる。ここでは宣言から
 # 「あるべき LICENSE / NOTICE の集合」を組み立て、plugins/ 以下の実集合と突き合わせる。
 #
-# これが要るのは、shokai/agent-skills 由来の skill が複数 plugin に分散しており、
-# plugin 単位の LICENSE を移動先に複製し忘れても他のどの CI も気づかないため。
-# 逆向き(最後の1件を移した後に残る stale な LICENSE)も同じ差分で捕まる。
+# plugin 単位の帰属表示は単一 plugin の LICENSE / NOTICE に集約し、skill 単位の
+# 帰属表示は各 skill に残す。この配置からの欠落と stale なファイルを同じ差分で捕まえる。
 #
 # 必要: jq。
 set -euo pipefail

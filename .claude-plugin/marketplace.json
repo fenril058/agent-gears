@@ -7,60 +7,14 @@
   "description": "トークン削減と効率的なエージェント運用のための skill / agent 群(Claude Code・Codex 共用)",
   "plugins": [
     {
-      "name": "context-engineering",
-      "source": "./plugins/context-engineering",
-      "description": "エージェントがどう読み・探し・委譲・相談されるかを設計する skill 群: markdown-context(mdidx で大きな Markdown を部分取得)、locate-implementation(未知の挙動・症状から候補箇所を限定探索)、subagent-consultation(セカンドオピニオンの進行)、codex-consultation(Claude CodeからCodexへ相談する実行adapter)と、委譲先の search エージェント定義。shokai/agent-skills(MIT)由来を含む。",
-      "version": "0.3.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["context", "tokens", "efficiency", "model-routing", "search", "markdown", "subagent", "codex"]
-    },
-    {
-      "name": "agent-instructions",
-      "source": "./plugins/agent-instructions",
-      "description": "エージェント向け指示テキスト自体を書き、測る skill 群: agent-instructions-refine(CLAUDE.md / AGENTS.md を圧縮し、導出可能な情報を削って規則に書き直す)、empirical-prompt-tuning(description と本文の整合を静的に監査し、first-party tooling を優先する。比較測定は隔離条件が揃う場合に限り、operator の明示起動のみ)。対で使う。mizchi/skills(MIT)由来を含む。",
+      "name": "agent-gears",
+      "source": "./plugins/agent-gears",
+      "description": "文脈効率、指示設計、批評、記録、レビュー、学習、文章規範をまとめて配布する skill 群と Claude Code 用 agent 定義。shokai/agent-skills、mattpocock/skills、mizchi/skills、yasunori0418/skills(MIT)と k16shikano の gist(public domain)由来を含む。",
       "version": "0.1.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["prompt", "instructions", "skill-authoring", "evaluation", "claude-md"]
-    },
-    {
-      "name": "critique",
-      "source": "./plugins/critique",
-      "description": "決める前に手持ちの案を叩く skill 群: grilling(一問ずつ推奨案付きの意思決定インタビュー)、spec-ambiguity-audit(安価モデルの素読みによる仕様書の穴の監査)、unconventional-simplification(暗黙の前提を1つずつ外してシンプルな別解を探す)。計画・仕様・実装のいずれにも当てる。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
-      "version": "0.1.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["critique", "design", "planning", "requirements", "simplification"]
-    },
-    {
-      "name": "writing",
-      "source": "./plugins/writing",
-      "description": "文章の規範 skill 群: japanese-tech-writing(日本語技術文書の整形・パラグラフライティング・論証の厳密さ・冗長排除)、argument-gap-edit(論証の筋の点検と段落の再配置)。いずれも日本語原稿向けで、術語・訳語の選び方は japanese-tech-writing が扱う。k16shikano の gist(public domain)由来。",
-      "version": "0.2.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["writing", "japanese", "technical-writing", "editing", "terminology"]
-    },
-    {
-      "name": "project-records",
-      "source": "./plugins/project-records",
-      "description": "会話で決まったことを寿命ごとに記録する skill 群。区別は置き場所ではなく更新モデルである: conversation-context-export/import(揮発層: ブランチごとに再生成し commit しない、`.dev/contexts/` + PR コメント)、domain-modeling(記録層: 追記と supersede、`CONTEXT.md` と ADR をコードと一緒に commit)、durable-knowledge-export(永続層: 常に現在状態の living page を GitHub wiki / knowledge リポジトリへ)。shokai/agent-skills・mattpocock/skills(いずれも MIT)由来を含む。",
-      "version": "0.1.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["context-handoff", "adr", "glossary", "knowledge", "wiki", "documentation"]
-    },
-    {
-      "name": "code-review",
-      "source": "./plugins/code-review",
-      "description": "出来上がったものを検めるレビュー skill 群: sanity-review(対話コンテキスト・PR 概要欄・実装コードの整合性つまり「実装者の正気」を点検する PR レビュー報告書)、library-update-review(依存更新 PR のリリースノート分析と過去障害調査)、codepatrol(領域ごとに継続するセキュリティ調査)。shokai/agent-skills(MIT)由来。",
-      "version": "0.1.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["code-review", "pull-request", "security", "dependencies", "audit"]
-    },
-    {
-      "name": "learning",
-      "source": "./plugins/learning",
-      "description": "AI支援で生じた理解不足を解消する skill 群: navigating(ユーザー自身が読むコード案内)、quizzing(計画・設計文書・コードの理解を一問ずつ確認)。yasunori0418/skills(MIT)由来。",
-      "version": "0.1.0",
-      "author": { "name": "fenril058" },
-      "keywords": ["learning", "understanding", "code-reading", "quiz"]
+      "author": {
+        "name": "fenril058"
+      },
+      "keywords": ["agents", "skills", "context-engineering", "instructions", "critique", "documentation", "code-review", "learning", "writing"]
     }
   ]
 }
