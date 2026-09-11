@@ -98,6 +98,8 @@ invariant は tool identity ではなく「その path の指示が実際に有�
 判定は canary の隔離条件を満たした環境で行う。
 `--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy はそこに含まれない。
 managed 配布のある環境では、未設定 arm の pass も非発火も誤りうるので撤去根拠にしない。
+managed source の有無は interactive セッションの `/status` の `Setting sources` で確認する。
+確認できない環境の run も撤去根拠にしない。
 
 issue の close や release note だけを根拠に撤去しない。
 実際の version で再現確認を行う。

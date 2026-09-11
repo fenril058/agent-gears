@@ -53,8 +53,11 @@ CLI では `--setting-sources project` を必須条件にする(canary 自身の
 ただし `--setting-sources` が選べるのは user / project / local の3層だけで、managed settings と organization policy はこの3層に含まれない(`--restricted` の説明でも managed settings は別扱いで残ると書かれている)。
 managed 側が `Read` を強制していれば未設定 arm が誤って pass し、逆に managed 側が hook を無効化していたり `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` を継承していれば偽陰性になる。
 canary は managed 配布の無い環境で回すことを前提条件にする。
-`claude doctor` の `Managed settings` / `Organization policy` の行と、継承している Claude Code 関連の env を実行前に見る。
-どちらも確認できない環境では、結果を撤去根拠にしない。
+確認は、同じ環境で interactive の Claude Code を `--setting-sources project` 付きで起動し、`/status` の `Setting sources` を見る。
+ここに managed source が並ぶ環境の run は、撤去判定の根拠にしない。
+managed source の有無を確認できない環境の run も、同じ理由で根拠にしない。
+headless で canary を回す場合も、この `/status` で隔離を確認したのと同じ host / user environment で実行する。
+`claude doctor` は補助的な diagnostics として使ってよいが、active な settings source の一覧ではないので、「managed 配布が無いこと」の証明には使わない。
 
 ```bash
 ID=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
@@ -141,8 +144,10 @@ echo "$DIR  r$ID  r$ID2"
      echo "A arm が継承 env で汚染されている" >&2
    fi
    env | grep -i '^CLAUDE' || echo "Claude Code 関連の継承 env は無し"
-   claude doctor | grep -E 'Managed settings|Organization policy'
    ```
+
+   managed source は shell からは見えないので、「準備」のとおり interactive セッションの `/status` の `Setting sources` で確認する。
+   managed source が並ぶ run と、確認できない環境の run は、撤去判定に使わない。
 
    interactive セッションで行う場合は workspace trust に注意する。
    settings file の hooks は trust を承認するまで保留され、`$DIR` は毎回新しいので必ず dialog が出る。
@@ -297,7 +302,6 @@ Claude Code 2.1.263 の headless CLI(`claude -p --permission-mode auto`、model 
 - `claude -p --permission-mode auto --no-session-persistence --output-format stream-json`
 - `--setting-sources project`(user-level の agent-gears rules を除外)
 - 継承済みの `CLAUDE_*` env を除いた状態で起動(A arm が本当に unset であることを確認)
-- managed settings と organization policy が無い host(`claude doctor` の該当行で確認)
 - model は `claude-opus-5`
 - run ごとに `$DIR` と ID を作り直し、各条件4回
 
@@ -324,7 +328,10 @@ model を変えるだけで既定の挙動が入れ替わり、`CLAUDE_CODE_THRI
 model 自体が原因というより、model / cohort が gate の既定値を決め、この env var がその gate を上書きする、という読みと整合する。
 2.1.263 のバンドルの静的読解(tri-state boolean、未設定時だけ experiment gate へフォールバック)とも整合する。
 
-**留保**: これは headless `-p` セッションでの検証であって、interactive host そのものではない。
+**留保**: この run では managed source の有無を `/status` で確認していない(実行時に見たのは `claude doctor` の診断行だけで、これは active な settings source の一覧ではない)。
+未設定 arm と `=0` arm は同じ環境なので flag の A/B としては成立するが、撤去判定の根拠にするなら「準備」の `/status` 確認を満たした run で取り直す。
+
+これは headless `-p` セッションでの検証であって、interactive host そのものではない。
 起動済みの interactive セッションには後から env を入れられないので、対比が取れるのは起動時に env を渡せる経路だけである。
 ただし Opus arm が引用した steering の文面は、同じマシンの interactive auto mode セッションに掛かっているものと同一だった。
 また「headless CLI には steering が無い」という 2.1.263 の読みは、model を変えると成り立たない。
