@@ -259,7 +259,18 @@ GitHub Copilot 向けには専用のマーケットプレイス経路はなく�
 ```
 
 plugin 内の `skills/` と `agents/` が自動で読み込まれる。
-旧7 plugin の名前は無くなるため、既に marketplace 経由で導入している場合は `agent-gears` plugin を入れ直す。
+旧7 plugin の名前は無くなるため、既に marketplace 経由で導入している場合は、先に `agent-gears` plugin をインストールしてから旧 plugin を明示的に削除する。
+旧 plugin は marketplace の更新や新 plugin のインストールでは自動削除されず、残すと起動時に load error が記録される。
+
+```
+/plugin uninstall context-engineering@fenril058-agent-skills
+/plugin uninstall agent-instructions@fenril058-agent-skills
+/plugin uninstall critique@fenril058-agent-skills
+/plugin uninstall project-records@fenril058-agent-skills
+/plugin uninstall code-review@fenril058-agent-skills
+/plugin uninstall learning@fenril058-agent-skills
+/plugin uninstall writing@fenril058-agent-skills
+```
 
 ### 2. Codex — skill-installer
 
