@@ -3,41 +3,41 @@ Copyright (c) 2026 fenril058 (ril)
 
 This product is licensed under the MIT License (see LICENSE). The MIT License
 covers the repository as a whole and all original work in it, including
-project-records/durable-knowledge-export, agent-instructions/agent-instructions-refine,
-the context-engineering skills other than subagent-consultation, cmd/mdidx, and the
+durable-knowledge-export, agent-instructions-refine, the context-engineering skills
+other than subagent-consultation, cmd/mdidx, and the
 packaging/distribution machinery (install.sh, nix/, scripts/, flake.nix, etc.).
 
-The skills listed below are derived from third parties. Each retains its own
-license/notice file, which governs it. All are MIT or public domain and thus
-compatible with the repository's MIT License; their attribution notices are kept
-as required. They are vendored and adapted, not tracked upstream.
+The skills listed below are derived from third parties.
+Their license and notice texts are retained at plugin or skill scope as declared in
+PROVENANCE.json.
+All are MIT or public domain and thus compatible with the repository's MIT License;
+their attribution notices are kept as required.
+They are vendored and adapted, not tracked upstream.
 
-- Derived from shokai/agent-skills (MIT). Each plugin holding one of these keeps
-  a copy of the license at plugins/<plugin>/LICENSE:
-    plugins/context-engineering/  subagent-consultation
-    plugins/code-review/          sanity-review, library-update-review,
-                                  codepatrol
-    plugins/critique/             unconventional-simplification
-    plugins/project-records/      conversation-context-export,
-                                  conversation-context-import
+- Derived from shokai/agent-skills (MIT). The license is retained in
+  plugins/agent-gears/LICENSE:
+    subagent-consultation, codex-consultation, sanity-review,
+    library-update-review, codepatrol, unconventional-simplification,
+    conversation-context-export, conversation-context-import
 
 - Derived from mattpocock/skills (MIT), with a per-skill LICENSE:
-    plugins/critique/skills/grilling/
-    plugins/project-records/skills/domain-modeling/
+    plugins/agent-gears/skills/grilling/
+    plugins/agent-gears/skills/domain-modeling/
 
-- plugins/writing/
+- plugins/agent-gears/skills/japanese-tech-writing/ and
+  plugins/agent-gears/skills/argument-gap-edit/
     japanese-tech-writing and argument-gap-edit are based on a gist by
     k16shikano, released as public domain. Attribution is retained for respect
-    and traceability, not obligation. See plugins/writing/NOTICE.
+    and traceability, not obligation. See plugins/agent-gears/NOTICE.
 
-- plugins/agent-instructions/skills/empirical-prompt-tuning/
+- plugins/agent-gears/skills/empirical-prompt-tuning/
     Derived from mizchi/skills. Upstream had no LICENSE.txt; per that repo's
     policy such skills default to MIT. See that directory's LICENSE.
 
-- plugins/learning/
+- plugins/agent-gears/skills/navigating/ and plugins/agent-gears/skills/quizzing/
     navigating and quizzing are derived from yasunori0418/skills (MIT).
     They were adapted to use this repository's context-engineering skills.
-    See plugins/learning/LICENSE.
+    See plugins/agent-gears/LICENSE.
 
 - cmd/mdidx/
     A faithful Go reimplementation of oubakiou/md2idx (MIT), byte-compatible

@@ -1,0 +1,10 @@
+{
+  "name": "agent-gears",
+  "description": "文脈効率、指示設計、批評、記録、レビュー、学習、文章規範の skill 群と Claude Code 用 agent 定義。",
+  "version": "0.1.0",
+  "author": {
+    "name": "fenril058",
+    "email": "fenril.nh@gmail.com"
+  },
+  "keywords": ["agents", "skills", "context-engineering", "instructions", "critique", "documentation", "code-review", "learning", "writing"]
+}

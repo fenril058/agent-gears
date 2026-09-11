@@ -1,10 +1,10 @@
 {
   "$comment": [
     "外部由来 skill の出所と、その帰属表示ファイルの置き場所。scripts/check-licenses.sh が",
-    "この宣言と plugins/ 以下の実ファイルの一致を検証する。skill を plugin 間で移したら、",
-    "ここではなく実ファイルの方を動かせばよい(skills はファイル名なので変わらない)。",
+    "この宣言と plugins/ 以下の実ファイルの一致を検証する。skill の配置を変えたら、",
+    "ここではなく実ファイルの方を動かせばよい(skills はディレクトリ名なので変わらない)。",
     "新たに外部から取り込んだら、必ずここに追記する。未登録の LICENSE/NOTICE は失格になる。",
-    "scope=plugin は plugins/<plugin>/<file>、scope=skill は plugins/<plugin>/skills/<skill>/<file>。"
+    "scope=plugin は plugins/agent-gears/<file>、scope=skill は plugins/agent-gears/skills/<skill>/<file>。"
   ],
   "sources": [
     {

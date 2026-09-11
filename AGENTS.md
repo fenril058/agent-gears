@@ -1,7 +1,7 @@
 このリポジトリの編集で間違えやすい点(更新の追従漏れ):
 
 - `SKILL.md`(英語=正本)を直したら `SKILL-ja.md` も手動で追従。
-  例外: `writing` の `japanese-tech-writing` / `argument-gap-edit` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
+  例外: `japanese-tech-writing` / `argument-gap-edit` は日本語 `SKILL.md` が正本／`TEMPLATE.md` は日本語のまま。
   各 `SKILL.md` は agentskills.io 仕様に準拠(公式 `skills-ref` で検証)。
   CI の `scripts/check-skill-spec.sh`(flake の `packages.skills-ref` を使う)が検証する。
   skills-ref は Claude 拡張フィールド(argument-hint 等)を一律エラーにするが、スクリプト側で
@@ -12,8 +12,8 @@
   両者は skill/agent をディレクトリ構成から自動列挙するので名前の追従は要らない。
   配布先(`~/.claude` 等)やレイアウト規約を変えたら両方直す。
   配布先集合の一致は CI の `scripts/check-distribution.sh` が検証する。
-- plugin の `name`/`version`/`keywords` は `marketplace.json` と各 `plugin.json` に重複。
-  一致と README の Claude plugin install 例の plugin 集合は CI の `scripts/check-plugin-meta.sh` が検証する。
+- 単一 plugin の `name`/`version`/`keywords` は `marketplace.json` と `plugins/agent-gears/.claude-plugin/plugin.json` に重複。
+  一致と README の Claude plugin install 例は CI の `scripts/check-plugin-meta.sh` が検証する。
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
   `marketplace.json` の `source` は `"./plugins/<name>"` 形式で書く。
   Claude Code は `"./"` 始まりの相対パスしか受け付けず、`"<name>"` だと一覧表示は通るのに
@@ -37,8 +37,8 @@
   `CLAUDE.md` に書いてよいのは Claude Code 固有の指示だけ(Codex は読まない)。
 - 外部由来の skill は取り込んで改変する(上流を取り直す運用はしない)。
   由来の宣言元は `PROVENANCE.json` ただ1つ。新たに取り込んだらここに追記する。
-  `LICENSE` / `NOTICE` を消さない。plugin 単位の `LICENSE`(shokai/agent-skills)は
-  複数 plugin に分散するので、skill を動かしたら移動先への複製と移動元の残骸に注意。
+  plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集約し、skill 単位の `LICENSE` は各 skill に残す。
+  外部由来の skill を追加・削除したら、集約した帰属表示から必要な許諾文を落とさない。
   宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「既知の上流不具合と暫定回避」「新しい skill を足すとき」。
