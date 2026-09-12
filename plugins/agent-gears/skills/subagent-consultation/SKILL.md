@@ -141,7 +141,7 @@ installed, the run hit its time bound, the process exited non-zero, or the outpu
 only that it could not proceed. There is nothing to digest, and the fallback is yours,
 not the adapter's — an execution adapter reports the failure and stops there. If a
 suitable consultant you have not yet tried is available, reselect one using the same
-heuristic and any caller-stated preference (section 3, "Choosing the consultant") and
+heuristic and any caller-stated requirement (section 3, "Choosing the consultant") and
 run the same consultation there. If none is left, say so and give your own view alone.
 Either way, state in the report which consultant answered, and which one failed and
 how.
