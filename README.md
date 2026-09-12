@@ -190,6 +190,11 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
 消えても気づけない。
 そこで各出所には `marker`(集約先に literal で現れる識別子)を宣言し、その残存も検査する。
 `marker` の正本は `PROVENANCE.json` で、帰属表示ファイル側がそれを含む義務を負う。
+`marker` どうしは重複も包含も不可(残存確認は部分一致なので、長い側の literal が短い側の欠落を隠す)。
+検査が保証するのは marker の残存までで、許諾文の本文が正しいことや skill 単位ファイルの内容までは見ない。
+そこは review の担当で、この検査は回帰検出だけを受け持つ。
+壊れた宣言(record を組み立てられない、フィールドがずれる、marker が一意に効かない)は、
+「検査できなかった」ではなく失格として扱う。
 検査そのものの回帰テストは `scripts/check-licenses.test.sh`。
 
 - **`japanese-tech-writing` / `argument-gap-edit`**:
@@ -405,7 +410,7 @@ agent-gears でも、steering が掛かる条件を1つ用意して end-to-end �
 2. **外部から取り込んだ skill なら** `PROVENANCE.json` に追記し、帰属表示ファイルを置く。
    `scope` が `plugin` なら `plugins/agent-gears/LICENSE` / `NOTICE` に必要な許諾文・出典を加え、`skill` なら skill ディレクトリ直下に置く。
    リポジトリ直下の `NOTICE` にも出所を書く。`scripts/check-licenses.sh` が両方を検証する。
-   併せて他の出所と重複しない `marker` を宣言し、その文字列を集約先と直下の `NOTICE` にそのまま書く(未宣言は失格)。
+   併せて他の出所と重複も包含もしない `marker` を宣言し、その文字列を集約先と直下の `NOTICE` にそのまま書く(未宣言は失格)。
 3. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
 4. `skills/` 配下は単一 plugin から自動検出される。
    plugin のメタデータを変える場合は `marketplace.json` と `plugins/agent-gears/.claude-plugin/plugin.json` の `name` / `version` / `keywords` を揃える。

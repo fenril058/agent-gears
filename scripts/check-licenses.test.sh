@@ -46,10 +46,24 @@ build_fixture() {
   done < <(cd "$REPO" && find plugins -type f \( -name LICENSE -o -name NOTICE \))
 }
 
-# fixture の PROVENANCE.json を jq で書き換える。
+# fixture の PROVENANCE.json を jq で書き換える。第2引数以降は jq へそのまま渡す
+# (--arg で制御文字などを値に入れるため)。
 edit_manifest() {
-  jq "$1" "$fixture/PROVENANCE.json" >"$fixture/PROVENANCE.json.new"
+  local filter="$1"
+  shift
+  jq "$@" "$filter" "$fixture/PROVENANCE.json" >"$fixture/PROVENANCE.json.new"
   mv "$fixture/PROVENANCE.json.new" "$fixture/PROVENANCE.json"
+}
+
+# 集約 LICENSE から shokai の節(先頭〜yasunori0418 の見出しの直前)を落とす。
+# 「帰属表示が実際に消えているのに検査が通る」という攻撃を組み立てるための共通部品。
+drop_shokai_section() {
+  awk -v m="$(marker_of yasunori0418)" 'index($0, m) { keep = 1 } keep' \
+    "$REPO/plugins/agent-gears/LICENSE" >"$fixture/plugins/agent-gears/LICENSE"
+  if grep -qF -- "$(marker_of shokai)" "$fixture/plugins/agent-gears/LICENSE"; then
+    echo "NG: テストの前提が壊れている — shokai 節を落としたのに marker が残っている" >&2
+    fail=1
+  fi
 }
 
 # assert_check <説明> <期待:pass|fail> [出力に含まれるべき文字列]
@@ -100,8 +114,7 @@ assert_check "無傷の fixture" pass
 #    集約 LICENSE は yasunori0418 の見出しを境に2節あり、前半が shokai の MIT 許諾文。
 #    ファイル自体は残るので、配置の検査だけでは気づけない。
 build_fixture
-awk -v m="$(marker_of yasunori0418)" 'index($0, m) { keep = 1 } keep' \
-  "$REPO/plugins/agent-gears/LICENSE" >"$fixture/plugins/agent-gears/LICENSE"
+drop_shokai_section
 assert_precondition "shokai の節を落としても集約 LICENSE は残る" \
   test -s "$fixture/plugins/agent-gears/LICENSE"
 assert_check "集約 LICENSE から shokai の許諾文が消えている" fail \
@@ -163,12 +176,110 @@ assert_check "空白を含む marker が literal で揃っている" pass
 # 8. marker の宣言漏れ → 失格(検査できない source を黙って見逃さない)。
 build_fixture
 edit_manifest 'del(.sources[] | select(.id == "shokai") | .marker)'
-assert_check "shokai の marker が宣言されていない" fail "marker が無い"
+assert_check "shokai の marker が宣言されていない" fail "使える marker が無い"
 
 # 9. marker の重複 → 失格(片方の欠落をもう片方が隠す)。
 build_fixture
 edit_manifest "(.sources[] | select(.id == \"mizchi\") | .marker) = \"$(marker_of shokai)\""
 assert_check "mizchi と shokai の marker が重複している" fail "重複"
+
+# 以降は adversarial review (PR #94) が実証した fail-open 経路。いずれも「帰属表示が
+# 実際に消えているのに検査が通る」形で、marker 検査そのものが無力化されることを突く。
+
+# 10. marker が他の marker の部分文字列 → 失格。
+#     残存確認は grep の部分一致なので、長い marker の literal が短い marker を含むと、
+#     短い側の帰属表示がゼロでも grep が当たって欠落が隠れる。完全一致の重複判定
+#     (テスト9)では防げない。新 source の marker は直下 NOTICE に現れる文字列を
+#     選んであるので、包含判定が無ければこの fixture は素通りする。
+build_fixture
+edit_manifest '.sources += [{
+  id: "yasunori0418-dotfiles",
+  marker: "yasunori0418",
+  scope: "skill",
+  file: "LICENSE",
+  skills: []
+}]'
+assert_precondition "新 marker 'yasunori0418' は直下 NOTICE に現れる(包含判定以外では落ちない)" \
+  grep -qF -- "yasunori0418" "$fixture/NOTICE"
+assert_check "marker が既存 marker の部分文字列になっている" fail "包含関係"
+
+# 11. scope キーの削除 + 集約 LICENSE から shokai 節を削除 → 失格。
+#     タブ区切りで読むと空フィールドが畳まれて id/scope/file/skill がずれ、source ごと
+#     黙って検査対象から消える(そのうえ scope 不正の報告も出ない)。
+build_fixture
+edit_manifest 'del(.sources[] | select(.id == "shokai") | .scope)'
+drop_shokai_section
+assert_check "scope キーが無い source の帰属表示が消えている" fail "scope が不正"
+
+# 12. scope が空文字 + 同上 → 失格(キー欠落と空文字で挙動が割れないこと)。
+build_fixture
+edit_manifest '(.sources[] | select(.id == "shokai") | .scope) = ""'
+drop_shokai_section
+assert_check "scope が空文字の source の帰属表示が消えている" fail "scope が不正"
+
+# 13. file キーの削除 → 失格(同種の field ずれ)。
+build_fixture
+edit_manifest 'del(.sources[] | select(.id == "shokai") | .file)'
+assert_check "file キーが無い" fail "file が無い"
+
+# 14. jq の record 生成が abort する manifest + 集約 LICENSE から shokai 節を削除
+#     → script 全体が非ゼロ。
+#     process substitution だと jq の終了 status が捨てられ、read ループが0行読んで
+#     正常終了するので、marker 検査が丸ごと消えたまま OK が出る(fail open)。
+build_fixture
+edit_manifest '.sources = ([{
+  id: {bad: 1},
+  marker: "x",
+  scope: "skill",
+  file: "LICENSE",
+  skills: []
+}] + .sources)'
+drop_shokai_section
+assert_check "record 生成が abort する manifest" fail "record を組み立てられない"
+
+# 15. marker に区切り文字 US が入る + 同上 → 失格。
+#     区切りに使っている文字が値に入ると field がずれ、scope が marker の続きとして
+#     読まれて集約先の検査が黙って skip される。
+build_fixture
+# shellcheck disable=SC2016  # $us は jq の引数。shell に展開させない。
+edit_manifest '(.sources[] | select(.id == "shokai") | .marker) = ("shokai/agent-skills" + $us + "zzz")' \
+  --arg us $'\x1f'
+drop_shokai_section
+assert_check "marker に区切り文字 (US) が入っている" fail "制御文字"
+
+# 16. marker 以外のフィールドに改行が入る → 失格(ガードが marker 限定でないこと)。
+build_fixture
+# shellcheck disable=SC2016  # $nl は jq の引数。shell に展開させない。
+edit_manifest '(.sources[] | select(.id == "mizchi") | .file) = ("LICENSE" + $nl + "x")' \
+  --arg nl $'\n'
+assert_check "file に改行が入っている" fail "制御文字"
+
+# 17. 空白のみの marker + 集約 LICENSE から shokai 節を削除 → 失格。
+#     空文字しか見ない実装では、空白1文字の marker がどのファイルにも当たって通る。
+build_fixture
+edit_manifest '(.sources[] | select(.id == "shokai") | .marker) = " "'
+drop_shokai_section
+assert_check "marker が空白のみ" fail "使える marker が無い"
+
+# 18. source id の重複 → 失格。
+#     集約先の対応づけ(id -> path)が壊れ、marker 検査の前提が崩れる。
+build_fixture
+edit_manifest '(.sources[] | select(.id == "yasunori0418") | .id) = "shokai"'
+assert_check "source id が重複している" fail "id 'shokai' が"
+
+# 19. PROVENANCE.json 自体が壊れている → 非ゼロ終了。
+#     jq が読めない宣言で「検査できなかった」まま OK を出さない(fail closed)。
+build_fixture
+printf '{ "sources": [ ' >"$fixture/PROVENANCE.json"
+assert_check "PROVENANCE.json の構文が壊れている" fail "record を組み立てられない"
+
+# 20. id が空文字 → 失格。
+#     marker の検査は id を key にして集約先を引くので、id が識別子として成立していない
+#     source を黙って通さない。
+build_fixture
+edit_manifest '(.sources[] | select(.id == "shokai") | .id) = ""'
+drop_shokai_section
+assert_check "id が空文字" fail "id の無い source"
 
 if [ "$fail" = 0 ]; then
   echo "OK: $count 件の帰属表示検査テストに合格"
