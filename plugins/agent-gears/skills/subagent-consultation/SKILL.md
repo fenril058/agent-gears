@@ -139,10 +139,12 @@ A consultation ends in one of two ways, and they call for opposite responses.
 A **consultation failure** is the absence of an answer: the consultant's CLI is not
 installed, the run hit its time bound, the process exited non-zero, or the output says
 only that it could not proceed. There is nothing to digest, and the fallback is yours,
-not the adapter's — an execution adapter reports the failure and stops there. Move down
-the preference order to the next available consultant and run the same consultation
-there. If none is left, say so and give your own view alone. Either way, state in the
-report which consultant answered, and which one failed and how.
+not the adapter's — an execution adapter reports the failure and stops there. If a
+suitable consultant you have not yet tried is available, reselect one using the same
+heuristic and any caller-stated preference (section 3, "Choosing the consultant") and
+run the same consultation there. If none is left, say so and give your own view alone.
+Either way, state in the report which consultant answered, and which one failed and
+how.
 
 A **usable result with execution degradation** is a real answer from a run where some
 command failed — a fetch, a test, a build, a diagnostic. Do not fall back on that one.
