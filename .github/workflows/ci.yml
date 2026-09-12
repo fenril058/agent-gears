@@ -126,6 +126,9 @@ jobs:
       - run: nix shell nixpkgs#jq --command bash scripts/check-plugin-meta.sh
       # 外部由来 skill の LICENSE / NOTICE が PROVENANCE.json の宣言どおり置かれているか。
       - run: nix shell nixpkgs#jq --command bash scripts/check-licenses.sh
+      # 集約した帰属表示から source 単位で許諾文・出典が消えたら落ちることの回帰テスト(#91)。
+      # 一時 tree に写した fixture だけを壊すので、リポジトリの実ファイルには触らない。
+      - run: nix shell nixpkgs#jq --command bash scripts/check-licenses.test.sh
       # 各 SKILL.md が agentskills.io のオープン標準に準拠するかを公式 skills-ref で検証。
       - run: nix shell .#skills-ref --command bash scripts/check-skill-spec.sh
 

@@ -9,6 +9,12 @@
 # plugin 単位の帰属表示は単一 plugin の LICENSE / NOTICE に集約し、skill 単位の
 # 帰属表示は各 skill に残す。この配置からの欠落と stale なファイルを同じ差分で捕まえる。
 #
+# 配置だけでは足りない。scope=plugin では複数の source が同じファイルに写像されるので、
+# ファイルさえ残っていれば特定 source の許諾文や出典表示が丸ごと消えても通ってしまう(#91)。
+# そこで source ごとに marker(集約先に literal で現れる識別子)の残存も見る。marker の
+# 正本は PROVENANCE.json ただ1つで、帰属表示ファイル側がそれに従う。
+# scope=skill は source とファイルが 1 対 1 なので、欠落は配置の検査に現れる。
+#
 # 必要: jq。
 set -euo pipefail
 
@@ -45,6 +51,9 @@ expected="$(mktemp)"
 seen="$(mktemp)"
 trap 'rm -f "$expected" "$seen"' EXIT
 
+# source id -> その source の集約先 path(改行区切り)。marker の検査先に使う。
+declare -A agg_targets=()
+
 while IFS=$'\t' read -r id scope file skill; do
   [ -n "$skill" ] || continue
   if grep -qxF "$skill" "$seen"; then
@@ -61,7 +70,10 @@ while IFS=$'\t' read -r id scope file skill; do
   fi
 
   case "$scope" in
-  plugin) echo "plugins/$p/$file" >>"$expected" ;;
+  plugin)
+    echo "plugins/$p/$file" >>"$expected"
+    agg_targets[$id]+="plugins/$p/$file"$'\n'
+    ;;
   skill) echo "plugins/$p/skills/$skill/$file" >>"$expected" ;;
   *)
     echo "NG: $id の scope が不正: '$scope'(plugin か skill)" >&2
@@ -82,13 +94,54 @@ if [ "$want" != "$actual" ]; then
   fail=1
 fi
 
-# NOTICE(リポジトリ直下)は法的な帰属表示の一覧。宣言した出所が落ちていないかだけ見る。
-for name in $(jq -r '.sources[].name' "$manifest"); do
-  if ! grep -qF "$name" NOTICE; then
-    echo "NG: 直下の NOTICE に '$name' の記載が無い" >&2
+# source ごとに marker の残存を見る。検査先は、リポジトリ直下の NOTICE(法的な帰属表示の
+# 一覧)と、scope=plugin なら集約先の LICENSE / NOTICE。
+#
+# marker は1フィールドとして読むので、空白を含んでも1件のまま扱う($(jq ...) を for に
+# 渡すと単語分割で別々の文字列になり、部分一致でも通ってしまう)。区切りは US (0x1f)。
+# タブだと read が IFS 空白として空フィールドを畳み、marker 未宣言のときに後続フィールドが
+# ずれて別の文字列を marker と誤認する。改行・タブ入りの marker は jq 側で "" に倒す。
+declare -A marker_owner=()
+while IFS=$'\x1f' read -r id marker scope; do
+  if [ -z "$marker" ]; then
+    echo "NG: PROVENANCE.json の $id に使える marker が無い(未宣言、または改行・タブを含む)" >&2
+    fail=1
+    continue
+  fi
+  if [ -n "${marker_owner[$marker]:-}" ]; then
+    echo "NG: marker '$marker' が ${marker_owner[$marker]} と $id で重複している(片方の欠落をもう片方が隠す)" >&2
     fail=1
   fi
-done
+  marker_owner[$marker]="$id"
+
+  if ! grep -qF -- "$marker" NOTICE; then
+    echo "NG: 直下の NOTICE に $id の marker '$marker' が無い" >&2
+    fail=1
+  fi
+
+  [ "$scope" = "plugin" ] || continue
+
+  targets="$(printf '%s' "${agg_targets[$id]:-}" | sort -u)"
+  if [ -z "$targets" ]; then
+    echo "NG: $id(scope: plugin)の集約先が決まらない(skills が空か、plugins/ に無い)" >&2
+    fail=1
+    continue
+  fi
+  while IFS= read -r target; do
+    # ファイル自体の欠落は配置の検査が報告済み。ここでは中身だけを見る。
+    [ -f "$target" ] || continue
+    if ! grep -qF -- "$marker" "$target"; then
+      echo "NG: $target に $id の marker '$marker' が無い(集約先から帰属表示が落ちている)" >&2
+      fail=1
+    fi
+  done <<<"$targets"
+done < <(jq -r '
+  .sources[]
+  | [ .id
+    , (.marker | if type == "string" and (test("[\n\t]") | not) then . else "" end)
+    , (.scope // "")
+    ]
+  | join("\u001f")' "$manifest")
 
 if [ "$fail" -ne 0 ]; then
   exit 1
@@ -97,4 +150,4 @@ fi
 n_src="$(jq '.sources | length' "$manifest")"
 n_skill="$(wc -l <"$seen" | tr -d ' ')"
 n_file="$(printf '%s\n' "$want" | wc -l | tr -d ' ')"
-echo "OK: 外部由来 ${n_skill} skill / ${n_src} 出所の帰属表示 ${n_file} ファイルが宣言どおり配置されている"
+echo "OK: 外部由来 ${n_skill} skill / ${n_src} 出所の帰属表示 ${n_file} ファイルが宣言どおり配置され、各出所の marker も集約先に残っている"

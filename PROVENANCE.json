@@ -4,12 +4,19 @@
     "この宣言と plugins/ 以下の実ファイルの一致を検証する。skill の配置を変えたら、",
     "ここではなく実ファイルの方を動かせばよい(skills はディレクトリ名なので変わらない)。",
     "新たに外部から取り込んだら、必ずここに追記する。未登録の LICENSE/NOTICE は失格になる。",
-    "scope=plugin は plugins/agent-gears/<file>、scope=skill は plugins/agent-gears/skills/<skill>/<file>。"
+    "scope=plugin は plugins/agent-gears/<file>、scope=skill は plugins/agent-gears/skills/<skill>/<file>。",
+    "marker は集約先でその source を識別する literal で、この宣言が唯一の正本になる。",
+    "帰属表示ファイル側が marker をそのまま含む義務を負う(リポジトリ直下の NOTICE と、",
+    "scope=plugin なら集約先の LICENSE/NOTICE)。scope=plugin では複数 source が同じファイルを",
+    "共有し、path の存在だけでは特定 source の許諾文の消失を検出できないため(#91)。",
+    "marker は source 間で重複させない。重複すると片方の欠落をもう片方が隠す。",
+    "name は人間向けのラベルで、検査には使わない。"
   ],
   "sources": [
     {
       "id": "shokai",
       "name": "shokai/agent-skills",
+      "marker": "shokai/agent-skills",
       "url": "https://github.com/shokai/agent-skills",
       "license": "MIT",
       "scope": "plugin",
@@ -28,6 +35,7 @@
     {
       "id": "mattpocock",
       "name": "mattpocock/skills",
+      "marker": "mattpocock/skills",
       "url": "https://github.com/mattpocock/skills",
       "license": "MIT",
       "scope": "skill",
@@ -40,6 +48,7 @@
     {
       "id": "mizchi",
       "name": "mizchi/skills",
+      "marker": "mizchi/skills",
       "url": "https://github.com/mizchi/skills",
       "license": "MIT",
       "scope": "skill",
@@ -51,6 +60,7 @@
     {
       "id": "k16shikano",
       "name": "k16shikano gist",
+      "marker": "k16shikano",
       "url": "https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d",
       "license": "public domain",
       "scope": "plugin",
@@ -63,6 +73,7 @@
     {
       "id": "yasunori0418",
       "name": "yasunori0418/skills",
+      "marker": "yasunori0418/skills",
       "url": "https://github.com/yasunori0418/skills",
       "revision": "44297daabb540cdb5290be2798ccc99f9967c7ab",
       "license": "MIT",

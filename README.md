@@ -186,6 +186,11 @@ skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標
 人間向けの一覧は `NOTICE`、機械可読な宣言元は `PROVENANCE.json` で、後者から組み立てた
 「あるべき `LICENSE` / `NOTICE` の集合」と実ファイルの一致を CI(`scripts/check-licenses.sh`)が検証する。
 plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集約し、skill 単位の `LICENSE` は各 skill に残す。
+集約先は複数の出所が同じファイルを共有するので、配置(ファイルの存在)だけでは特定の出所の許諾文が
+消えても気づけない。
+そこで各出所には `marker`(集約先に literal で現れる識別子)を宣言し、その残存も検査する。
+`marker` の正本は `PROVENANCE.json` で、帰属表示ファイル側がそれを含む義務を負う。
+検査そのものの回帰テストは `scripts/check-licenses.test.sh`。
 
 - **`japanese-tech-writing` / `argument-gap-edit`**:
   - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。
@@ -400,6 +405,7 @@ agent-gears でも、steering が掛かる条件を1つ用意して end-to-end �
 2. **外部から取り込んだ skill なら** `PROVENANCE.json` に追記し、帰属表示ファイルを置く。
    `scope` が `plugin` なら `plugins/agent-gears/LICENSE` / `NOTICE` に必要な許諾文・出典を加え、`skill` なら skill ディレクトリ直下に置く。
    リポジトリ直下の `NOTICE` にも出所を書く。`scripts/check-licenses.sh` が両方を検証する。
+   併せて他の出所と重複しない `marker` を宣言し、その文字列を集約先と直下の `NOTICE` にそのまま書く(未宣言は失格)。
 3. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
 4. `skills/` 配下は単一 plugin から自動検出される。
    plugin のメタデータを変える場合は `marketplace.json` と `plugins/agent-gears/.claude-plugin/plugin.json` の `name` / `version` / `keywords` を揃える。
