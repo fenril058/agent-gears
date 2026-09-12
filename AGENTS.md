@@ -40,6 +40,12 @@
   plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集約し、skill 単位の `LICENSE` は各 skill に残す。
   外部由来の skill を追加・削除したら、集約した帰属表示から必要な許諾文を落とさない。
   宣言と実ファイルの一致は CI の `scripts/check-licenses.sh` が検証する。
+  集約先は複数の出所が同じファイルを共有するので、配置だけでは特定の出所の許諾文の消失を検出できない。
+  そのため各出所は `marker`(集約先に literal で現れる識別子、正本は `PROVENANCE.json`)を宣言し、
+  帰属表示ファイル側がそれを含む。未宣言・重複・包含・欠落はいずれも失格。
+  ただし marker が保証するのは識別子の残存までで、許諾文の本文や skill 単位ファイルの中身は検査しない。
+  文書にこれより強い保証を書かない。
+  この検査の回帰テストは `scripts/check-licenses.test.sh`(CI の consistency job)。
 
 手順は README:「構成」「常時ルール vs skill」「SKILL.md の言語」「配布方法」「既知の上流不具合と暫定回避」「新しい skill を足すとき」。
 
