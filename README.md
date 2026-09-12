@@ -195,11 +195,17 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
     - ライセンスは **MIT**。許諾文は `plugins/agent-gears/LICENSE` に集約してある。
     - 英語化のうえ取り込んだ。
     - `subagent-consultation` は相談の設計・往復判断・回答統合を担当する。
+      相談先の選定は independence の厳密な tier ではなく heuristic で決める:
+      fresh context(現在の会話への anchoring を減らす)と different model family
+      (適切な相手がいれば別視点を得られる diversity heuristic であり、independence
+      guarantee ではない)を別の効果として扱い、呼び出し元が相談先を明示していればそれに従う。
       `codex-consultation` は、Claude CodeでCodexを選んだ場合の sandbox capability、cwd、timeout、失敗の切り分けだけを担当する同期実行adapterとして取り込んだ。
       1回の呼び出しで回答か明示的な失敗まで完結し、後から回収する job は返さない。
-      呼び出し側は引き続き `subagent-consultation` だけを呼び、相談先を知らなくてよい。
+      呼び出し側は引き続き `subagent-consultation` だけを呼び、実際の実行機構(subagentかCodex CLIか)を知らなくてよい。
     - `sanity-review` の外部 Agent 相談は `subagent-consultation` →(失敗時)main 単独の 2 段フォールバックに書き換えてある。
-      相談先の種類(別モデルファミリか同ファミリか)は手順ごとに `Args:` で指定する。
+      Step 3/5/6 は別モデルファミリを、Step 4 は同ファミリを希望として `Args:` で渡しており、
+      `subagent-consultation` 側はこれを呼び出し元の明示指定として尊重する。
+      この family 指定自体を通常フローから外すかどうかは issue #85 で扱う。
     - `unconventional-simplification` / `codepatrol` の外部Agent相談は `subagent-consultation` を呼ぶ。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
 - **mattpocock/skills 由来**:

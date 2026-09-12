@@ -97,31 +97,37 @@ concerns it.
 
 ### Choosing the consultant
 
-A second opinion is worth having only to the extent that the consultant's priors are
-independent of yours. Prefer, in this order:
+A consultation is judgment work: use a consultant capable of that judgment. Beyond that
+baseline, two things help, and they are separate effects, not tiers of one
+"independence" axis:
 
-1. **A different model family.** Independent training, so independent priors. The
-   strongest second opinion, and the one to pick when you may be systematically wrong
-   rather than merely under-informed: correctness, security, "is this explanation
-   actually true".
-2. **The same family on a strong model, in a fresh session.** Independent context,
-   shared priors. Enough when the job is reading the repository — conventions, naming,
-   where something is implemented — rather than judging whether it is right.
-3. **Whatever subagent/task mechanism the host has**, when neither of the above exists.
+- **Fresh context.** A session with no memory of this conversation is not anchored to
+  the view you have already formed. Useful whenever the job is re-reading or
+  re-judging something rather than learning something new.
+- **A different model family**, when a suitable one is available. It may surface a
+  blind spot correlated with your own training, which is worth the extra cost when you
+  may be systematically wrong rather than merely under-informed — correctness,
+  security, "is this explanation actually true". Treat this as a diversity heuristic,
+  not an independence guarantee: different training does not establish that priors or
+  errors are independent.
 
-A consultation is judgment work: use a model capable of that judgment.
+There is no formal ranking such as "different-family beats same-family fresh beats
+whatever mechanism". Pick whichever effect the question needs, use both when the host
+makes both available, or fall back to whatever subagent/task mechanism the host has
+when neither is available — see "Platform implementations" below for what actually
+exists on this host.
 
 A cross-family consultant costs more to use. It cannot see this conversation, its tool
 access and permissions differ, and a round-trip is slower. Write the prompt to stand
 completely on its own (section 2 already requires this).
 
 If whoever invoked this skill stated which kind of consultant the task needs, follow
-that. See "Platform implementations" below for what actually exists on this host.
+that.
 
 ### Launching
 
-Launch the consultant with the mechanism its tier uses on this host ("Platform
-implementations" below). For an Agent-tool consultant:
+Launch the consultant with the mechanism this host uses for that kind of consultant
+("Platform implementations" below). For an Agent-tool consultant:
 
 - `prompt`: the prompt designed in section 2.
 - `description`: a 3-5 word summary of the consultation.
@@ -133,10 +139,12 @@ A consultation ends in one of two ways, and they call for opposite responses.
 A **consultation failure** is the absence of an answer: the consultant's CLI is not
 installed, the run hit its time bound, the process exited non-zero, or the output says
 only that it could not proceed. There is nothing to digest, and the fallback is yours,
-not the adapter's — an execution adapter reports the failure and stops there. Move down
-the preference order to the next available consultant and run the same consultation
-there. If none is left, say so and give your own view alone. Either way, state in the
-report which consultant answered, and which one failed and how.
+not the adapter's — an execution adapter reports the failure and stops there. If a
+suitable consultant you have not yet tried is available, reselect one using the same
+heuristic and any caller-stated requirement (section 3, "Choosing the consultant") and
+run the same consultation there. If none is left, say so and give your own view alone.
+Either way, state in the report which consultant answered, and which one failed and
+how.
 
 A **usable result with execution degradation** is a real answer from a run where some
 command failed — a fetch, a test, a build, a diagnostic. Do not fall back on that one.
@@ -235,7 +243,8 @@ time to the user.
 
 ### Claude Code
 
-The two tiers are reached by different mechanisms:
+A different-family consultant and a same-family consultant are reached by different
+mechanisms:
 
 - **Different family**: the Codex CLI, through the `codex-consultation` skill (Skill
   tool), when that skill is installed and `codex` is on PATH. This skill owns prompt
@@ -270,5 +279,5 @@ Select by the tool description, not by the name.
 Spawn the consultant on a strong model.
 For the second round, use the operation that starts or resumes a turn for the same agent.
 Merely delivering a message to an idle agent is not enough.
-If another vendor's CLI is installed, that is the different-family consultant (tier 1).
-A Codex agent thread with no project context loaded is tier 2.
+If another vendor's CLI is installed, that is the different-family consultant.
+A Codex agent thread with no project context loaded is the same-family consultant.
