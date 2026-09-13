@@ -1,6 +1,6 @@
 # agent-gears plugin
 
-文脈効率、指示設計、批評、記録、レビュー、学習、文章規範を扱う skill 群と、Claude Code 用 agent 定義をまとめて配布する。
+文脈効率、指示設計、批評、記録、レビュー、学習、文章規範を扱う skill 群をまとめて配布する。
 
 ## codex-consultation
 
