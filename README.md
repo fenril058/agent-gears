@@ -1,10 +1,10 @@
 # agent-gears
 
-Claude Code・Codex・GitHub Copilot 共用の **skill / agent / 常時ルール** 一式。
+Claude Code・Codex・GitHub Copilot 共用の **skill / 常時ルール** 一式。
 Claude には plugin マーケットプレイスとして、Codex / Copilot には skill として、自分の環境には home-manager で配布できる。
 
 このリポジトリは2つの性格を併せ持つ。
-**公開する skill/agent(`plugins/`)** と、**個人のエージェント設定(`rules/` と、その symlink 配布の仕組み)** である。
+**公開する skill(`plugins/`)** と、**個人のエージェント設定(`rules/` と、その symlink 配布の仕組み)** である。
 前者はマーケットプレイスとして共有でき、後者は自分の `~/.claude` / `~/.codex` / `~/.copilot` を構成する。
 マーケットプレイス名は `fenril058-agent-skills`(`marketplace.json` の `name`)である。
 
@@ -31,7 +31,6 @@ learning                                   ← AI支援後の理解を深める
 独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
-- locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 - [codex-consultation](plugins/agent-gears/README.md#codex-consultation): Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。15分の policy timeout をフルに使うための Claude Code 側の設定は README 参照。
 
@@ -96,7 +95,7 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 ```
 .claude-plugin/marketplace.json   Claude 用マーケットプレイス定義
 plugins/
-  agent-gears/                    全 skill / agent 定義を含む単一 plugin
+  agent-gears/                    全 skill 定義を含む単一 plugin
     .claude-plugin/plugin.json
     LICENSE                       plugin 単位の第三者 MIT 許諾文
     NOTICE                        plugin 単位の public domain 出典表示
@@ -114,7 +113,6 @@ plugins/
       grilling/                   一問ずつ推奨案付きの意思決定インタビュー
       japanese-tech-writing/      日本語技術文書の文章規範
       library-update-review/      依存更新 PR のレビュー
-      locate-implementation/      fastcontext で未知の挙動・症状の候補箇所を絞る
       markdown-context/           大きな Markdown を mdidx で部分取得
       navigating/                 ユーザー自身が読むコードリーディング案内
       quizzing/                   一問ずつ行う理解確認
@@ -122,8 +120,6 @@ plugins/
       spec-ambiguity-audit/       仕様書の疑問点を機械的フィルタで検証する監査
       subagent-consultation/      サブエージェントへのセカンドオピニオン
       unconventional-simplification/ 暗黙の前提を外して別解を探す
-    agents/
-      search.md                   コードベース探索・調査(Sonnet)
 rules/always-on.md   全エージェント共通の常時ルール(個人設定)
 rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
 AGENTS.md            このリポジトリで作業する全エージェント向けの repo-local 指示(配布しない)
@@ -241,7 +237,8 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
 - **yasunori0418/skills 由来**(`navigating` / `quizzing`):
   - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
   - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
-  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `locate-implementation` / `markdown-context` を使う記述へ変更した。
+  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は削除し、大きな Markdown だけ `markdown-context` を使う記述に変更した。
+    それ以外の探索は host のツールに任せる。
 
 ## 前提ツール
 
@@ -249,10 +246,6 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
   - `wt` 本体と Claude Code / Codex 向けの Worktrunk plugin と skill は別リポジトリで一括管理し、このリポジトリからは配布しない。
   - 作者の環境では、`wt` が利用できる場合、対応する Worktrunk plugin と skill も導入済みである。
   - skill を利用できないホストは、`rules/always-on.md` に従って `wt` を直接呼ぶ。
-- [fastcontext](https://github.com/microsoft/fastcontext) — 未知の挙動・症状に関係する候補箇所の探索。
-  - OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` / `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。
-  - 鍵はコミットせず各自設定する。
-  - 未設定時は `locate-implementation` skill のフォールバック(Explore / Grep+Read)で代替。
 - mdidx — Markdown を索引+節に変換。本リポジトリ同梱の Go 実装。
   - [oubakiou/md2idx](https://github.com/oubakiou/md2idx)(MIT)の忠実な再実装で、出力はバイト互換。Node ランタイム/npm 依存を持たない単一バイナリ。
   - 導入は次のいずれか。いずれも Nix が prebuilt の Go コンパイラを store に取得してビルドするため、システムへ go を入れる必要はない。
@@ -274,7 +267,7 @@ GitHub Copilot 向けには専用のマーケットプレイス経路はなく�
 /plugin install agent-gears@fenril058-agent-skills
 ```
 
-plugin 内の `skills/` と `agents/` が自動で読み込まれる。
+plugin 内の `skills/` が自動で読み込まれる。
 旧7 plugin の名前は無くなるため、既に marketplace 経由で導入している場合は、先に `agent-gears` plugin をインストールしてから旧 plugin を明示的に削除する。
 旧 plugin は marketplace の更新や新 plugin のインストールでは自動削除されず、残すと起動時に load error が記録される。
 
@@ -296,12 +289,12 @@ Codex の `skill-installer` で GitHub の skill ディレクトリを `~/.agent
 install-skill-from-github.py --repo fenril058/agent-gears --path plugins/agent-gears/skills/markdown-context
 ```
 
-(`agents/` の定義は Claude Code 形式(`.md`)なので Codex へは配布しない。
-Codex にも agent はあるが定義は `$CODEX_HOME/agents/*.toml` 形式で、現状同梱していない。)
+(agent 定義は現状同梱していない。)
 
 ### 3. 自分の環境 — home-manager(クロスエージェント宣言配布)
 
-skills/agents/常時ルールを `~/.claude`・`~/.agents`・`~/.codex`・`~/.copilot` へ一括 symlink する。
+skills/常時ルールを `~/.claude`・`~/.agents`・`~/.codex`・`~/.copilot` へ一括 symlink する。
+`plugins/agent-gears/agents/*.md` が存在する場合は Claude Code 用 agent 定義も配布する。
 Claude を plugin 経由にするなら `claude.enable = false` にして重複を避けられる。
 
 ```nix
@@ -330,7 +323,8 @@ Claude を plugin 経由にするなら `claude.enable = false` にして重複�
 
 - skill の **追加・削除** の反映には flake 更新 + `home-manager switch` が要る
   (配布対象は flake ソースから列挙)。既存 skill の編集は `mutable = true` なら即反映。
-- 配布対象は `plugins/agent-gears/skills/*`・`plugins/agent-gears/agents/*`。
+- 配布対象は `plugins/agent-gears/skills/*`。
+  `plugins/agent-gears/agents/*` が存在する場合は Claude Code 用 agent 定義も対象。
 
 ### 4. home-manager を使わない場合 — install.sh
 
@@ -350,7 +344,7 @@ bash install.sh --uninstall # このリポジトリを指す symlink だけ外�
 | 各 skill | `~/.claude/skills/` | `~/.agents/skills/` | `~/.copilot/skills/` |
 | rules/always-on.md | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` | `~/.copilot/copilot-instructions.md` |
 | rules/claude.md | `~/.claude/rules/agent-gears.md` | — | — |
-| agents/*.md | `~/.claude/agents/` | (非対応) | (非対応) |
+| agents/*.md (存在する場合) | `~/.claude/agents/` | (非対応) | (非対応) |
 
 **反映には Claude Code / Codex / Copilot の再起動が必要。**
 
@@ -395,7 +389,7 @@ agent-gears でも、steering が掛かる条件を1つ用意して end-to-end �
   agent-gears の正式な runtime dependency として扱わない。
 - **agent-gears はこの設定を自動では行わない。**
   `install.sh` も home-manager モジュールも `~/.claude/settings.json` を含む user settings を読み書きしない。
-  配布するのは skill / agent 定義 / rules の symlink だけである。設定するかどうかは利用者が決める。
+  配布するのは skill / rules の symlink だけで、agent 定義が存在する場合はそれも対象になる。設定するかどうかは利用者が決める。
 - flag を設定しない場合に備えて、`rules/claude.md` にも同じ期間だけの compatibility 規則(変更するファイルは一度 `Read` で開く)を置いている。
   これは「変更前に現在の内容を確認する」という tool 非依存の不変則とは別の要件で、読み取り全般を `Read` に固定するものではない。
 - 判定と撤去の手順は `docs/claude-code-instruction-loading.md`、決定と撤去条件は `docs/adr/0002-claude-code-bash-first-instruction-loading.md`。

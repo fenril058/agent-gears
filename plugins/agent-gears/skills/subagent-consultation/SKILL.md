@@ -256,8 +256,6 @@ mechanisms:
 - **Same family**: the `Agent` tool with `subagent_type: general-purpose`,
   `model: opus` (or `fable`). A fresh session with no memory of this conversation.
 
-Do not consult the `search` agent: it is a task delegate for bounded work, not a consultant responsible for an independent judgment.
-
 For a same-family consultant, address `SendMessage` to the consultant's ID or name
 for the second round. A fresh `Agent` call starts cold.
 

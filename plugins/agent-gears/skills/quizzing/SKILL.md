@@ -12,7 +12,6 @@ If no scope is given, use the latest plan or implementation in the session.
 
 First investigate the scope.
 Read a small scope, such as a recent diff or plan, directly.
-Use `locate-implementation` only to find candidate files and line ranges for a concrete behavior or symptom when repository identifiers are unknown and the implementation likely spans multiple subsystems.
 For large Markdown documents, use `markdown-context`.
 Use the appropriate browsing tools for external documentation.
 
