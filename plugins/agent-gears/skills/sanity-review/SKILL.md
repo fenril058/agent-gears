@@ -171,8 +171,11 @@ Separately from it, if the naming or design looks likely to become a liability a
 codebase grows — a name that will collide with a concept the codebase is heading
 toward, a responsibility split that will be awkward to extend — record the risk and why
 you see it.
+Weigh the case against your own concern as well: why the current naming or design may
+be fine as it stands, and whether the change you are picturing is actually coming.
+A risk recorded without that counter-argument is a one-sided prediction.
 This is your own view, offered as material for discussion, so write it as normal prose;
-you need not force a conclusion.
+you need not force a conclusion, and leaving it on hold is a valid outcome.
 If nothing concerns you, write "None".
 
 ### Step 5: Correctness, regression, and security investigation
