@@ -220,9 +220,6 @@ subagentが何らかの失敗をしたパターンを認識したら、次回以
 - **同ファミリ**: `Agent` ツールで `subagent_type: general-purpose` に `model: opus`(または `fable`)。
   この会話の記憶を持たない新しいセッションになる。
 
-`search` agent には相談しない。
-範囲の定まった作業の委譲先であり、独立した判断を担う相談先ではない。
-
 同ファミリの相談先では、2往復目は相談先のIDか名前を指定した `SendMessage` で継続する。
 `Agent` を呼び直すとcold startになる。
 
