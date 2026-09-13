@@ -208,10 +208,9 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
       `codex-consultation` は、Claude CodeでCodexを選んだ場合の sandbox capability、cwd、timeout、失敗の切り分けだけを担当する同期実行adapterとして取り込んだ。
       1回の呼び出しで回答か明示的な失敗まで完結し、後から回収する job は返さない。
       呼び出し側は引き続き `subagent-consultation` だけを呼び、実際の実行機構(subagentかCodex CLIか)を知らなくてよい。
-    - `sanity-review` の外部 Agent 相談は `subagent-consultation` →(失敗時)main 単独の 2 段フォールバックに書き換えてある。
-      Step 3/5/6 は別モデルファミリを、Step 4 は同ファミリを希望として `Args:` で渡しており、
-      `subagent-consultation` 側はこれを呼び出し元の明示指定として尊重する。
-      この family 指定自体を通常フローから外すかどうかは issue #85 で扱う。
+    - `sanity-review` は main reviewer 単独でレビューを完了する形に書き換えてある。
+      独立レビューは任意の追加であり、実施する場合だけ `subagent-consultation` を呼ぶ(相談先の種類は指定しない)。
+      渡すもの・渡さないものの境界は plugin README の「sanity-review」を参照。
     - `unconventional-simplification` / `codepatrol` の外部Agent相談は `subagent-consultation` を呼ぶ。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
 - **mattpocock/skills 由来**:

@@ -119,45 +119,6 @@ Assess **all four** items and note the results. Finish all before the next step:
 4. **Is the implementer's own understanding visible?** Not just AI-generated text
    pasted in — does it convey what the implementer was thinking?
 
-### External agent consultation — common policy
-
-Steps 3, 4, and 5 seek a second opinion from an external agent (except the "long-term
-naming/design reflection" subsection of step 4). Step 6 consults only if something is
-suspicious. Follow this fallback order and **do not judge by guessing — actually call
-and try**:
-
-1. Call `subagent-consultation` via the Skill tool. If it fails, go to 2.
-2. The main agent does the work alone.
-
-When you invoke `subagent-consultation`, convey the **depth** ("Consult well") and the
-**concrete question** in the same turn — that is what the per-step `Args:` lines below
-contain. Stating the depth up front stops the consultation skill from asking the user
-back and interrupting the review. "If it fails" means the skill is unavailable or errors
-on its single attempt; do not retry — fall back to 2.
-
-**Which consultant.** `subagent-consultation` picks the consultant itself, but tell it
-what this step needs, because the steps differ. Steps 3, 5, and 6 ask whether the code
-and the implementer's claims are *right*, so they are worth the extra cost of a
-consultant from a different model family — one whose priors are independent of yours
-(on Claude Code, Codex). Step 4 is a read of the existing codebase rather than a
-judgment call, so a same-family subagent is enough. The per-step `Args:` lines below
-carry this preference; if the host has no cross-family consultant, the consultation
-skill falls back on its own and the review continues.
-
-If a fallback occurred or the external agent was unavailable, note it in the report's
-"Problems encountered during review" section.
-
-**When falling back to 2 (main agent alone)**, the core of this skill — the chain of
-critical thinking (a protocol where the two sides examine and rebut each other to
-improve accuracy and coverage) — is not functioning. A review without the back-and-
-forth verification lacks its intended precision, so put the following at the top of the
-"Problems encountered during review" section, verbatim, as a bold paragraph:
-
-**⚠ Warning: the chain of critical thinking is not functioning. Suspect that the
-execution environment is not sane.**
-
-Each step states the Args to pass to the external agent and how to handle the result.
-
 ### Step 3: Coherence between the implementer's explanation and the implementation
 
 The goal is a **doc–code read-through**: verifying that the explanations in the
@@ -180,20 +141,10 @@ Confusing these with the explanation leads to wrong coherence judgments.
 
 Record any discrepancy concretely.
 
-#### Coherence check by an external agent
-
-In addition to your own check, have an external agent verify coherence between the diff
-and the description. Reading the code from another angle may surface discrepancies you
-missed.
-
-Per the common policy, call with these Args:
-
-```
-Args: Consult well. Prefer a consultant from a different model family. For PR #{number}, check whether the description and the actual diff have any discrepancy. {description summary and check points}
-```
-
-When you get the external agent's points, compare with your own results and check for
-oversights.
+Neither the description, the comments, nor the conversation context is an authority on
+what the code does.
+Each claim they make is something to verify against the code, not something to review
+the code against.
 
 ### Step 4: Naming and design-pattern consistency
 
@@ -213,62 +164,37 @@ raises the precision of the later investigation.
 
 Record any discrepancy concretely.
 
-#### Check by an external agent
+#### Long-term naming/design risk
 
-In addition to your own check, have an external agent verify naming/design-pattern
-consistency.
+Consistency with existing code is a factual judgment.
+Separately from it, if the naming or design looks likely to become a liability as the
+codebase grows — a name that will collide with a concept the codebase is heading
+toward, a responsibility split that will be awkward to extend — record the risk and why
+you see it.
+This is your own view, offered as material for discussion, so write it as normal prose;
+you need not force a conclusion.
+If nothing concerns you, write "None".
 
-Per the common policy, call with these Args:
+### Step 5: Correctness, regression, and security investigation
 
-```
-Args: Consult well. A same-family subagent is fine. For PR #{number}, check whether the added/changed naming and design patterns match the existing codebase's conventions. {change summary}
-```
+Investigate the code yourself.
+This is the main reviewer's own work, not something the review delegates.
 
-When you get the external agent's points, compare and check for oversights.
+Cover at least:
 
-#### Long-term naming/design reflection
+1. **Correctness**: does the code actually do what the description and the implementer's
+   explanation claim? Check the edge cases, the error paths, and the conditions under
+   which the changed code runs.
+2. **Regressions**: what existing behavior does this diff touch? Check existing callers,
+   tests, and data — look at what the change removed, renamed, or narrowed, not only at
+   what it added.
+3. **Security and vulnerabilities**: untrusted input, injection, path and file handling,
+   secrets, permissions, and any existing check the diff weakens or bypasses.
 
-Reflect on whether the current naming/design could become a liability when the
-codebase is later extended. Unlike consistency with existing code (a factual judgment),
-this provides food for discussion to spark human imagination.
-
-If something concerns you, write it out in a self-questioning form covering "concern /
-counter-argument / conclusion or hold". This is your own view, so write it as normal
-prose. 2-3 paragraphs per point is enough. You need not force a conclusion. If nothing
-concerns you, write "None". This reflection is **not** delegated to the external agent;
-the skill's own agent thinks it through.
-
-Example output:
-
-```markdown
-The name "access-token" is fine for now, since it only refers to the token between user
-and service. But if a token for connecting to an external service appears later, a
-concept clash could occur.
-
-If so, the subject may need to be in the name, like `user-access-token`. That said,
-there is currently no visible plan to add external-service integration soon, so it is
-not a problem to fix now.
-```
-
-### Step 5: Bug and vulnerability investigation
-
-Per the common policy, ask the external agent for a code review. Include the PR's change
-summary, a diff summary, and the points to check.
-
-**Include the depth in the Args.** Consultation skills ask the user back when depth is
-unspecified, which interrupts the review flow:
-
-```
-Args: Consult well. Prefer a consultant from a different model family. Please code-review PR #{number}. {change summary and check points}
-```
-
-#### Verifying the result
-
-Do not take the external agent's points at face value:
-
-- Verify each point the external agent raised by reading the code yourself.
-- Deliberately look for areas the external agent may have missed.
-- When your view and the external agent's diverge, record both sides' reasons.
+Read the code, not just the diff: a diff hides the context the changed lines run in.
+Record each finding with the evidence for it — where it is, and why it is wrong.
+Where tests cover the changed area, check whether they would actually catch the failure
+you are describing.
 
 ### Step 6: Re-read the conversation context — omission check
 
@@ -321,8 +247,60 @@ For things decided as "won't do":
 Verify, by reading the code, that the "facts" written in the conversation context are
 actually correct.
 
-If anything is suspicious, also consult an external agent per the common policy. Include
-"Consult well" and the preference for a different model family in the Args.
+### Optional: an independent review
+
+The numbered steps are the whole review: the main reviewer can complete every one of
+them alone.
+An independent reviewer is an addition to that review, never a condition for it.
+
+Use one only when you judge that a second search path over the same material would
+reach something your own pass could not: an area you could not get comfortable with, a
+change whose blast radius is wider than what you could read, a suspicion you cannot
+settle from the code alone.
+Choosing not to use one is not a gap in the review, and does not belong in "Problems
+encountered during review".
+
+To run one, call `subagent-consultation` via the Skill tool.
+State the depth ("Consult well") in the same turn as the question — without a depth the
+consultation skill asks the user back and interrupts the review.
+Do not ask for any particular kind of consultant; `subagent-consultation` owns that
+choice.
+
+#### What the independent reviewer gets
+
+The point is an independent path through the same material, not a reviewer working in
+the dark.
+Give it everything it needs to review the target on its own:
+
+- the exact Reviewed head and Comparison basis
+- the PR description, the comments, and the PR review bodies
+- the conversation context and the ADRs it links to
+- the diff, the code, and how the tests are run
+- the repository's own instructions
+
+Withhold your side of the review:
+
+- your findings and your draft report
+- the lines you suspect are buggy or vulnerable
+- your severity judgments and your remediation ideas
+- your conclusions
+
+Handing those over turns an independent read into a confirmation of your own.
+
+#### Handling what comes back
+
+Everything the independent reviewer reports is a candidate, not a finding.
+Verify each one against the primary evidence yourself before it enters the report, and
+drop the ones that do not survive that check.
+Its view holds no authority over yours: when the two diverge, record both sides'
+reasons rather than deferring.
+Look as well for what it did not cover — a second pass that missed something is not
+evidence that there is nothing there.
+
+If the consultation fails, or no consultant is available, write the review you already
+have.
+An unavailable consultant is not a review failure, and not a reason to doubt the
+execution environment.
 
 ### Step 7: Write the review report
 
@@ -341,16 +319,21 @@ The template headings are in Japanese; write the report in the user's working la
   say so plainly.
 - **PR description > Quality assessment**: fill in the step-2 checklist results as
   OK/NG/N-A. For NG, state concretely what is missing.
-- **Problems encountered during review section**: if a step was skipped, distinguish
-  whether it was an external cause (a tool was unavailable, etc.) or the agent's
-  judgment. If there were no problems, write "None".
+- **Independent review section**: include it only if you actually ran one, recording its
+  candidates and what your own verification made of each. If you did not run one, leave
+  the section out.
+- **Problems encountered during review section**: record what actually got in the way —
+  a tool that failed, scope you could not verify, context you could not obtain. If a
+  step was skipped, distinguish whether it was an external cause (a tool was
+  unavailable, etc.) or the agent's judgment. Not running an independent review is not
+  a problem; do not record it as one. If there were no problems, write "None".
 - **Conclusion section**: state the overall judgment and recommended action.
 - Throughout, focus on giving the reviewer the material to judge "is this change valid".
 
 ## Related skills
 
-- **subagent-consultation**: consult a subagent (the Agent tool). Used as the external
-  agent in steps 3/4/5/6; it also decides which consultant to use, Codex included.
+- **subagent-consultation**: consult a subagent (the Agent tool). Used only for the
+  optional independent review; it decides which consultant to use, Codex included.
 - **conversation-context-import**: load the conversation context. Background for step 1.
 - **conversation-context-export**: write out the conversation context. Background on the
   conversation-context format.
