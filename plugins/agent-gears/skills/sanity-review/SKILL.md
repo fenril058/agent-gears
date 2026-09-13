@@ -260,6 +260,7 @@ Use one only when you judge that a second search path over the same material wou
 reach something your own pass could not: an area you could not get comfortable with, a
 change whose blast radius is wider than what you could read, a suspicion you cannot
 settle from the code alone.
+If the user asked for one outright, that settles it — run one without weighing it up.
 Choosing not to use one is not a gap in the review, and does not belong in "Problems
 encountered during review".
 
@@ -300,10 +301,24 @@ reasons rather than deferring.
 Look as well for what it did not cover — a second pass that missed something is not
 evidence that there is nothing there.
 
-If the consultation fails, or no consultant is available, write the review you already
-have.
+#### When an independent review is absent
+
+If the consultation fails, or no consultant is available, the review you already have
+stands: finish it and write the report.
 An unavailable consultant is not a review failure, and not a reason to doubt the
 execution environment.
+
+What to record depends on why the independent review is absent:
+
+1. **You judged it would add nothing.** Record nothing. A main-only review is a normal,
+   complete review, not a degraded one.
+2. **You judged it worth running, and it could not be run.** The review is still
+   complete, but the extra search path you had judged you needed never arrived. Record
+   that in "Problems encountered during review" as a coverage limitation: what you
+   wanted a second path for, and which area therefore rests on your reading alone.
+3. **The user asked for an independent review, and it could not be run.** Present your
+   own results as usual, and state plainly that the requested review mode could not be
+   met. Do not let it pass as though the request had been fulfilled.
 
 ### Step 7: Write the review report
 
@@ -322,14 +337,17 @@ The template headings are in Japanese; write the report in the user's working la
   say so plainly.
 - **PR description > Quality assessment**: fill in the step-2 checklist results as
   OK/NG/N-A. For NG, state concretely what is missing.
-- **Independent review section**: include it only if you actually ran one, recording its
-  candidates and what your own verification made of each. If you did not run one, leave
-  the section out.
+- **Independent review section**: include it only if one actually returned a usable
+  result, recording its candidates and what your own verification made of each. Leave
+  the section out otherwise; an attempt that returned nothing goes in "Problems
+  encountered during review" instead.
 - **Problems encountered during review section**: record what actually got in the way —
   a tool that failed, scope you could not verify, context you could not obtain. If a
   step was skipped, distinguish whether it was an external cause (a tool was
-  unavailable, etc.) or the agent's judgment. Not running an independent review is not
-  a problem; do not record it as one. If there were no problems, write "None".
+  unavailable, etc.) or the agent's judgment. Deciding an independent review would add
+  nothing is not a problem; do not record it as one. An independent review you judged
+  worth running but could not run does belong here, as a coverage limitation. If there
+  were no problems, write "None".
 - **Conclusion section**: state the overall judgment and recommended action.
 - Throughout, focus on giving the reviewer the material to judge "is this change valid".
 

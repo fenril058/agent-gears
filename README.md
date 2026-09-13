@@ -210,7 +210,8 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
       呼び出し側は引き続き `subagent-consultation` だけを呼び、実際の実行機構(subagentかCodex CLIか)を知らなくてよい。
     - `sanity-review` は main reviewer 単独でレビューを完了する形に書き換えてある。
       独立レビューは任意の追加であり、実施する場合だけ `subagent-consultation` を呼ぶ(相談先の種類は指定しない)。
-      渡すもの・渡さないものの境界は plugin README の「sanity-review」を参照。
+      渡すもの・渡さないものの境界と、独立レビューを得られなかった場合の記録の扱いは
+      plugin README の「sanity-review」を参照。
     - `unconventional-simplification` / `codepatrol` の外部Agent相談は `subagent-consultation` を呼ぶ。
     - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
 - **mattpocock/skills 由来**:
