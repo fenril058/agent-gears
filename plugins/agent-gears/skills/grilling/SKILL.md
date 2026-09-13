@@ -22,7 +22,7 @@ Rules:
   are the user's — put each one to them and wait for their answer.
 - Before asking about a decision, resolve every decision it depends on.
   Do not ask a question whose answer depends on an unresolved prerequisite decision.
-- When unresolved decisions are independent, do not invent dependencies or unnecessarily constrain their question order to the state of a particular branch.
+- When unresolved decisions are independent, do not invent dependencies between them or make one wait on the other's answer.
   Continue to ask only one question at a time; this rule does not require asynchronous or background work.
 - Before asking the user to confirm the shared understanding, check that no unresolved decision or silently assumed decision remains.
   If any remains, surface and resolve it one question at a time.
