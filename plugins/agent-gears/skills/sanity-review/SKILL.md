@@ -28,26 +28,31 @@ GitHub to mark the review complete, and to explain fixes if any.
 ### Step 0: Determine the review target and bind the reviewed revisions
 
 This skill has two input modes. Determine which applies in this priority order, before
-doing anything else:
+doing anything else. Decide by **intent**, not by whether every required input has
+already been given — an incomplete non-PR request is still a non-PR request:
 
 1. **An explicit PR number/URL argument, or the request otherwise naming a specific
    GitHub PR** → GitHub PR review on that PR. This takes priority over everything
    below.
-2. **A complete explicit non-PR input** — a Reviewed head, a Comparison basis, and a
-   review brief / change description, all given for a commit range — and (1) did not
-   apply → Non-PR revision-range review. Use this even if the current branch happens to
-   have an unrelated PR open: an unrelated PR that current-branch auto-detection would
-   find is not a reason to override an explicit non-PR target.
-3. **Neither of the above, but the current branch has an associated PR** → GitHub PR
-   review on the auto-detected PR.
-4. **None of the above** — no PR named or auto-detected, and no complete non-PR input —
-   report to the user and stop, as before.
+2. **The request expresses non-PR revision-range intent** — it gives, or asks you to
+   use, a Reviewed head, a Comparison basis, or a review brief / change description for
+   a commit range that has no PR, even if not all three are given yet — and (1) did not
+   apply → Non-PR revision-range review. Enter the non-PR path below now and ask there
+   for whichever of the three required inputs is still missing; do not wait for
+   completeness before selecting this mode, and do not fall back to auto-detection or to
+   stopping just because one input is missing. Use this mode even if the current branch
+   happens to have an unrelated PR open: an unrelated PR that current-branch
+   auto-detection would find is not a reason to override an explicit non-PR target.
+3. **Neither of the above — no PR named and no non-PR intent expressed — but the
+   current branch has an associated PR** → GitHub PR review on the auto-detected PR.
+4. **None of the above** — no PR named or auto-detected, and no non-PR intent expressed
+   — report to the user and stop, as before.
 
 #### GitHub PR review
 
-If a PR number or URL is given as an argument, target that PR. Otherwise — only when no
-complete non-PR input applies (priority 3 above) — auto-detect the PR linked to the
-current branch.
+If a PR number or URL is given as an argument, target that PR. Otherwise — only when
+neither a PR nor non-PR intent was named (priority 3 above) — auto-detect the PR linked
+to the current branch.
 
 Either way, fetch PR info:
 
@@ -57,7 +62,7 @@ gh pr view {PR number or URL} --json number,title,body,url,author,comments,headR
 
 For auto-detection, omit `{PR number or URL}`.
 
-If no PR is found and no non-PR input was given, report to the user and stop.
+If no PR is found and no non-PR intent was expressed, report to the user and stop.
 
 PR title, PR number, and branch name go in the report header. For "Reviewed at" use the
 current datetime (YYYY-MM-DD HH:mm:ss); for "Reviewer" use your own agent name.
@@ -75,8 +80,9 @@ base branch is the diff's basis. The Reviewed head is the PR's `headRefOid`.
 
 #### Non-PR revision-range review
 
-Required inputs — ask the user for whichever is missing rather than guessing or
-substituting a default:
+Required inputs. Step 0 may route here before all three are given — ask the user for
+whichever is still missing rather than guessing or substituting a default, and do not
+proceed to reading code until you have all three:
 
 1. **Review brief / change description**: prose describing the change. It may be given
    inline in the request or as a file/note you can read. No particular schema, front
@@ -127,44 +133,39 @@ If you cannot verify the inspected code against the Reviewed head, do not comple
 
 ### Step 1: Load the conversation context
 
-Look for the conversation context in this order:
+Look for the conversation context depending on which mode Step 0 selected. Either way,
+finish with "Follow the ADRs the context links to" below.
 
-#### 1-1. Check for context given directly in the request
+#### GitHub PR review
 
-If the request itself supplies the conversation context — pasted inline, or as a
-file/note you can read — use that, and skip the remaining sources below. This is the
-primary source for a non-PR review: its Reviewed head need not be tied to any branch,
-so do not let the sources below silently substitute unrelated context.
+Look in this order — unchanged from before this skill supported non-PR reviews:
 
-#### 1-2. Check PR comments
+1. Check whether any PR comment has a title containing "対話コンテキスト" (conversation
+   context). If found, use its content as the conversation context.
+2. Otherwise, sanitize the branch name (replace `/ \ : * ? " < > |` with `-`) and look
+   for `.dev/contexts/{sanitized branch name}.md`. If found, read it with the Read tool.
+3. If neither is found, ask with the AskUserQuestion tool:
+   - **Continue without conversation context**: skip step 6 (omission check).
+   - **Abort**: ask the user to prepare the conversation context.
 
-PR review only. Check whether any PR comment has a title containing "対話コンテキスト"
-(conversation context). If found, use its content as the conversation context.
+#### Non-PR revision-range review
 
-There is no PR to have comments for a non-PR review; skip this source without treating
-its absence as a failure, and go to 1-3.
+There is no PR here, so there are no PR comments to check. Look in this order instead:
 
-#### 1-3. Check .dev/contexts/
+1. Check whether the request itself supplies the conversation context — pasted inline,
+   or as a file/note you can read. If found, use it. This is the primary source here:
+   a non-PR Reviewed head need not be tied to any branch, so do not let step 2 below
+   substitute unrelated context for it.
+2. Otherwise, only when a branch name is actually associated with the Reviewed head
+   (for example, a self-review of the current checked-out branch), sanitize that branch
+   name and look for `.dev/contexts/{sanitized branch name}.md`; if found, read it with
+   the Read tool. When the Reviewed head is a bare commit-ish with no associated branch
+   name, skip this source without treating its absence as a failure — do not substitute
+   the current checked-out branch's context file for a Reviewed head that belongs to a
+   different branch or no branch at all.
+3. If neither is found, ask with the AskUserQuestion tool, same two options as above.
 
-Do this only when a branch name is actually associated with the reviewed target — the
-current checked-out branch for a self-review, or the PR's `headRefName` for a PR
-review. Sanitize that branch name (replace `/ \ : * ? " < > |` with `-`) and look for
-`.dev/contexts/{sanitized branch name}.md`. If found, read it with the Read tool.
-
-A non-PR review whose Reviewed head is a bare commit-ish with no associated branch name
-has no branch to derive this path from; skip this source without treating its absence
-as a failure. Do not substitute the current checked-out branch's context file for a
-Reviewed head on a different branch or with no branch at all — that context belongs to
-different code.
-
-#### 1-4. If none of the above is found
-
-Ask with the AskUserQuestion tool:
-
-- **Continue without conversation context**: skip step 6 (omission check).
-- **Abort**: ask the user to prepare the conversation context.
-
-#### 1-5. Follow the ADRs the context links to
+#### Follow the ADRs the context links to
 
 The conversation context keeps only a summary of a decision recorded as an ADR; the
 grounds live in the ADR itself (see `conversation-context-export`). Read every ADR the
@@ -454,4 +455,4 @@ The template headings are in Japanese; write the report in the user's working la
 - **library-update-review**: review skill for library-update PRs — the kind of PR out of
   scope for this skill.
 - **domain-modeling**: owns the record tier (`CONTEXT.md` and the ADRs). Background on the
-  ADR format and superseding rules for the ADRs step 1-5 follows.
+  ADR format and superseding rules for the ADRs step 1 follows.

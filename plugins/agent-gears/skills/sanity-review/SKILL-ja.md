@@ -22,17 +22,18 @@ PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了
 
 ### 手順0: レビュー対象の確定とrevisionの結びつけ
 
-このskillには2つの入力モードがある。何よりも先に、次の優先順位でどちらが該当するかを判定する:
+このskillには2つの入力モードがある。何よりも先に、次の優先順位でどちらが該当するかを判定する。
+必須の3入力が既にすべて揃っているかではなく、**intent**で判定する。不完全なnon-PR requestも、依然としてnon-PR requestである:
 
 1. **引数でPR番号またはURLが明示されている、または依頼が別の形で特定のGitHub PRを指している** → そのPRのGitHub PR review。これは以下すべてに優先する。
-2. **完全な明示non-PR入力**(commit rangeに対するReviewed head・Comparison basis・review brief / change descriptionがすべて与えられている)があり、かつ(1)が該当しない場合 → Non-PR revision-range review。現在のbranchに無関係なPRが開いていても、こちらを使う。current-branch auto-detectionが見つける無関係なPRは、明示されたnon-PR targetを上書きする理由にならない。
-3. **上記いずれにも該当しないが、現在のbranchに紐づくPRがある** → その自動検出されたPRのGitHub PR review。
-4. **上記のいずれにも該当しない**(PRの指定も自動検出もなく、完全なnon-PR入力も無い)場合は、従来どおりユーザーに報告して終了する。
+2. **依頼がnon-PR revision-range intentを示している**(3入力すべてがまだ揃っていなくても、commit rangeに対するReviewed head・Comparison basis・review brief / change descriptionのいずれかを与えている、またはそれらを使うよう求めている)場合で、かつ(1)が該当しないとき → Non-PR revision-range review。直ちに下記のnon-PR pathへ入り、そこで3つの必須入力のうち欠けているものを確認する。完全性が揃うまで判定を待たず、1項目欠けているという理由でauto-detectionや停止にfall backしない。現在のbranchに無関係なPRが開いていても、こちらを使う。current-branch auto-detectionが見つける無関係なPRは、明示されたnon-PR targetを上書きする理由にならない。
+3. **上記いずれにも該当しない**(PRの指定もnon-PR intentの表明も無い)**が、現在のbranchに紐づくPRがある** → その自動検出されたPRのGitHub PR review。
+4. **上記のいずれにも該当しない**(PRの指定も自動検出もなく、non-PR intentの表明も無い)場合は、従来どおりユーザーに報告して終了する。
 
 #### GitHub PR review
 
 引数でPR番号またはURLが指定されている場合はそのPRを対象とする。
-指定がない場合は、完全なnon-PR入力が該当しないとき(上記の優先順位3)に限り、現在のブランチに紐づくPRを自動検出する。
+指定がない場合は、PRの指定もnon-PR intentの表明も無いとき(上記の優先順位3)に限り、現在のブランチに紐づくPRを自動検出する。
 
 いずれの場合も、以下のコマンドでPR情報を取得する:
 
@@ -42,7 +43,7 @@ gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,h
 
 自動検出の場合は `{PR番号またはURL}` を省略する。
 
-PRが見つからず、non-PR入力も無い場合はユーザーに報告して終了する。
+PRが見つからず、non-PR intentの表明も無い場合はユーザーに報告して終了する。
 
 PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用する。Reviewed atには現在の日時(YYYY-MM-DD HH:mm:ss)を、Reviewerには自分のAgent名を記入する。
 
@@ -58,7 +59,7 @@ Comparison basisは別途特定し、base branchの現在の先端を差分の�
 
 #### Non-PR revision-range review
 
-必須の入力。欠けているものはユーザーに確認し、推測や既定値での代替はしない:
+必須の入力。手順0は3つすべてが揃う前にここへ到達しうる。欠けているものはユーザーに確認し、推測や既定値での代替はしない。3つすべてが揃うまでコードを読み進めない:
 
 1. **Review brief / change description**: 変更内容を説明する文章。依頼に直接書かれていても、読めるfile/noteでもよい。特定のschema、front matter、保存場所は要求しない。与えられたものを、以降の手順でPR概要欄の代わりとして読む。
 2. **Reviewed head**: レビュー対象のコードを指すrefまたはcommit-ish。
@@ -100,35 +101,27 @@ Comparison basis = 実際にレビューした差分の起点となるexact comm
 
 ### 手順1: 対話コンテキストの読み込み
 
-以下の順序で対話コンテキストを探す:
+手順0が選んだmodeに応じて対話コンテキストを探す。いずれの場合も、最後に下記「対話コンテキストがリンクする ADR を辿る」を行う。
 
-#### 1-1. 依頼に直接与えられたcontextを確認
+#### GitHub PR review
 
-依頼自体が対話コンテキストを与えている場合(本文への貼り付け、または読めるfile/note)は、それを使用し、以下の情報源はskipする。
-non-PR reviewではこれが第一の情報源である。Reviewed headは特定のbranchに紐づくとは限らないため、以下の情報源で無関係なcontextへ静かにすり替えない。
+このskillがnon-PR reviewに対応する前と同じ、以下の順序で探す:
 
-#### 1-2. PRコメント欄を確認
+1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容を対話コンテキストとして使用する。
+2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、`.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はReadツールで読み込む。
+3. どちらも見つからなければ、AskUserQuestionツールで以下を確認する:
+   - **対話コンテキストなしで続行**: 手順6(考慮漏れの確認)はスキップする
+   - **中断**: ユーザーに対話コンテキストの準備を依頼する
 
-PR reviewのみ。PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。
-見つかった場合はその内容を対話コンテキストとして使用する。
+#### Non-PR revision-range review
 
-non-PR reviewにはコメントを持つPRが存在しない。この情報源はskipし、それを失敗として扱わずに1-3へ進む。
+ここにはPRが無いため、確認すべきPRコメントも無い。代わりに以下の順序で探す:
 
-#### 1-3. .dev/contexts/ を確認
+1. 依頼自体が対話コンテキストを与えている場合(本文への貼り付け、または読めるfile/note)は、それを使用する。ここではこれが第一の情報源である。non-PRのReviewed headは特定のbranchに紐づくとは限らないため、下記2でそれに無関係なcontextへ静かにすり替えない。
+2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、`.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はReadツールで読み込む。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
+3. どちらも見つからなければ、上と同じ2択でAskUserQuestionツールを使う。
 
-レビュー対象に実際にbranch名が紐づいている場合(self-reviewでの現在のcheckout済みbranch、またはPR reviewでのPRの `headRefName`)に限りこれを行う。そのbranch名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、`.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。
-見つかった場合はReadツールで読み込む。
-
-Reviewed headが素のcommit-ishでbranch名が紐づかないnon-PR reviewには、このpathを導出するbranchが無い。この情報源はskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
-
-#### 1-4. いずれも見つからない場合
-
-AskUserQuestionツールで以下を確認する:
-
-- **対話コンテキストなしで続行**: 手順6(考慮漏れの確認)はスキップする
-- **中断**: ユーザーに対話コンテキストの準備を依頼する
-
-#### 1-5. 対話コンテキストがリンクする ADR を辿る
+#### 対話コンテキストがリンクする ADR を辿る
 
 ADR に記録された決定について、対話コンテキストは要約しか持たない。根拠は ADR 側にある(`conversation-context-export` 参照)。
 コンテキストがリンクする ADR はすべて読む。
@@ -341,4 +334,4 @@ userが明示的に要求した場合は、この判断を挟まず実施する�
 - **conversation-context-import**: 対話コンテキストを読み込むスキル。手順1の背景知識
 - **conversation-context-export**: 対話コンテキストを書き出すスキル。対話コンテキストの形式の背景知識
 - **library-update-review**: ライブラリ更新PRのレビュースキル。このスキルの対象外であるPRの種類
-- **domain-modeling**: 記録層(`CONTEXT.md` と ADR)を担当するスキル。手順1-5 で辿る ADR の書式と supersede 規則の背景知識
+- **domain-modeling**: 記録層(`CONTEXT.md` と ADR)を担当するスキル。手順1で辿る ADR の書式と supersede 規則の背景知識
