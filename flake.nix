@@ -30,7 +30,7 @@
         });
 
       # skill が使う周辺ツール(mdidx は同梱の Go バイナリ、jq は mdidx の出力処理に必須)。
-      # mq / fastcontext は nixpkgs 外のため別途導入する。
+      # mq は nixpkgs 外のため別途導入する。
       # mdidx など Go ツールの開発用に Go ツールチェーン(go / gopls / gotools)も入れる。
       devShells = forAll (system:
         let pkgs = pkgsFor system; in {

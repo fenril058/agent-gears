@@ -31,7 +31,6 @@ learning                                   ← AI支援後の理解を深める
 独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
 
 - markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
-- locate-implementation: 未知の挙動・症状から複数領域の候補箇所を fastcontext で絞る。
 - subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
 - [codex-consultation](plugins/agent-gears/README.md#codex-consultation): Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。15分の policy timeout をフルに使うための Claude Code 側の設定は README 参照。
 
@@ -114,7 +113,6 @@ plugins/
       grilling/                   一問ずつ推奨案付きの意思決定インタビュー
       japanese-tech-writing/      日本語技術文書の文章規範
       library-update-review/      依存更新 PR のレビュー
-      locate-implementation/      fastcontext で未知の挙動・症状の候補箇所を絞る
       markdown-context/           大きな Markdown を mdidx で部分取得
       navigating/                 ユーザー自身が読むコードリーディング案内
       quizzing/                   一問ずつ行う理解確認
@@ -122,8 +120,6 @@ plugins/
       spec-ambiguity-audit/       仕様書の疑問点を機械的フィルタで検証する監査
       subagent-consultation/      サブエージェントへのセカンドオピニオン
       unconventional-simplification/ 暗黙の前提を外して別解を探す
-    agents/
-      search.md                   コードベース探索・調査(Sonnet)
 rules/always-on.md   全エージェント共通の常時ルール(個人設定)
 rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
 AGENTS.md            このリポジトリで作業する全エージェント向けの repo-local 指示(配布しない)
@@ -241,7 +237,8 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
 - **yasunori0418/skills 由来**(`navigating` / `quizzing`):
   - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
   - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
-  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は、このリポジトリの `locate-implementation` / `markdown-context` を使う記述へ変更した。
+  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は削除し、大きな Markdown だけ `markdown-context` を使う記述に変更した。
+    それ以外の探索は host のツールに任せる。
 
 ## 前提ツール
 
@@ -249,10 +246,6 @@ plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集�
   - `wt` 本体と Claude Code / Codex 向けの Worktrunk plugin と skill は別リポジトリで一括管理し、このリポジトリからは配布しない。
   - 作者の環境では、`wt` が利用できる場合、対応する Worktrunk plugin と skill も導入済みである。
   - skill を利用できないホストは、`rules/always-on.md` に従って `wt` を直接呼ぶ。
-- [fastcontext](https://github.com/microsoft/fastcontext) — 未知の挙動・症状に関係する候補箇所の探索。
-  - OpenAI 互換 API がバックエンドで、環境変数 `API_KEY`(or `OPENAI_API_KEY`)/ `MODEL` / `BASE_URL` が要る(未設定だと `Missing credentials` で落ちる)。
-  - 鍵はコミットせず各自設定する。
-  - 未設定時は `locate-implementation` skill のフォールバック(Explore / Grep+Read)で代替。
 - mdidx — Markdown を索引+節に変換。本リポジトリ同梱の Go 実装。
   - [oubakiou/md2idx](https://github.com/oubakiou/md2idx)(MIT)の忠実な再実装で、出力はバイト互換。Node ランタイム/npm 依存を持たない単一バイナリ。
   - 導入は次のいずれか。いずれも Nix が prebuilt の Go コンパイラを store に取得してビルドするため、システムへ go を入れる必要はない。
