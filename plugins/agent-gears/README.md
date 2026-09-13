@@ -54,6 +54,17 @@ ceiling を上げるかどうかは利用者の判断であり、skill 自身は
 
 `sanity-review` は、PR 概要欄、export された対話コンテキスト、実装コードを照合し、実装者の説明や検討過程を含むレビュー報告書を作成する。
 
+GitHub PR の review は従来どおり利用できる(PR の URL / 番号を指定、または現在の branch から auto-detect)。
+
+GitHub PR が無い commit range でも、次の入力を明示的に与えれば同じレビュー手順を実行できる。
+
+- Review brief / change description(PR 概要欄の代わり)
+- Comparison basis(差分の起点となる exact commit SHA へレビュー開始時に確定する)
+- Reviewed head(レビュー対象コードの exact commit SHA へレビュー開始時に確定する)
+
+対話コンテキストは PR review と同様に任意入力であり、無くてもレビューを完了できる。
+入力の詳細と revision invariant は `sanity-review` skill の SKILL.md を参照。
+
 次のどちらも通常の use case である。
 
 - 実装者が自分の PR を見直す self-review

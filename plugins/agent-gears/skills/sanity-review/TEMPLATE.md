@@ -1,8 +1,13 @@
 # レビュー報告書
 
-- {PRタイトル}
-- PR: #{番号}
-- Branch: `{ブランチ名}`
+<!-- PR reviewの場合: PRタイトル・PR番号・Branchを記入する。
+non-PR review(GitHub PRの無いcommit rangeのレビュー)の場合: PR番号とBranchの行を省略し、
+1行目はPRタイトルの代わりにレビュー対象を一意に示す短い説明(review briefから取る)にする。
+存在しない情報をfake値やplaceholderで埋めない -->
+
+- {PRタイトル、またはnon-PR reviewの場合はレビュー対象の短い説明}
+- PR: #{番号} <!-- non-PR reviewでは省略 -->
+- Branch: `{ブランチ名}` <!-- non-PR reviewでは省略 -->
 - Reviewed head: `{実際にレビューしたheadのexact commit SHA}`
 - Comparison basis: `{実際にレビューした差分の起点となるexact commit SHA}`
 - Reviewed at: {YYYY-MM-DD HH:mm:ss}
@@ -13,7 +18,7 @@
 <!-- 対話コンテキストの有無と、読み込み元(PRコメント / .dev/contexts/ / なし)を記載する。
 対話コンテキストの概要を簡潔にまとめる -->
 
-## pull request概要欄
+## 概要欄(PR概要欄 / review brief)
 
 ### サマリー
 
@@ -33,7 +38,9 @@
 
 ## 説明と実装の整合性
 
-<!-- PR概要欄・コメント・レビューコメント・PRレビュー本文(実装者の発言のみ)と実装の整合性を確認した結果。
+<!-- 概要欄 / review brief(実装者の発言のみ)と実装の整合性を確認した結果。
+PR reviewの場合はコメント・レビューコメント・PRレビュー本文も対象に含める。
+non-PR reviewにはそれらが存在しないため対象に含めず、無いこと自体は齟齬として扱わない。
 齟齬があれば具体的に指摘する。齟齬がなければその旨を簡潔に記載する -->
 
 ## 命名・設計パターンの一貫性
@@ -100,5 +107,5 @@ usable result が得られた場合は以下を記載する:
 
 <!-- レビュー全体の総合判断。
 発見された問題の要約(ある場合)。
-PR概要欄の品質にNGがある場合はここでも言及する。
+概要欄 / review briefの品質にNGがある場合はここでも言及する。
 推奨するアクション(merge可 / 修正が必要 / 概要欄の書き直しが必要 等) -->

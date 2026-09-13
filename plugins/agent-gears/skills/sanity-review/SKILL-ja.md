@@ -1,16 +1,18 @@
 ---
 name: sanity-review
 description: >-
-  PRのレビュー報告書を作成する。bugや脆弱性の調査だけでなく、exportされた対話コンテキスト・PR概要欄・実装されたコードの整合性を確認し、実装者の正気を疑う。
-  ユーザーが「PRのレビュー報告書を書いて」「対話コンテキストと共にコードレビューして」「このPRの正気を疑って」と言った時に使用する。
-argument-hint: "[PR-URL-or-number]"
-compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR・差分・コメントの取得に使う。gh の入手は https://cli.github.com
+  PR、またはGitHub PRが存在しない場合はreview brief・Reviewed head・Comparison basisを与えた明示的なcommit
+  rangeのレビュー報告書を作成する。bugや脆弱性の調査だけでなく、exportされた対話コンテキスト・概要欄・実装されたコードの整合性を確認し、実装者の正気を疑う。
+  ユーザーが「PRのレビュー報告書を書いて」「対話コンテキストと共にコードレビューして」「このPRの正気を疑って」、またはPRの無いcommit
+  rangeへの同種のレビューを求めた時に使用する。
+argument-hint: "[PR-URL-or-number | review brief + Reviewed head + Comparison basis]"
+compatibility: git が PATH に必要。GitHub PR review では加えて gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR・差分・コメントの取得に使う。gh の入手は https://cli.github.com
 ---
 
 # PRレビュー報告書の作成手順書
 
-feature/bugfix/refactoring PRをレビューし、レビュー報告書を作成する。
-報告書はレビュアーがGitHubに貼ってレビュー完了を示すためのものであり、修正点がある場合はそれを説明するためのものでもある。
+feature/bugfix/refactoringの変更(GitHub PR、またはPRの無いcommit range)をレビューし、レビュー報告書を作成する。
+PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了を示すためのものであり、修正点がある場合はそれを説明するためのものでもある。
 
 ## 対象外
 
@@ -18,7 +20,16 @@ feature/bugfix/refactoring PRをレビューし、レビュー報告書を作成
 
 ## 手順
 
-### 手順0: PR情報の取得とレビュー対象revisionの確定
+### 手順0: レビュー対象の確定とrevisionの結びつけ
+
+このskillには2つの入力モードがある。何よりも先に、どちらが該当するかを判定する:
+
+- **GitHub PR review**: 引数でPR番号またはURLが指定されている、依頼が別の形でGitHub PRを指している、あるいは現在のbranchに紐づくPRを自動検出できる場合。該当する限り、下記の既存PR review pathを使う。
+- **Non-PR revision-range review**: 該当するGitHub PRが無いが、依頼がcommit rangeに対するReviewed head・Comparison basis・review brief / change descriptionを明示的に与えている場合。下記のnon-PR pathを使う。
+
+どちらにも該当しない場合(PR引数も自動検出されたPRも無く、明示的なReviewed head / Comparison basis / review briefも無い場合)は、従来どおりユーザーに報告して終了する。PRが見つからないことがstopping conditionになるのは、non-PR入力が明示されていない場合に限る。
+
+#### GitHub PR review
 
 引数でPR番号またはURLが指定されている場合はそのPRを対象とする。
 指定がない場合は、現在のブランチに紐づくPRを自動検出する。
@@ -31,7 +42,7 @@ gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,h
 
 自動検出の場合は `{PR番号またはURL}` を省略する。
 
-PRが見つからない場合はユーザーに報告して終了する。
+PRが見つからず、non-PR入力も無い場合はユーザーに報告して終了する。
 
 PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用する。Reviewed atには現在の日時(YYYY-MM-DD HH:mm:ss)を、Reviewerには自分のAgent名を記入する。
 
@@ -43,10 +54,38 @@ PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用�
 4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
 5. Reviewed headとComparison basisとして記録するexact commit間の差分
 
+Comparison basisは別途特定し、base branchの現在の先端を差分の起点だと仮定しない。Reviewed headはPRの `headRefOid` である。
+
+#### Non-PR revision-range review
+
+必須の入力。欠けているものはユーザーに確認し、推測や既定値での代替はしない:
+
+1. **Review brief / change description**: 変更内容を説明する文章。依頼に直接書かれていても、読めるfile/noteでもよい。特定のschema、front matter、保存場所は要求しない。与えられたものを、以降の手順でPR概要欄の代わりとして読む。
+2. **Reviewed head**: レビュー対象のコードを指すrefまたはcommit-ish。
+3. **Comparison basis**: 差分の起点を指すrefまたはcommit-ish。
+
+コードを読む前に、両方のrefをexact commit SHAへ確定する:
+
+```
+git rev-parse <Reviewed headのref>^{commit}
+git rev-parse <Comparison basisのref>^{commit}
+```
+
+確定した結果はref名ではなくSHAとしてReviewed headとComparison basisに記録し、その2commit間で直接差分を計算する:
+
+```
+git diff <Comparison basisのSHA> <Reviewed headのSHA>
+```
+
+Reviewed headのコードは、refを現在のworktreeへcheckoutするのではなく `git show <Reviewed headのSHA>:<path>` (または同等のread-only plumbing)で読む。これによりworktreeの未コミット変更をレビューへ混入させずに済み、別のworkspaceも不要である。
+
+このpathにはPR本文・PRコメント・インラインレビューコメント・PRレビューが存在しない。それらが無いことはこのpathでは想定どおりであり失敗ではない。それらに依存する後続手順はskipする。
+
+このpathでは報告書ヘッダーにPR番号とブランチ名が無い(手順7参照)。どちらもplaceholderで埋めない。
+
 #### 報告書・差分・実際に読むコードをexact revisionへ結びつける
 
 コードを読む前に、Reviewed headのexact commit SHAと、差分の起点として実際に使うComparison basisのexact commit SHAを確定する。
-Comparison basisは別途特定し、base branchの現在の先端を差分の起点だと仮定しない。
 branch名や移動しうるbranchの先端ではなく、commit SHAを記録する。
 
 レビュー中は、次のinvariantを維持する:
@@ -56,7 +95,7 @@ branch名や移動しうるbranchの先端ではなく、commit SHAを記録す�
 Comparison basis = 実際にレビューした差分の起点となるexact commit
 ```
 
-実際に読むコードがReviewed headそのものであることを確認し、worktreeの未コミット変更をそのPR revisionの一部として混入させない。
+実際に読むコードがReviewed headそのものであることを確認し、worktreeの未コミット変更をそのrevisionの一部として混入させない。
 実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
 
 ### 手順1: 対話コンテキストの読み込み
@@ -67,6 +106,8 @@ Comparison basis = 実際にレビューした差分の起点となるexact comm
 
 PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。
 見つかった場合はその内容を対話コンテキストとして使用する。
+
+non-PR reviewにはコメントを持つPRが存在しない。この情報源はskipし、それを失敗として扱わずに1-2へ進む。
 
 #### 1-2. .dev/contexts/ を確認
 
@@ -86,17 +127,19 @@ ADR に記録された決定について、対話コンテキストは要約し�
 コンテキストがリンクする ADR はすべて読む。
 読まなければ要約を相手にレビューすることになり、意図して記録された決定を、説明のない場当たりな選択として読んでしまう。
 
-PR の diff が ADR ディレクトリまたは `CONTEXT.md` に触れている場合は、その変更もここで読む。
-決定や定義を変える PR は、自分の diff についてではなくコードベース全体について主張しているからである。
+diff が ADR ディレクトリまたは `CONTEXT.md` に触れている場合は、その変更もここで読む。
+決定や定義を変える変更は、自分の diff についてではなくコードベース全体について主張しているからである。
 
-### 手順2: pull request概要欄の品質評価
+### 手順2: 概要欄の品質評価
 
 **この手順はコードを読む前に行う。** コードの整合性確認に引っ張られて概要欄の構造的問題を見落とすことを防ぐため。
 
-実装者は正気ではないかもしれない。よくわからずにPR概要欄を書いたり、AIに生成させてそのまま貼っているかもしれない。
+PR reviewではPR概要欄、non-PR reviewでは手順0のreview brief / change descriptionが対象である。いずれも同じ下記チェックリストを使う。non-PR用に別のrubricは定義しない。
+
+実装者は正気ではないかもしれない。よくわからずに概要欄を書いたり、AIに生成させてそのまま貼っているかもしれない。
 この手順では概要欄だけを読み、レビュアーがこの概要欄を読んで「変更の妥当性を判断できるか」を評価する。
 
-#### PR概要欄チェックリスト
+#### 概要欄チェックリスト
 
 以下の4項目を **必ず全て** 評価し、結果をメモする。全項目を評価してから次の手順に進む:
 
@@ -111,20 +154,22 @@ PR の diff が ADR ディレクトリまたは `CONTEXT.md` に触れている�
 
 #### 重要: 実装者の発言のみを拾う
 
-PR概要欄の author と、各コメントの author を照合し、**実装者本人の発言のみ**を実装の説明として扱う。
+PR reviewでは、PR概要欄の author と、各コメントの author を照合し、**実装者本人の発言のみ**を実装の説明として扱う。
 他の人が書いた応援コメント、機能に対する期待を込めたコメント、質問等は、実装の説明ではない。
 これらを実装の説明と混同すると、整合性の判断を誤る。
 
+non-PR reviewでは照合すべき別のコメントauthorが存在しないため、review brief / change descriptionそのものを実装者の説明として扱う。
+
 #### 確認事項
 
-1. PR概要欄の説明と、実際の差分が一致しているか
-2. インラインレビューコメントでの実装者の説明と、実際のコードが一致しているか
-3. PRレビューの本文(top-level review comment)での実装者の説明と、実装が一致しているか
+1. 概要欄 / review briefの説明と、実際の差分が一致しているか
+2. インラインレビューコメントでの実装者の説明と、実際のコードが一致しているか(PR reviewのみ。non-PR reviewにはインラインレビューコメントが存在しないため、この確認は行わず、無いこと自体を失敗として扱わない)
+3. PRレビューの本文(top-level review comment)での実装者の説明と、実装が一致しているか(PR reviewのみ。上と同様)
 4. 対話コンテキストの内容と、実装が一致しているか(対話コンテキストがある場合)
 
 齟齬を発見した場合は具体的に記録する。
 
-概要欄・コメント・対話コンテキストのいずれも、コードが何をしているかについての権威ではない。
+概要欄 / review brief・コメント・対話コンテキストのいずれも、コードが何をしているかについての権威ではない。
 そこに書かれた主張は、コードに照らして検証する対象であり、コードを検証するための基準ではない。
 
 ### 手順4: 命名・設計パターンの一貫性
@@ -234,7 +279,7 @@ userが明示的に要求した場合は、この判断を挟まず実施する�
 対象を自力でレビューするために必要なものは渡す:
 
 - Reviewed head と Comparison basis の exact commit
-- PR概要欄、コメント、PRレビュー本文
+- 概要欄 / review brief。PR reviewの場合はさらにコメントとPRレビュー本文
 - 対話コンテキストと、それがリンクするADR
 - 差分、コード、テストの実行方法
 - リポジトリ自身の指示
@@ -275,8 +320,9 @@ userが明示的に要求した場合は、この判断を挟まず実施する�
 
 #### 報告書作成のガイドライン
 
-- **pull request概要欄 > サマリー**: 実装者の説明を引用・抜粋してbefore-afterで整理する。想像で補って勝手に書かない。実装者の説明が不十分な場合は素直にその旨を指摘する
-- **pull request概要欄 > 品質評価**: 手順2のチェックリスト結果をOK/NG/該当なしで記入する。NGの場合は具体的に何が不足しているかを記載する
+- **報告書ヘッダー**: PR reviewでは従来どおりPRタイトル・PR番号・ブランチ名を記入する。non-PR reviewにはPR番号もブランチ名も無いので、その行は埋めずに省略し、PRタイトルの代わりにレビュー対象を示す短い説明(review briefから取る)を記入する
+- **概要欄 / review brief > サマリー**: 実装者の説明を引用・抜粋してbefore-afterで整理する。想像で補って勝手に書かない。実装者の説明が不十分な場合は素直にその旨を指摘する
+- **概要欄 / review brief > 品質評価**: 手順2のチェックリスト結果をOK/NG/該当なしで記入する。NGの場合は具体的に何が不足しているかを記載する
 - **独立レビューセクション**: usable result が実際に返ってきた場合のみ記載する。candidateと、それぞれを自分で検証した結果を書く。それ以外の場合はセクションごと省略し、試みて何も得られなかった場合は「レビュー作業において発生した問題」に書く
 - **レビュー作業において発生した問題セクション**: 実際に妨げになった事柄(ツールの失敗、検証できなかった範囲、取得できなかったコンテキスト)を記載する。レビュー手順をスキップした場合は、外的要因(ツールが利用できなかった等)かAgentの判断かを区別して記載する。独立レビューに追加価値がないと判断して実施しなかったことは問題ではないので、ここには書かない。価値があると判断して試みたが実行できなかった場合は、coverage limitation としてここに書く。問題がない場合は「特になし」と記載する
 - **結論セクション**: 全体の総合判断と推奨アクションを記載する
