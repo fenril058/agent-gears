@@ -9,9 +9,8 @@ description: >-
 
 # Grilling procedure
 
-Interview the user thoroughly about every aspect of the plan, decision, or idea until
-you reach a shared understanding. Walk down each branch of the decision tree, resolving
-dependencies between decisions one by one.
+Interview the user thoroughly about every aspect of the plan, decision, or idea until you reach a shared understanding.
+Explore every relevant aspect, resolving dependencies between decisions one by one.
 
 Rules:
 
@@ -21,6 +20,12 @@ Rules:
 - If a **fact** can be found by exploring the environment (filesystem, tools, git
   history, etc.), look it up yourself rather than asking. The **decisions**, though,
   are the user's — put each one to them and wait for their answer.
+- Before asking about a decision, resolve every decision it depends on.
+  Do not ask a question whose answer depends on an unresolved prerequisite decision.
+- When unresolved decisions are independent, do not invent dependencies or unnecessarily constrain their question order to the state of a particular branch.
+  Continue to ask only one question at a time; this rule does not require asynchronous or background work.
+- Before asking the user to confirm the shared understanding, check that no unresolved decision or silently assumed decision remains.
+  If any remains, surface and resolve it one question at a time.
 - Do not act on the plan until the user confirms you have reached a shared
   understanding.
 
