@@ -1,19 +1,22 @@
 ---
 name: sanity-review
 description: >-
-  Write a PR review report. Beyond investigating bugs and vulnerabilities, verify the
-  coherence between the exported conversation context, the PR description, and the
-  implemented code — doubt the implementer's sanity. Use when the user says "write a
-  review report for this PR", "code-review this with the conversation context", or
-  "doubt this PR's sanity".
-argument-hint: "[PR-URL-or-number]"
-compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read the PR, diffs, and comments. Install gh from https://cli.github.com.
+  Write a review report for a PR, or — when there is no GitHub PR — for an explicit
+  commit range given a review brief, Reviewed head, and Comparison basis. Beyond
+  investigating bugs and vulnerabilities, verify the coherence between the exported
+  conversation context, the description, and the implemented code — doubt the
+  implementer's sanity. Use when the user says "write a review report for this PR",
+  "code-review this with the conversation context", "doubt this PR's sanity", or asks
+  for the same kind of review on a commit range that has no PR.
+argument-hint: "[PR-URL-or-number | review brief + Reviewed head + Comparison basis]"
+compatibility: Requires git on PATH. For a GitHub PR review, also requires the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read the PR, diffs, and comments. Install gh from https://cli.github.com.
 ---
 
 # PR review report procedure
 
-Review a feature/bugfix/refactoring PR and write a review report. The report is what a
-reviewer pastes on GitHub to mark the review complete, and to explain fixes if any.
+Review a feature/bugfix/refactoring change — a GitHub PR, or a commit range that has no
+PR — and write a review report. For a PR, the report is what a reviewer pastes on
+GitHub to mark the review complete, and to explain fixes if any.
 
 ## Out of scope
 
@@ -22,10 +25,34 @@ reviewer pastes on GitHub to mark the review complete, and to explain fixes if a
 
 ## Procedure
 
-### Step 0: Fetch PR info and bind the reviewed revisions
+### Step 0: Determine the review target and bind the reviewed revisions
 
-If a PR number or URL is given as an argument, target that PR. Otherwise auto-detect
-the PR linked to the current branch.
+This skill has two input modes. Determine which applies in this priority order, before
+doing anything else. Decide by **intent**, not by whether every required input has
+already been given — an incomplete non-PR request is still a non-PR request:
+
+1. **An explicit PR number/URL argument, or the request otherwise naming a specific
+   GitHub PR** → GitHub PR review on that PR. This takes priority over everything
+   below.
+2. **The request expresses non-PR revision-range intent** — it gives, or asks you to
+   use, a Reviewed head, a Comparison basis, or a review brief / change description for
+   a commit range that has no PR, even if not all three are given yet — and (1) did not
+   apply → Non-PR revision-range review. Enter the non-PR path below now and ask there
+   for whichever of the three required inputs is still missing; do not wait for
+   completeness before selecting this mode, and do not fall back to auto-detection or to
+   stopping just because one input is missing. Use this mode even if the current branch
+   happens to have an unrelated PR open: an unrelated PR that current-branch
+   auto-detection would find is not a reason to override an explicit non-PR target.
+3. **Neither of the above — no PR named and no non-PR intent expressed — but the
+   current branch has an associated PR** → GitHub PR review on the auto-detected PR.
+4. **None of the above** — no PR named or auto-detected, and no non-PR intent expressed
+   — report to the user and stop, as before.
+
+#### GitHub PR review
+
+If a PR number or URL is given as an argument, target that PR. Otherwise — only when
+neither a PR nor non-PR intent was named (priority 3 above) — auto-detect the PR linked
+to the current branch.
 
 Either way, fetch PR info:
 
@@ -35,7 +62,7 @@ gh pr view {PR number or URL} --json number,title,body,url,author,comments,headR
 
 For auto-detection, omit `{PR number or URL}`.
 
-If no PR is found, report to the user and stop.
+If no PR is found and no non-PR intent was expressed, report to the user and stop.
 
 PR title, PR number, and branch name go in the report header. For "Reviewed at" use the
 current datetime (YYYY-MM-DD HH:mm:ss); for "Reviewer" use your own agent name.
@@ -48,10 +75,50 @@ Fetch the following:
 4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
 5. The diff between the exact commits recorded as the Reviewed head and Comparison basis.
 
+Determine the Comparison basis separately; do not assume that the current tip of the
+base branch is the diff's basis. The Reviewed head is the PR's `headRefOid`.
+
+#### Non-PR revision-range review
+
+Required inputs. Step 0 may route here before all three are given — ask the user for
+whichever is still missing rather than guessing or substituting a default, and do not
+proceed to reading code until you have all three:
+
+1. **Review brief / change description**: prose describing the change. It may be given
+   inline in the request or as a file/note you can read. No particular schema, front
+   matter, or storage location is required — read whatever is given, in place of the PR
+   description for the rest of this procedure.
+2. **Reviewed head**: a ref or commit-ish naming the code to review.
+3. **Comparison basis**: a ref or commit-ish naming the start of the diff.
+
+Resolve both refs to exact commit SHAs before reading any code:
+
+```
+git rev-parse <Reviewed head ref>^{commit}
+git rev-parse <Comparison basis ref>^{commit}
+```
+
+Record the resulting SHAs — not the ref names — as the Reviewed head and Comparison
+basis, and compute the diff directly between them:
+
+```
+git diff <Comparison basis SHA> <Reviewed head SHA>
+```
+
+Read the code at the Reviewed head with `git show <Reviewed head SHA>:<path>` (or
+equivalent read-only plumbing) rather than checking the ref out into the current
+worktree — this keeps uncommitted worktree changes out of the review without needing a
+separate workspace.
+
+There is no PR body, PR comments, inline review comments, or PR reviews for this path.
+Their absence is expected here, not a failure; skip the steps below that depend on them.
+
+The report header has no PR number and no branch name for this path (see Step 7); do
+not fill either with a placeholder.
+
 #### Bind the report, diff, and inspected code to exact revisions
 
 Before reading the code, establish the exact commit SHA for the Reviewed head and the exact commit SHA actually used as the diff's Comparison basis.
-Determine the Comparison basis separately; do not assume that the current tip of the base branch is the diff's basis.
 Record commit SHAs rather than a branch name or a moving branch tip.
 
 Maintain this invariant throughout the review:
@@ -61,52 +128,70 @@ report's Reviewed head = diff's head = revision of the code actually inspected
 Comparison basis = exact commit used as the start of the diff actually reviewed
 ```
 
-Verify that the code you inspect is exactly the Reviewed head and that uncommitted worktree changes are not mixed into it as though they belonged to that PR revision.
+Verify that the code you inspect is exactly the Reviewed head and that uncommitted worktree changes are not mixed into it as though they belonged to that revision.
 If you cannot verify the inspected code against the Reviewed head, do not complete the review as a review of that commit; report the problem to the user and stop.
 
 ### Step 1: Load the conversation context
 
-Look for the conversation context in this order:
+Look for the conversation context depending on which mode Step 0 selected. Either way,
+finish with "Follow the ADRs the context links to" below.
 
-#### 1-1. Check PR comments
+#### GitHub PR review
 
-Check whether any PR comment has a title containing "対話コンテキスト" (conversation
-context). If found, use its content as the conversation context.
+Look in this order — unchanged from before this skill supported non-PR reviews:
 
-#### 1-2. Check .dev/contexts/
+1. Check whether any PR comment has a title containing "対話コンテキスト" (conversation
+   context). If found, use its content as the conversation context.
+2. Otherwise, sanitize the branch name (replace `/ \ : * ? " < > |` with `-`) and look
+   for `.dev/contexts/{sanitized branch name}.md`. If found, read it with the Read tool.
+3. If neither is found, ask with the AskUserQuestion tool:
+   - **Continue without conversation context**: skip step 6 (omission check).
+   - **Abort**: ask the user to prepare the conversation context.
 
-Sanitize the branch name (replace `/ \ : * ? " < > |` with `-`) and look for
-`.dev/contexts/{sanitized branch name}.md`. If found, read it with the Read tool.
+#### Non-PR revision-range review
 
-#### 1-3. If neither is found
+There is no PR here, so there are no PR comments to check. Look in this order instead:
 
-Ask with the AskUserQuestion tool:
+1. Check whether the request itself supplies the conversation context — pasted inline,
+   or as a file/note you can read. If found, use it. This is the primary source here:
+   a non-PR Reviewed head need not be tied to any branch, so do not let step 2 below
+   substitute unrelated context for it.
+2. Otherwise, only when a branch name is actually associated with the Reviewed head
+   (for example, a self-review of the current checked-out branch), sanitize that branch
+   name and look for `.dev/contexts/{sanitized branch name}.md`; if found, read it with
+   the Read tool. When the Reviewed head is a bare commit-ish with no associated branch
+   name, skip this source without treating its absence as a failure — do not substitute
+   the current checked-out branch's context file for a Reviewed head that belongs to a
+   different branch or no branch at all.
+3. If neither is found, ask with the AskUserQuestion tool, same two options as above.
 
-- **Continue without conversation context**: skip step 6 (omission check).
-- **Abort**: ask the user to prepare the conversation context.
-
-#### 1-4. Follow the ADRs the context links to
+#### Follow the ADRs the context links to
 
 The conversation context keeps only a summary of a decision recorded as an ADR; the
 grounds live in the ADR itself (see `conversation-context-export`). Read every ADR the
 context links to — without them you are reviewing against a summary and will read a
 deliberate, recorded decision as an unexplained choice.
 
-If the PR's diff touches the ADR directory or `CONTEXT.md`, read those changes here too.
-A PR that changes a decision or a definition is making a claim about the whole codebase,
-not just about its own diff.
+If the diff touches the ADR directory or `CONTEXT.md`, read those changes here too. A
+change that changes a decision or a definition is making a claim about the whole
+codebase, not just about its own diff.
 
-### Step 2: Assess PR description quality
+### Step 2: Assess description quality
 
 **Do this before reading the code.** It prevents being pulled toward code-coherence
 and missing structural problems in the description.
 
-The implementer may not be sane. They may have written the description without really
-understanding it, or had an AI generate it and pasted it as-is. In this step, read
-only the description and assess whether a reviewer can "judge the validity of the
-change" from it.
+For a PR review this is the PR description; for a non-PR review it is the review brief / change description from Step 0.
+Either way, use the same checklist below — this skill does not define a separate rubric for the non-PR case.
 
-#### PR description checklist
+For a non-PR review, use the review brief / change description as the explanation of the change for Steps 2 and 3, and verify its claims against the diff and code.
+Do not infer that the implementer wrote or approved it unless the request or available context establishes that relationship.
+If that relationship is not established, still assess the brief's other quality criteria and its coherence with the implementation, but record "Is the implementer's own understanding visible?" as N/A and explain why.
+
+The description may have been written without real understanding, or generated by AI and pasted as-is.
+In this step, read only the description and assess whether a reviewer can "judge the validity of the change" from it.
+
+#### Description checklist
 
 Assess **all four** items and note the results. Finish all before the next step:
 
@@ -119,30 +204,35 @@ Assess **all four** items and note the results. Finish all before the next step:
 4. **Is the implementer's own understanding visible?** Not just AI-generated text
    pasted in — does it convey what the implementer was thinking?
 
-### Step 3: Coherence between the implementer's explanation and the implementation
+### Step 3: Coherence between the explanation and the implementation
 
 The goal is a **doc–code read-through**: verifying that the explanations in the
 description/comments match the actual code.
 
 #### Important: pick up only the implementer's statements
 
-Match the PR description author and each comment's author, and treat **only the
-implementer's own statements** as the implementation explanation. Cheering comments,
-hopeful comments, and questions written by others are not implementation explanations.
-Confusing these with the explanation leads to wrong coherence judgments.
+For a PR review, match the PR description author and each comment's author, and treat
+**only the implementer's own statements** as the implementation explanation. Cheering
+comments, hopeful comments, and questions written by others are not implementation
+explanations. Confusing these with the explanation leads to wrong coherence judgments.
+
+For a non-PR review, there are no separate comment authors to match.
+Use the supplied review brief / change description as the change explanation to check against the implementation, while following Step 2's instruction not to infer whether the implementer wrote or approved it.
 
 #### Checks
 
-1. Does the PR description match the actual diff?
+1. Does the description / review brief match the actual diff?
 2. Do the implementer's explanations in inline review comments match the code?
+   (PR review only — a non-PR review has no inline review comments; skip this check
+   without treating its absence as a failure.)
 3. Does the implementer's explanation in the PR review body (top-level review comment)
-   match the implementation?
+   match the implementation? (PR review only — same as above.)
 4. Does the conversation context match the implementation (if present)?
 
 Record any discrepancy concretely.
 
-Neither the description, the comments, nor the conversation context is an authority on
-what the code does.
+Neither the description / review brief, the comments, nor the conversation context is
+an authority on what the code does.
 Each claim they make is something to verify against the code, not something to review
 the code against.
 
@@ -277,7 +367,8 @@ the dark.
 Give it everything it needs to review the target on its own:
 
 - the exact Reviewed head and Comparison basis
-- the PR description, the comments, and the PR review bodies
+- the description / review brief, and — for a PR review — its comments and review
+  bodies
 - the conversation context and the ADRs it links to
 - the diff, the code, and how the tests are run
 - the repository's own instructions
@@ -332,11 +423,14 @@ The template headings are in Japanese; write the report in the user's working la
 
 #### Report-writing guidelines
 
-- **PR description > Summary**: quote/excerpt the implementer's explanation and organize
-  it before-after. Do not fill gaps with imagination. If the explanation is insufficient,
-  say so plainly.
-- **PR description > Quality assessment**: fill in the step-2 checklist results as
-  OK/NG/N-A. For NG, state concretely what is missing.
+- **Report header**: for a PR review, fill in the PR title, PR number, and branch name
+  as before. For a non-PR review there is no PR number or branch name — leave those
+  fields out rather than filling them with a placeholder, and use a short description of
+  the review target (drawn from the review brief) in place of the PR title.
+- **Description / review brief > Summary**: for a PR review, quote/excerpt the implementer's explanation; for a non-PR review, quote/excerpt the supplied review brief without inferring its author.
+  Organize it before-after, do not fill gaps with imagination, and say plainly if the explanation is insufficient.
+- **Description / review brief > Quality assessment**: fill in the step-2 checklist results as OK/NG/N-A.
+  When the non-PR brief's relationship to the implementer is not established, record "Is the implementer's own understanding visible?" as N/A and explain why; for NG, state concretely what is missing.
 - **Independent review section**: include it only if one actually returned a usable
   result, recording its candidates and what your own verification made of each. Leave
   the section out otherwise; an attempt that returned nothing goes in "Problems
@@ -361,4 +455,4 @@ The template headings are in Japanese; write the report in the user's working la
 - **library-update-review**: review skill for library-update PRs — the kind of PR out of
   scope for this skill.
 - **domain-modeling**: owns the record tier (`CONTEXT.md` and the ADRs). Background on the
-  ADR format and superseding rules for the ADRs step 1-4 follows.
+  ADR format and superseding rules for the ADRs step 1 follows.
