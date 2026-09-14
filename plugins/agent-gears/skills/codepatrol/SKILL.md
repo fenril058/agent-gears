@@ -134,8 +134,7 @@ customized to the repository:
      A5/E2 if WebSocket is unused).
    - Append repository-specific perspectives at the end of the relevant category,
      continuing the numbering.
-   - Keep the category structure (symbol + number). Report headings and the grouping
-     in step 5 refer to it.
+   - Keep the category structure (symbol + number). Report headings refer to it.
 
 **The checklist's scope**: what to write and not write in the checklist follows
 [checklist-vs-report.md](checklist-vs-report.md) (gist: only spec/mechanism facts and
@@ -207,42 +206,77 @@ next one / name an area directly / revisit targets.md).
 - For problems needing a design change, say so in the report and recommend a separate
   discussion.
 
-### Step 5: Critical review by an external agent
+### Step 5: Optional independent exploration
 
-Have an external agent criticize the step-4 findings to detect omissions. A chain of
-critical thinking finds vulnerabilities a solo investigation misses.
+Step 4 is the whole investigation: the main investigator can complete every part of it
+alone, and a completed step 4 is already a full codepatrol area investigation. An
+independent exploration is an addition to that investigation, never a condition for it.
 
-Split the working checklist's categories into 2–4 groups and run
-`subagent-consultation` per group. For a small area with few applicable perspectives,
-one combined consultation is fine. Grouping guide:
+Use one only when you judge that a second search path over the same area would reach
+something your own pass could not — for example a security boundary you could not get
+comfortable with, a blast radius wide enough that a single pass likely explored it
+unevenly, or a trust boundary or unusual data flow worth reading from a different
+angle. These are examples, not a fixed trigger list; use your own judgment.
+If the user asked for independent exploration or consultation outright, that settles
+it — run one without weighing it up.
+Choosing not to use one is not a gap in the investigation, and does not belong in the
+report.
 
-- **authorization group**: authorization, tokens/shared URLs, authentication/session
-- **input/output validation group**: SSRF, XSS, injection
-- **others**: files, DoS, information leaks, business logic, configuration
+To run one, call `subagent-consultation` via the Skill tool. State the depth ("Consult
+well") in the same turn as the question — without a depth the consultation skill asks
+the user back and interrupts the investigation. Do not ask for any particular kind of
+consultant; `subagent-consultation` owns that choice.
 
-For each group, invoke `subagent-consultation` with the Skill tool. Include in the
-args:
+#### What the independent investigator gets
 
-```
-In the security investigation of {area}, I obtained the findings below for
-{the group's perspective categories}. Review them critically: are there omissions, are
-there attack vectors I missed? Actively point out perspectives that are not on the
-checklist.
+The point is an independent path through the same area, not an investigator working in
+the dark. Give it everything it needs to investigate the area on its own:
 
-{summary of the group's findings}
-```
+- the selected area and its target paths/files (from targets.md)
+- the repository's own instructions
+- neutral security-mechanism facts (e.g. from checklist.md's mechanism summary)
+- the applicable checklist perspectives for this area
 
-If `subagent-consultation` is unavailable, skip this step and note that in the
-report's overall assessment.
+Withhold your side of the investigation:
 
-When you receive the external agent's points:
+- your step-4 findings and your draft report
+- the lines you suspect are vulnerable
+- your severity judgments and your remediation ideas
+- your conclusions
 
-- verify each point yourself by reading the code
-- reflect valid points into the step-4 findings (= what goes in the report). External
-  agents' points lean toward bugs, so do not fold them into the checklist (that would
-  turn the checklist into a findings list and steer future investigations toward
-  specific spots; see [checklist-vs-report.md](checklist-vs-report.md))
-- if views differ, record both sides' reasons in the report
+Handing those over turns an independent exploration into a critique of your own
+findings, not an independent search.
+
+#### Handling what comes back
+
+Everything the independent investigator reports is a candidate, not a finding. Verify
+each one yourself: read the code, pin the concrete location, check exploitability/
+conditions, and match it against the applicable checklist perspective, before it enters
+the report. Drop candidates that do not survive that check.
+Its view holds no authority over yours: when the two diverge, record both sides'
+reasons in the report rather than deferring.
+Do not feed a surviving candidate back into checklist.md. Candidates are findings
+material; checklist.md holds only neutral spec/mechanism facts and perspectives (see
+[checklist-vs-report.md](checklist-vs-report.md)).
+
+#### When an independent exploration is absent
+
+If the consultation fails, or no consultant is available, the investigation you already
+have stands: finish it and write the report. An unavailable consultant is not an
+investigation failure, and not a reason to doubt the execution environment.
+
+What to record depends on why it is absent:
+
+1. **You judged it would add nothing.** Record nothing. A main-only investigation is a
+   normal, complete investigation, not a degraded one.
+2. **You judged it worth running, and it could not be run.** The investigation is still
+   complete, but the extra search path you had judged you needed never arrived. Record
+   that in the report as a coverage limitation: what you wanted a second path for, that
+   you did not get it, and which coverage rests on your own reading alone.
+3. **The user asked for independent exploration or consultation, and it could not be
+   run.** Present your own results as usual, and state plainly that the requested
+   investigation mode could not be met. Do not let it pass as though the request had
+   been fulfilled.
 
 ### Step 6: Write the report
 
@@ -260,8 +294,8 @@ After writing, report a summary of the findings to the user.
 
 ## Related skills
 
-- **subagent-consultation**: the consultation mechanism for the critical review in
-  step 5.
+- **subagent-consultation**: the consultation mechanism for the optional independent
+  exploration in step 5.
 - **sanity-review**: writes a PR review report. Useful when reviewing the fix PR for a
   problem found by this investigation.
 - **conversation-context-export**: exports the conversation context. The report header
