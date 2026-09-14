@@ -1,301 +1,79 @@
 # agent-gears
 
-Claude Code・Codex・GitHub Copilot 共用の **skill / 常時ルール** 一式。
-Claude には plugin マーケットプレイスとして、Codex / Copilot には skill として、自分の環境には home-manager で配布できる。
+Claude Code・Codex・GitHub Copilot で共用する agent skill と常時ルールのリポジトリ。
 
-このリポジトリは2つの性格を併せ持つ。
-**公開する skill(`plugins/`)** と、**個人のエージェント設定(`rules/` と、その symlink 配布の仕組み)** である。
-前者はマーケットプレイスとして共有でき、後者は自分の `~/.claude` / `~/.codex` / `~/.copilot` を構成する。
-マーケットプレイス名は `fenril058-agent-skills`(`marketplace.json` の `name`)である。
+公開する skill は `plugins/agent-gears/` の単一 plugin にまとめ、個人環境へ配布する常時ルールは `rules/` に置く。
+Markdown の必要な節だけを取得する CLI `mdidx` も同梱する。
 
-リポジトリ直下の `AGENTS.md` はこの両者とは別で、このリポジトリ自体を編集するエージェントへの repo-local 指示である。
-こちらは配布はされない。
-
-## 内容
-
-このリポジトリは、領域の異なるエージェント向け skill を単一の `agent-gears` plugin に束ねて配布する。
-skill は用途と依存の向きで次の層に分かれるが、配布単位は分けない。
-
-```
-critique / project-records / code-review   ← ワークフロー層
-        ↓                                    (基盤を呼ぶ)
-context-engineering                        ← 基盤層
-agent-instructions                         ← 指示テキスト自体を書き、測る
-writing                                    ← 文章の規範(日本語の原稿向け)
-learning                                   ← AI支援後の理解を深める
-```
-
-### context-engineering (基盤: どう読み・探し・委譲されるか)
-
-運用コストの多くは無駄な文脈の読み込みから来る。
-独立した作業を委譲すると、メインセッションへ読み込む中間文脈を減らせる。
-
-- markdown-context: mdidx で大きな Markdown の必要な節だけ取る。
-- subagent-consultation: 判断を要する相談をサブエージェントに投げ、往復検証で精度を上げる。
-- [codex-consultation](plugins/agent-gears/README.md#codex-consultation): Claude CodeでCodexを相談先に選んだとき、Codex CLI を foreground で1回実行し、回答か明示的な失敗を返す実行adapter。15分の policy timeout をフルに使うための Claude Code 側の設定は README 参照。
-
-### agent-instructions (指示テキスト自体を書き、測る)
-
-- agent-instructions-refine: CLAUDE.md / AGENTS.md を圧縮する。コードから導出できる情報を削り、残りを検証可能な命令文に書き直す。
-- empirical-prompt-tuning: 書いた指示の `description` と本文の整合を静的に監査する。host の first-party tooling を優先し、比較測定は隔離条件が揃う場合に限る(operator の明示起動のみ)。
-
-対で使う。片方が削り、もう片方が削った結果を点検する。点検は静的監査から始め、測定は明示的に依頼されたときだけ行う。
-
-### critique (決める前に案を叩く)
-
-- grilling: 計画・決定について一問ずつ推奨案付きでインタビューし、共通理解に達するまで実装に着手しない。固まった語と決定はその場で domain-modeling へ記録する。
-- spec-ambiguity-audit: 安価モデルに仕様書を素読みさせて疑問点を挙げさせ、機械的フィルタで裏取りする。
-- unconventional-simplification: 実装の裏の暗黙の前提を1つずつ外し、より少ない実装・説明で済む別解を探す。
-
-いずれも計画を作る skill ではなく、既にある案・仕様・実装を攻撃する skill である。
-
-### project-records (決めたことを寿命ごとに記録する)
-
-- conversation-context-export/import: ブランチ単位で設計判断・却下理由・制約を引き継ぐ。
-- domain-modeling: このコードベースの用語集 (`CONTEXT.md`) と ADR を保守する。
-- durable-knowledge-export: ブランチを越えて残す知見を、リポジトリの外へ保存する。
-
-#### 記録先の3層
-
-会話で得たものをどこに書くかは、置き場所ではなく**更新モデル**で決まる。
-どの skill も自分の層だけを規定し、他層の判定を写さずに渡す。
-
-| 層 | skill | sink | 更新モデル |
-| --- | --- | --- | --- |
-| 揮発 | conversation-context-export/import | `.dev/contexts/` + PR コメント | ブランチごとに再生成。commit しない |
-| 記録 | domain-modeling | `CONTEXT.md`、ADR ディレクトリ | 追記と supersede。書き換えない |
-| 永続 | durable-knowledge-export | GitHub wiki / knowledge リポジトリ | living page。常に現在状態 |
-
-記録層だけが「決めて後で覆した」を保存する。
-living page に置いた決定はその履歴を失うため、ADR は永続層ではなく記録層に属する。
-永続層はリポジトリの外に書く。使える sink が無ければ置き場所を作らずに中止する。
-
-### code-review (出来上がったものを検める)
-
-- [sanity-review](plugins/agent-gears/README.md#sanity-review): 対話コンテキスト・PR 概要欄(または review brief)・実装コードの整合性つまり「実装者の正気」を点検するレビュー報告書を作成する。GitHub PR に加え、PR の無い commit range にも同じ手順を適用できる。結果ではなくプロセスをレビューする。
-- library-update-review: 依存更新 PR のレビューを行う。
-- [codepatrol](plugins/agent-gears/README.md#codepatrol): リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
-
-### learning (AI支援後の理解を深める)
-
-- navigating: ユーザー自身がコードを読み、説明するコードリーディング案内。
-- quizzing: 計画・実装・コードベースの理解を一問ずつ確認する。
-
-### writing (文章の規範)
-
-- japanese-tech-writing: 日本語の技術文書・書籍原稿の整形・パラグラフライティング・論証の厳密さ・冗長の排除。
-- argument-gap-edit: 論証の筋を点検し、段落を再配置する。
-
-どちらも日本語原稿向け。
-未定義語・勝手な造語を避ける原則自体は常時ルールで適用し、術語・訳語の選び方は `japanese-tech-writing` の「視点と語り」が扱う。
-プロジェクト内部の語彙は `project-records` の `domain-modeling` が扱う。
+リポジトリ直下の `AGENTS.md` は、このリポジトリ自体を編集する agent 向けの repo-local instruction であり、配布対象ではない。
 
 ## 構成
 
-```
-.claude-plugin/marketplace.json   Claude 用マーケットプレイス定義
-plugins/
-  agent-gears/                    全 skill 定義を含む単一 plugin
-    .claude-plugin/plugin.json
-    LICENSE                       plugin 単位の第三者 MIT 許諾文
-    NOTICE                        plugin 単位の public domain 出典表示
-    README.md                     codex-consultation / sanity-review / codepatrol の利用ガイド
-    skills/
-      agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
-      argument-gap-edit/          論証の筋を点検・再配置する編集
-      codepatrol/                 領域ごとのセキュリティ調査
-      codex-consultation/         Claude CodeからCodexへ相談する実行adapter
-      conversation-context-export/ 揮発層: 文脈の書き出し
-      conversation-context-import/ 揮発層: 文脈の読み込み
-      domain-modeling/            記録層: 用語集と ADR
-      durable-knowledge-export/   永続層: ブランチを越える知見をリポジトリ外へ
-      empirical-prompt-tuning/    指示の静的な整合確認と測定を始める条件
-      grilling/                   一問ずつ推奨案付きの意思決定インタビュー
-      japanese-tech-writing/      日本語技術文書の文章規範
-      library-update-review/      依存更新 PR のレビュー
-      markdown-context/           大きな Markdown を mdidx で部分取得
-      navigating/                 ユーザー自身が読むコードリーディング案内
-      quizzing/                   一問ずつ行う理解確認
-      sanity-review/              PR または non-PR commit range のレビュー報告書
-      spec-ambiguity-audit/       仕様書の疑問点を機械的フィルタで検証する監査
-      subagent-consultation/      サブエージェントへのセカンドオピニオン
-      unconventional-simplification/ 暗黙の前提を外して別解を探す
-rules/always-on.md   全エージェント共通の常時ルール(個人設定)
-rules/claude.md      Claude Code 専用の常時ルール。`~/.claude/rules/agent-gears.md` へ配布
-AGENTS.md            このリポジトリで作業する全エージェント向けの repo-local 指示(配布しない)
-CLAUDE.md            `@AGENTS.md` で上を取り込む。Claude Code 固有の指示があればここに足す
-.github/copilot-instructions.md  AGENTS.md への symlink(Copilot は import 構文を持たないため)
-install.sh           symlink 配布スクリプト(home-manager を使わない場合)
-flake.nix / nix/     home-manager モジュール・mdidx/skills-ref のビルド定義(宣言的配布)
-cmd/mdidx/           同梱の mdidx(Markdown 索引化)の Go 実装ソース
-PROVENANCE.json      外部由来 skill の出所と帰属表示ファイルの置き場所(唯一の宣言元)
-scripts/             CI 用の整合チェック(配布2系統の配布先一致 / plugin メタの一致 / 帰属表示の配置 / skills-ref による SKILL.md 仕様検証)
-docs/adr/            覆しにくい決定の記録(ADR)。追記と supersede のみで、書き換えない
-docs/claude-code-instruction-loading.md  path に紐づく指示が実際に効くかの確認手順(canary)と暫定回避の撤去手順
-```
+| Path | 役割 |
+| --- | --- |
+| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude Code plugin marketplace の定義 |
+| [`plugins/agent-gears/`](plugins/agent-gears/) | 配布する単一 plugin |
+| [`plugins/agent-gears/skills/`](plugins/agent-gears/skills/) | 公開する skill |
+| [`plugins/agent-gears/README.md`](plugins/agent-gears/README.md) | plugin 固有の利用ガイド |
+| [`rules/always-on.md`](rules/always-on.md) | Claude Code・Codex・GitHub Copilot 共通の常時ルール |
+| [`rules/claude.md`](rules/claude.md) | Claude Code 固有の常時ルール |
+| [`install.sh`](install.sh) | symlink による命令的な配布 |
+| [`nix/hm-module.nix`](nix/hm-module.nix) | home-manager による宣言的な配布 |
+| [`cmd/mdidx/`](cmd/mdidx/) | `mdidx` の Go 実装 |
+| [`docs/adr/`](docs/adr/) | このリポジトリの設計判断 |
+| [`PROVENANCE.json`](PROVENANCE.json) | 外部由来 skill の機械可読な出典情報 |
+| [`NOTICE`](NOTICE) | 外部由来 skill の人間向け出典表示 |
+
+現在の plugin は skill のみを含み、custom agent 定義は同梱していない。
 
 ### 常時ルール vs skill
 
-- **共通の常時ルール(`rules/always-on.md`)**: 各エージェントの instruction file として毎ターン読まれる短い不変則だけ。
-- **エージェント固有の常時ルール(`rules/<agent>.md`)**: 対応するエージェントだけが毎ターン読む短い不変則だけ。
-- **skill(`<plugin>/skills/<name>/SKILL.md`)**: `description` が今の作業に合致したときだけ読み込まれる。詳細手順はこちら。
+常時ルールは対応する agent の instruction file として毎ターン読み込まれる不変則である。
+skill は `SKILL.md` の `description` が作業に合致したときに読み込まれ、個別の手順を提供する。
+各 skill の runtime contract は、その skill の `SKILL.md` を正本とする。
 
-### SKILL.md の言語(英語正本 + 日本語ミラー)
+### SKILL.md の言語
 
-トークナイザは CJK を不利に扱うため、同内容なら英語の方が約 3 割トークンが少ない(実測は wiki [SKILL-token-ja-en](../../wiki/SKILL-token-ja-en) 参照)。
-そこで **指示が中心で言語中立な skill は英語版 `SKILL.md` を正本** とし、日本語は保守ミラー `SKILL-ja.md` として併置する(agentがロードするのは `SKILL.md` のみ)。
+言語に依存しない skill は英語の `SKILL.md` を正本とし、日本語ミラーの `SKILL-ja.md` を併置する。
+`japanese-tech-writing` と `argument-gap-edit` は日本語の `SKILL.md` が正本である。
+成果物用の template と codepatrol の付属文書は日本語のまま保持する。
 
-- **英語正本 + `SKILL-ja.md`**:
-  - 下記以外のすべて。
-- **日本語 `SKILL.md` のまま**:
-  - `japanese-tech-writing` / `argument-gap-edit`。規範の中身・例文が日本語前提のため。
-- **`TEMPLATE.md` は日本語のまま**:
-  - `sanity-review`、`conversation-context-export` / `durable-knowledge-export`。
-  - `codepatrol` の付属ファイル(`CHECKLIST.md` / `REPORT-TEMPLATE.md` / `checklist-vs-report.md`)も同様に日本語のまま。
-  これは GitHub に貼る/wiki・docs に残す成果物の雛形(出力)であり、指示本体(`SKILL.md`)のみ英語化する。
-  出力は利用者の作業言語に従う。
-- 編集は英語 `SKILL.md` を正、`SKILL-ja.md` は手動で追従させる(内容の乖離に注意)。
+`SKILL.md` の配置と frontmatter は [agentskills.io specification](https://agentskills.io/specification) に準拠し、CI では公式 `skills-ref` を使って検証する。
 
-### agentskills.io 標準への準拠
+## Skills
 
-skill の配置と `SKILL.md` frontmatter は [agentskills.io のオープン標準](https://agentskills.io/specification)に準拠する。
-公式リファレンスバリデータ `skills-ref` で CI(`scripts/check-skill-spec.sh`)が検証する。
+利用条件と手順は、各リンク先の `description` と本文を参照する。
 
-**標準に従う部分**:
+|  |  |  |
+| --- | --- | --- |
+| [agent-instructions-refine](plugins/agent-gears/skills/agent-instructions-refine/SKILL.md) | [argument-gap-edit](plugins/agent-gears/skills/argument-gap-edit/SKILL.md) | [codepatrol](plugins/agent-gears/skills/codepatrol/SKILL.md) |
+| [codex-consultation](plugins/agent-gears/skills/codex-consultation/SKILL.md) | [conversation-context-export](plugins/agent-gears/skills/conversation-context-export/SKILL.md) | [conversation-context-import](plugins/agent-gears/skills/conversation-context-import/SKILL.md) |
+| [domain-modeling](plugins/agent-gears/skills/domain-modeling/SKILL.md) | [durable-knowledge-export](plugins/agent-gears/skills/durable-knowledge-export/SKILL.md) | [empirical-prompt-tuning](plugins/agent-gears/skills/empirical-prompt-tuning/SKILL.md) |
+| [grilling](plugins/agent-gears/skills/grilling/SKILL.md) | [japanese-tech-writing](plugins/agent-gears/skills/japanese-tech-writing/SKILL.md) | [library-update-review](plugins/agent-gears/skills/library-update-review/SKILL.md) |
+| [markdown-context](plugins/agent-gears/skills/markdown-context/SKILL.md) | [navigating](plugins/agent-gears/skills/navigating/SKILL.md) | [quizzing](plugins/agent-gears/skills/quizzing/SKILL.md) |
+| [sanity-review](plugins/agent-gears/skills/sanity-review/SKILL.md) | [spec-ambiguity-audit](plugins/agent-gears/skills/spec-ambiguity-audit/SKILL.md) | [subagent-consultation](plugins/agent-gears/skills/subagent-consultation/SKILL.md) |
+| [unconventional-simplification](plugins/agent-gears/skills/unconventional-simplification/SKILL.md) |  |  |
 
-- 各 skill を1ディレクトリ = 1 `SKILL.md` で置く。
-- frontmatter の必須フィールド `name` / `description`(名前・説明の制約、`name` とディレクトリ名の一致)。
-- `compatibility`(外部ツール要件の宣言)も標準フィールド。
-
-**標準から外れる部分**:
-
-- Claude Code のトップレベル拡張フィールド(本リポジトリでは `argument-hint`)は agentskills 標準外。
-  Claude Code が解釈する拡張であり、`skills-ref` は本来これを "Unexpected fields" として弾く。
-  この配布物の主対象は Claude Code なので、`check-skill-spec.sh` は既知の Claude 拡張(`CLAUDE_EXT`)だけを許容に読み替える(未知フィールドや `name`/`description` 違反は失格のまま)。
-- 付随ファイル `SKILL-ja.md` / `TEMPLATE.md` / `NOTES-local.md` は標準の対象外。
-  正本は `SKILL.md` のみで、バリデータもこれらを検証しない。
-
-### 出典とライセンス
-
-リポジトリ全体および自作物は **MIT**(`LICENSE`)。
-第三者由来の skill は各自の条項(いずれも MIT / public domain で互換)に従う。
-人間向けの一覧は `NOTICE`、機械可読な宣言元は `PROVENANCE.json` で、後者から組み立てた
-「あるべき `LICENSE` / `NOTICE` の集合」と実ファイルの一致を CI(`scripts/check-licenses.sh`)が検証する。
-plugin 単位の帰属表示は `plugins/agent-gears/LICENSE` / `NOTICE` に集約し、skill 単位の `LICENSE` は各 skill に残す。
-集約先は複数の出所が同じファイルを共有するので、配置(ファイルの存在)だけでは特定の出所の許諾文が
-消えても気づけない。
-そこで各出所には `marker`(集約先に literal で現れる識別子)を宣言し、その残存も検査する。
-`marker` の正本は `PROVENANCE.json` で、帰属表示ファイル側がそれを含む義務を負う。
-`marker` どうしは重複も包含も不可(残存確認は部分一致なので、長い側の literal が短い側の欠落を隠す)。
-検査が保証するのは marker の残存までで、許諾文の本文が正しいことや skill 単位ファイルの内容までは見ない。
-そこは review の担当で、この検査は回帰検出だけを受け持つ。
-壊れた宣言(record を組み立てられない、フィールドがずれる、marker が一意に効かない)は、
-「検査できなかった」ではなく失格として扱う。
-検査そのものの回帰テストは `scripts/check-licenses.test.sh`。
-
-- **`japanese-tech-writing` / `argument-gap-edit`**:
-  - [k16shikano の gist](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)由来。
-  - ライセンスは[実質 public domain](https://gist.github.com/k16shikano/67625f2a7d96e3bbdfae8d571a936063)。
-- **shokai/agent-skills 由来**(`subagent-consultation` / `codex-consultation` / `sanity-review` / `library-update-review` / `codepatrol` / `unconventional-simplification` / `conversation-context-export` / `conversation-context-import`):
-  - [shokai/agent-skills](https://github.com/shokai/agent-skills) 由来。
-    - ライセンスは **MIT**。許諾文は `plugins/agent-gears/LICENSE` に集約してある。
-    - 英語化のうえ取り込んだ。
-    - `subagent-consultation` は相談の設計・往復判断・回答統合を担当する。
-      相談先の選定は independence の厳密な tier ではなく heuristic で決める:
-      fresh context(現在の会話への anchoring を減らす)と different model family
-      (適切な相手がいれば別視点を得られる diversity heuristic であり、independence
-      guarantee ではない)を別の効果として扱い、呼び出し元が相談先を明示していればそれに従う。
-      `codex-consultation` は、Claude CodeでCodexを選んだ場合の sandbox capability、cwd、timeout、失敗の切り分けだけを担当する同期実行adapterとして取り込んだ。
-      1回の呼び出しで回答か明示的な失敗まで完結し、後から回収する job は返さない。
-      呼び出し側は引き続き `subagent-consultation` だけを呼び、実際の実行機構(subagentかCodex CLIか)を知らなくてよい。
-    - `sanity-review` は main reviewer 単独でレビューを完了する形に書き換えてある。
-      独立レビューは任意の追加であり、実施する場合だけ `subagent-consultation` を呼ぶ(相談先の種類は指定しない)。
-      渡すもの・渡さないものの境界と、独立レビューを得られなかった場合の記録の扱いは
-      plugin README の「sanity-review」を参照。
-    - `unconventional-simplification` / `codepatrol` の外部Agent相談は `subagent-consultation` を呼ぶ。
-    - `codepatrol` は Cosense 連携を外し、レポート書き出し先をローカル(`.dev/codepatrol/`)専用にしてある。
-- **mattpocock/skills 由来**:
-  - `grilling`。
-    - ライセンスは **MIT**、`plugins/agent-gears/skills/grilling/LICENSE` 参照。
-    - 上流は英語のみのため英語正本のまま取り込み、日本語ミラー `SKILL-ja.md` を追加した。
-    - 上流の `grill-with-docs`(本文は「`/grilling` を `/domain-modeling` を使って走らせる」の一行)は取り込まず、
-      同じ合成を `grilling` 本体の「固まった端から記録する」規律として持たせてある。
-  - `domain-modeling`。
-    - ライセンスは **MIT**、`plugins/agent-gears/skills/domain-modeling/LICENSE` 参照。
-    - ADR ディレクトリを上流の `docs/adr/` 決め打ちから解決式に変更した(既存リポジトリの慣習・`.adr-dir` 等を探す)。
-    - supersede 規則、3層の振り分け、術語と ubiquitous language の分担を追記した。
-- `durable-knowledge-export` は **自作**。
-    - 揮発層(`conversation-context-export`)・記録層(`domain-modeling`)の対として、
-      ブランチを越える永続知見を**リポジトリの外**(GitHub wiki、または `AGENT_KNOWLEDGE_REPO` が指す knowledge リポジトリ)へ書き出す。
-- **mizchi/skills 由来**(`empirical-prompt-tuning`):
-  - [mizchi/skills](https://github.com/mizchi/skills/tree/main/meta/empirical-prompt-tuning)由来。
-  - 同 repo の方針(README)で「`LICENSE.txt` の無い skill は MIT」とされるため **MIT**(同 skill の `LICENSE` に明記)。
-  - **有効な `SKILL.md` は英語版**、日本語ミラーを `SKILL-ja.md` として併置(upstream と同様)。
-  - MIT なので取り込んで改変する方針に変えた(上流を取り直さない)。
-    これに伴い、上流の運用追補を置いていた `NOTES-local.md` は `SKILL.md` / `SKILL-ja.md` へ畳んで削除し、
-    上流生成の `README.md`(中身は上流からのインストール手順)も削除した。
-- **yasunori0418/skills 由来**(`navigating` / `quizzing`):
-  - 取得元 revision は `44297daabb540cdb5290be2798ccc99f9967c7ab`、ライセンスは **MIT**。
-  - 明示起動のみという性質を保ち、英語正本と日本語ミラーで取り込んだ。
-  - 大規模なコード探索を汎用サブエージェントへ直接委譲する記述は削除し、大きな Markdown だけ `markdown-context` を使う記述に変更した。
-    それ以外の探索は host のツールに任せる。
-
-## 前提ツール
-
-- [Worktrunk](https://worktrunk.dev/) — worktree の作成、切替、削除に使用する。
-  - `wt` 本体と Claude Code / Codex 向けの Worktrunk plugin と skill は別リポジトリで一括管理し、このリポジトリからは配布しない。
-  - 作者の環境では、`wt` が利用できる場合、対応する Worktrunk plugin と skill も導入済みである。
-  - skill を利用できないホストは、`rules/always-on.md` に従って `wt` を直接呼ぶ。
-- mdidx — Markdown を索引+節に変換。本リポジトリ同梱の Go 実装。
-  - [oubakiou/md2idx](https://github.com/oubakiou/md2idx)(MIT)の忠実な再実装で、出力はバイト互換。Node ランタイム/npm 依存を持たない単一バイナリ。
-  - 導入は次のいずれか。いずれも Nix が prebuilt の Go コンパイラを store に取得してビルドするため、システムへ go を入れる必要はない。
-    - home-manager(`tools.enable = true`、既定で PATH へ自動配置)
-    - `nix profile install .#mdidx`
-    - `nix build .#mdidx`
-    - devShell には自動で入る
-- [mq](https://mqlang.org/) — Markdown 構造クエリ(補助)
+`codex-consultation`、`sanity-review`、`codepatrol` の利用上の補足は [plugin README](plugins/agent-gears/README.md) に置く。
 
 ## 配布方法
 
-用途に応じて3経路。中身(`SKILL.md` ディレクトリ)は共通で、経路は併用できる。
-GitHub Copilot 向けには専用のマーケットプレイス経路はなく、home-manager(経路3)または install.sh が `~/.copilot/skills/` へ配布する。
+### Claude Code plugin marketplace
 
-### 1. Claude — plugin マーケットプレイス
-
-```
+```text
 /plugin marketplace add fenril058/agent-gears
 /plugin install agent-gears@fenril058-agent-skills
 ```
 
-plugin 内の `skills/` が自動で読み込まれる。
-旧7 plugin の名前は無くなるため、既に marketplace 経由で導入している場合は、先に `agent-gears` plugin をインストールしてから旧 plugin を明示的に削除する。
-旧 plugin は marketplace の更新や新 plugin のインストールでは自動削除されず、残すと起動時に load error が記録される。
+Claude Code は plugin 内の `skills/` を読み込む。
 
-```
-/plugin uninstall context-engineering@fenril058-agent-skills
-/plugin uninstall agent-instructions@fenril058-agent-skills
-/plugin uninstall critique@fenril058-agent-skills
-/plugin uninstall project-records@fenril058-agent-skills
-/plugin uninstall code-review@fenril058-agent-skills
-/plugin uninstall learning@fenril058-agent-skills
-/plugin uninstall writing@fenril058-agent-skills
-```
+### Codex skill-installer
 
-### 2. Codex — skill-installer
+Codex では `skill-installer` に [`plugins/agent-gears/skills/`](plugins/agent-gears/skills/) 内の必要な skill ディレクトリを指定する。
 
-Codex の `skill-installer` で GitHub の skill ディレクトリを `~/.agents/skills` へ導入する。
+### home-manager
 
-```
-install-skill-from-github.py --repo fenril058/agent-gears --path plugins/agent-gears/skills/markdown-context
-```
-
-(agent 定義は現状同梱していない。)
-
-### 3. 自分の環境 — home-manager(クロスエージェント宣言配布)
-
-skills/常時ルールを `~/.claude`・`~/.agents`・`~/.codex`・`~/.copilot` へ一括 symlink する。
-`plugins/agent-gears/agents/*.md` が存在する場合は Claude Code 用 agent 定義も配布する。
-Claude を plugin 経由にするなら `claude.enable = false` にして重複を避けられる。
+全 skill、常時ルール、`mdidx` をまとめて配布する場合は home-manager module を使う。
 
 ```nix
 {
@@ -305,109 +83,72 @@ Claude を plugin 経由にするなら `claude.enable = false` にして重複�
 
   programs.agent-gears = {
     enable = true;
-    repoPath = "/home/ril/ghq/github.com/fenril058/agent-gears";  # 作業ツリー(編集即反映)
+    repoPath = "/absolute/path/to/agent-gears";
   };
 }
 ```
 
-| オプション | 既定 | 意味 |
-|---|---|---|
-| `repoPath` | `null` | 作業ツリーの絶対パス(`mutable = true` のとき必須) |
-| `mutable` | `true` | `true`=作業ツリーへの out-of-store symlink(編集即反映)。`false`=flake ソース(store)を直接配布 |
-| `claude.enable` | `true` | `~/.claude` へ配布(plugin 経由にするなら `false`) |
-| `codex.enable` | `true` | `~/.agents/skills` と `~/.codex/AGENTS.md` へ Codex 向けファイルを配布 |
-| `copilot.enable` | `true` | `~/.copilot` へ配布(GitHub Copilot) |
-| `rules.enable` | `true` | 共通ルールとエージェント固有ルールを対応する instruction file として配布 |
-| `agentDefs.enable` | `true` | `plugins/agent-gears/agents/*.md` を `~/.claude/agents` へ配布(Claude Code 形式) |
-| `tools.enable` | `true` | mdidx バイナリを `home.packages` に入れて PATH へ通す(`markdown-context` 用) |
+既定の `mutable = true` では `repoPath` の作業ツリーへ symlink する。
+store 内の flake source を直接配布する場合は `mutable = false` を指定する。
+利用可能な option と配布先の正本は [`nix/hm-module.nix`](nix/hm-module.nix) を参照する。
 
-- skill の **追加・削除** の反映には flake 更新 + `home-manager switch` が要る
-  (配布対象は flake ソースから列挙)。既存 skill の編集は `mutable = true` なら即反映。
-- 配布対象は `plugins/agent-gears/skills/*`。
-  `plugins/agent-gears/agents/*` が存在する場合は Claude Code 用 agent 定義も対象。
+### install.sh
 
-### 4. home-manager を使わない場合 — install.sh
+home-manager を使わない場合は、skill と常時ルールを symlink する。
 
 ```bash
-bash install.sh --dry-run   # 張る予定を確認
-bash install.sh             # 実行(冪等。実ファイルは .bak.<時刻> に退避)
-bash install.sh --uninstall # このリポジトリを指す symlink だけ外す
+bash install.sh --dry-run
+bash install.sh
+bash install.sh --uninstall
 ```
 
-通常実行と `--uninstall` のどちらも、リポジトリから消えた skill / agent 定義が残した dangling symlink を配布先から外す。
-外すのは参照先が失われたものだけで、リポジトリの外を指す link には触らない。
+skill は `~/.claude/skills/`、`~/.agents/skills/`、`~/.copilot/skills/` へ配布する。
+常時ルールは Claude Code・Codex・GitHub Copilot の各 instruction file へ配布する。
+通常実行と `--uninstall` は、このリポジトリが管理する obsolete または dangling な symlink も整理する。
 
-配布先:
+## 同梱ツール
 
-| 対象 | Claude Code | Codex | GitHub Copilot |
-|------|-------------|-------|----------------|
-| 各 skill | `~/.claude/skills/` | `~/.agents/skills/` | `~/.copilot/skills/` |
-| rules/always-on.md | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` | `~/.copilot/copilot-instructions.md` |
-| rules/claude.md | `~/.claude/rules/agent-gears.md` | — | — |
-| agents/*.md (存在する場合) | `~/.claude/agents/` | (非対応) | (非対応) |
+`mdidx` は Markdown を見出し索引と節へ変換し、`markdown-context` skill が必要な節だけを取得するために使う。
 
-**反映には Claude Code / Codex / Copilot の再起動が必要。**
-
-## エージェントへの伝わり方
-
-- **skill**: 3者とも同じ `SKILL.md`(frontmatter の `name` / `description`)形式。
-  `description` の「いつ使うか」が自動ロードの判定に使われるので、用途を具体的に書く。
-- **共通の常時ルール**: Claude は `CLAUDE.md`、Codex は `AGENTS.md`、Copilot は `copilot-instructions.md` を読む。いずれも配布元は `rules/always-on.md`。
-- **Claude 専用の常時ルール**: Claude はユーザールール `~/.claude/rules/agent-gears.md` も読む。配布元は `rules/claude.md`。
-
-## 既知の上流不具合と暫定回避(Claude Code)
-
-**これは撤去対象の暫定回避で、agent-gears の恒久仕様ではない。**
-
-Claude Code の Auto mode は file の読み書きを dedicated `Read` / `Edit` / `Write` より Bash(`cat` / `sed` / `grep` / heredoc)へ寄せる。
-この steering に従うと、nested `CLAUDE.md` と path-scoped rules が silent にロードされなくなる。
-`Read` / `Edit` / `Write` matcher の hooks も同様に迂回され得る。
-
-Bash 経由の読み取りでは指示がロードされないことは、Claude Code 2.1.263 と 2.1.267 で確認済み(`InstructionsLoaded` hook が発火しない。手順と結果は `docs/claude-code-instruction-loading.md`)。
-
-- 根本修正の追跡先(source of truth): [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450)(`bug` / `has repro` で open)
-- hooks と回避フラグの報告: [anthropics/claude-code#92271](https://github.com/anthropics/claude-code/issues/92271)
-
-Bash-first steering が掛かるかどうかは host / version / model で違う(2.1.263 の headless CLI の `claude-sonnet-5` には無く、2.1.267 の headless CLI でも `claude-sonnet-5` には無く `claude-opus-5` には掛かっていた)。
-まず自分の host で steering が掛かっているかを確かめる(手順は `docs/claude-code-instruction-loading.md` の手順1)。
-掛かっている場合の回避として、上流 #92271 では次を置くと steering が消え、nested `CLAUDE.md` / path-scoped rules が再びロードされると報告されている。
-agent-gears でも、steering が掛かる条件を1つ用意して end-to-end に確認した(2026-09-11 / Claude Code 2.1.267 / Ubuntu 24.04.5 LTS on WSL2 / `claude -p --permission-mode auto --setting-sources project` / `claude-opus-5` / 各条件4回)。
-未設定側は4回とも Bash-first route で `InstructionsLoaded` が発火せず canary も不発、`=0` 側は4回とも dedicated `Read` を通って `nested_traversal` と `path_glob_match` が発火し canary も出た。
-確認したのはこの条件についてであって、全ての host / version / model について言えるわけではない(control と留保は `docs/claude-code-instruction-loading.md` の実測節)。
-個人で project 単位に回避するなら `.claude/settings.local.json`、その project の全員で共有すると判断した場合は `.claude/settings.json`、Claude Code 全体で回避するなら user 単位の `~/.claude/settings.json` に置く。
-`.claude/settings.json` は commit して collaborator 全員に配る project setting なので、undocumented で撤去対象のフラグを既定でそこに置かない。
-
-```json
-{
-  "env": {
-    "CLAUDE_CODE_THRIFTY_SONIC": "0"
-  }
-}
+```bash
+nix profile install github:fenril058/agent-gears#mdidx
 ```
 
-- `CLAUDE_CODE_THRIFTY_SONIC` は documented user-facing setting ではなく、上流の実装・実験フラグである。
-  agent-gears の正式な runtime dependency として扱わない。
-- **agent-gears はこの設定を自動では行わない。**
-  `install.sh` も home-manager モジュールも `~/.claude/settings.json` を含む user settings を読み書きしない。
-  配布するのは skill / rules の symlink だけで、agent 定義が存在する場合はそれも対象になる。設定するかどうかは利用者が決める。
-- flag を設定しない場合に備えて、`rules/claude.md` にも同じ期間だけの compatibility 規則(変更するファイルは一度 `Read` で開く)を置いている。
-  これは「変更前に現在の内容を確認する」という tool 非依存の不変則とは別の要件で、読み取り全般を `Read` に固定するものではない。
-- 判定と撤去の手順は `docs/claude-code-instruction-loading.md`、決定と撤去条件は `docs/adr/0002-claude-code-bash-first-instruction-loading.md`。
-  上流 issue の close や release note だけを根拠に撤去せず、実際の Claude Code version で再現確認を行う。
-  撤去条件は access method 側の修正(Bash 経由でもロードされる)と steering 側の修正(steering が無くなる)の両方を扱い、
-  単に experiment cohort の外にいるだけの「steering なし」は根拠にしない。
+リポジトリ内では `nix build .#mdidx` または `nix develop` でも利用できる。
+CLI の使い方は [`markdown-context/SKILL.md`](plugins/agent-gears/skills/markdown-context/SKILL.md) を参照する。
+
+## Documentation
+
+| 知りたいこと | 正本 |
+| --- | --- |
+| skill の起動条件と実行手順 | 各 [`skills/*/SKILL.md`](plugins/agent-gears/skills/) |
+| plugin 固有の利用上の補足 | [`plugins/agent-gears/README.md`](plugins/agent-gears/README.md) |
+| このリポジトリを編集する際の規則 | [`AGENTS.md`](AGENTS.md) |
+| 設計判断 | [`docs/adr/`](docs/adr/) |
+| Claude Code の instruction loading canary と暫定回避 | [`docs/claude-code-instruction-loading.md`](docs/claude-code-instruction-loading.md) |
+| 外部由来 skill の出典と許諾 | [`PROVENANCE.json`](PROVENANCE.json)、[`NOTICE`](NOTICE)、[`plugins/agent-gears/LICENSE`](plugins/agent-gears/LICENSE)、[`plugins/agent-gears/NOTICE`](plugins/agent-gears/NOTICE) |
+| 脆弱性の報告方法 | [`SECURITY.md`](SECURITY.md) |
+
+## 既知の上流不具合と暫定回避（Claude Code）
+
+Claude Code が file 操作を Bash-first にすると、nested `CLAUDE.md` と path-scoped rules が読み込まれない場合がある。
+このリポジトリは、変更対象を dedicated `Read` で一度開く暫定 compatibility rule を [`rules/claude.md`](rules/claude.md) から配布する。
+
+`CLAUDE_CODE_THRIFTY_SONIC=0` による回避も限定条件で確認しているが、これは documented user-facing setting ではなく、agent-gears が自動設定する値でもない。
+再現条件、canary、設定例、撤去条件は [`docs/claude-code-instruction-loading.md`](docs/claude-code-instruction-loading.md) を参照する。
+上流の追跡先は [anthropics/claude-code#90450](https://github.com/anthropics/claude-code/issues/90450) である。
 
 ## 新しい skill を足すとき
 
-1. `plugins/agent-gears/skills/<name>/SKILL.md` を作る(frontmatter に `name` と具体的な `description`)。
-   英語を正本とし、日本語ミラー `SKILL-ja.md` を併置する(例外は「SKILL.md の言語」節)。
-2. **外部から取り込んだ skill なら** `PROVENANCE.json` に追記し、帰属表示ファイルを置く。
-   `scope` が `plugin` なら `plugins/agent-gears/LICENSE` / `NOTICE` に必要な許諾文・出典を加え、`skill` なら skill ディレクトリ直下に置く。
-   リポジトリ直下の `NOTICE` にも出所を書く。`scripts/check-licenses.sh` が両方を検証する。
-   併せて他の出所と重複も包含もしない `marker` を宣言し、その文字列を集約先と直下の `NOTICE` にそのまま書く(未宣言は失格)。
-3. 常時効かせたい最小限の不変則があれば、共通なら `rules/always-on.md`、Claude Code 固有なら `rules/claude.md` に1行追記する。
-4. `skills/` 配下は単一 plugin から自動検出される。
-   plugin のメタデータを変える場合は `marketplace.json` と `plugins/agent-gears/.claude-plugin/plugin.json` の `name` / `version` / `keywords` を揃える。
-5. `home-manager switch`(または `bash install.sh`)で配布し、各エージェントを再起動する。
-6. 重要 skill は `empirical-prompt-tuning` の静的な整合確認(`description` と本文が食い違っていないか)を行う。
-   実測を伴う A/B は、隔離境界を構成できる場合に限る。条件は `docs/adr/0001-evaluation-infrastructure-ownership.md`。
+1. `plugins/agent-gears/skills/<name>/SKILL.md` を追加する。
+2. 英語正本の skill には `SKILL-ja.md` を追加し、以後も手動で同期する。
+3. 外部由来なら `PROVENANCE.json` と必要な `LICENSE` / `NOTICE` を更新する。
+4. skill はディレクトリ構成から自動列挙されるため、配布スクリプトへ名前を追加しない。
+5. `nix fmt` と `nix flake check` を実行する。
+
+frontmatter、帰属表示、配布、plugin metadata の詳細な更新規則は [`AGENTS.md`](AGENTS.md) を参照する。
+
+## License
+
+リポジトリ全体と自作物は [MIT License](LICENSE) で提供する。
+第三者由来の skill は、それぞれの許諾と [`PROVENANCE.json`](PROVENANCE.json) の宣言に従う。
