@@ -99,7 +99,7 @@ plugins/
     .claude-plugin/plugin.json
     LICENSE                       plugin 単位の第三者 MIT 許諾文
     NOTICE                        plugin 単位の public domain 出典表示
-    README.md                     codex-consultation / sanity-review の利用ガイド
+    README.md                     codex-consultation / sanity-review / codepatrol の利用ガイド
     skills/
       agent-instructions-refine/  CLAUDE.md/AGENTS.md 等の指示ファイルを推敲
       argument-gap-edit/          論証の筋を点検・再配置する編集
@@ -116,7 +116,7 @@ plugins/
       markdown-context/           大きな Markdown を mdidx で部分取得
       navigating/                 ユーザー自身が読むコードリーディング案内
       quizzing/                   一問ずつ行う理解確認
-      sanity-review/              対話コンテキスト込みの PR レビュー報告書
+      sanity-review/              PR または non-PR commit range のレビュー報告書
       spec-ambiguity-audit/       仕様書の疑問点を機械的フィルタで検証する監査
       subagent-consultation/      サブエージェントへのセカンドオピニオン
       unconventional-simplification/ 暗黙の前提を外して別解を探す
