@@ -74,7 +74,7 @@ living page に置いた決定はその履歴を失うため、ADR は永続層�
 
 - [sanity-review](plugins/agent-gears/README.md#sanity-review): 対話コンテキスト・PR 概要欄(または review brief)・実装コードの整合性つまり「実装者の正気」を点検するレビュー報告書を作成する。GitHub PR に加え、PR の無い commit range にも同じ手順を適用できる。結果ではなくプロセスをレビューする。
 - library-update-review: 依存更新 PR のレビューを行う。
-- codepatrol: リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
+- [codepatrol](plugins/agent-gears/README.md#codepatrol): リポジトリのセキュリティ調査を領域ごとに進める。複数セッションにまたがる長期作業を `.dev/codepatrol/` の状態で継続する。
 
 ### learning (AI支援後の理解を深める)
 

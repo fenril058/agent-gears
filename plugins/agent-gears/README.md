@@ -99,3 +99,26 @@ self-review では、実装中の session から `sanity-review` を実行でき
 - 追加価値がないと判断して実施しなかった: 通常の main-only review。記録しない。
 - 価値があると判断して試みたが、相談先が利用できず usable result を得られなかった: レビュー自体は完全。ただし必要と判断した独立探索経路を得られなかった coverage limitation として報告書に記録する。
 - user が独立レビューを明示的に要求していたが実行できなかった: main review の結果は提示してよいが、要求されたレビュー形態を満たせなかったことを明示する。
+
+## codepatrol
+
+`codepatrol` は、リポジトリのセキュリティ調査を領域ごとに進め、`.dev/codepatrol/` の状態で複数セッションにまたがる調査を継続する。
+
+### 独立探索の境界
+
+調査本体は main investigator 単独で完了する。
+選択した領域のコードを読み、working checklist の該当観点を確認し、tri-state(問題なし/非該当/未確認)で発見事項を記録する調査は main investigator 自身の作業であり、外部へ委譲しない。
+
+独立探索は、同じ領域をもう一度別の探索経路で調べる価値があると判断した場合の任意の追加であり、必須ではない。
+ただし user が明示的に要求した場合は、この追加価値の判断を挟まず実施する。
+実施する場合、独立探索側に渡すのは調査対象の領域、対象 path/files、repository instructions、中立な security mechanism facts、該当する checklist perspective だけである。
+main investigator 側の findings、報告書のドラフト、疑っている箇所、深刻度の判断、修正方針、結論は渡さない。
+
+返ってきた指摘は candidate として扱い、main investigator が実コードで検証したものだけを報告書の発見事項にする。
+working checklist へは逆流させない。
+
+独立探索が無いこと自体は、どの場合も調査の失敗ではない。報告書に何を残すかだけが分かれる。
+
+- 追加価値がないと判断して実施しなかった: 通常の main-only investigation。記録しない。
+- 価値があると判断して試みたが、usable result を得られなかった: 調査自体は完全。ただし必要と判断した独立探索経路を得られなかった coverage limitation として報告書に記録する。
+- user が独立探索を明示的に要求していたが実行できなかった: main investigation の結果は提示してよいが、要求された調査形態を満たせなかったことを明示する。
