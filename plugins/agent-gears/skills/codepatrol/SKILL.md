@@ -134,8 +134,7 @@ customized to the repository:
      A5/E2 if WebSocket is unused).
    - Append repository-specific perspectives at the end of the relevant category,
      continuing the numbering.
-   - Keep the category structure (symbol + number). Report headings and the grouping
-     in step 5 refer to it.
+   - Keep the category structure (symbol + number). Report headings refer to it.
 
 **The checklist's scope**: what to write and not write in the checklist follows
 [checklist-vs-report.md](checklist-vs-report.md) (gist: only spec/mechanism facts and
