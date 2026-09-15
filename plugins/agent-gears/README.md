@@ -65,6 +65,9 @@ GitHub PR が無い commit range でも、次の入力を明示的に与えれ�
 対話コンテキストは PR review と同様に任意入力であり、無くてもレビューを完了できる。
 入力の詳細と revision invariant は `sanity-review` skill の SKILL.md を参照。
 
+レビューは対象repositoryに対してread-onlyであり、findingは報告するだけでその場ではfixしない。
+runtime verificationが必要な場合はexact Reviewed headから作った使い捨てcheckoutを使い、current worktreeがReviewed headのdescendantであっても、そのfileやtest結果を代用しない。
+
 次のどちらも通常の use case である。
 
 - 実装者が自分の PR を見直す self-review
