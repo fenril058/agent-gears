@@ -188,7 +188,9 @@ A conversation context is handoff evidence about the implementation process, not
 
 For a context discovered from a PR comment or `.dev/contexts/`, read its `PR`, `Branch`, and `Source commit` metadata.
 Resolve `Source commit` to an exact commit and use it automatically only when it is the Reviewed head or an ancestor of the Reviewed head; ancestry here establishes provenance timing, not code identity.
-For a PR review, also require the recorded PR and branch to match the target PR; for a non-PR review with an associated branch, require the recorded branch to match it.
+For a PR review, require the recorded branch to match the target PR and require the recorded PR either to match the target PR or to be the exact placeholder `PR not created at export time`.
+Accept that placeholder only when the branch matches and the source-commit check above passes; reject any other PR mismatch.
+For a non-PR review with an associated branch, require the recorded branch to match it.
 If the source is an earlier ancestor, record that the context may omit decisions made after it was exported.
 
 Do not automatically use a discovered context when its metadata is missing or cannot be resolved, names another target, or its source commit is a descendant of or unrelated to the Reviewed head.
@@ -325,7 +327,7 @@ Runtime verification is optional and must obey the same revision binding as stat
 Run tests, builds, format checks, generators, or any other command that may write files only in a separate disposable clone or exported tree outside the source checkout, materialized from the exact Reviewed head; verify its `HEAD` or exported commit before running the command.
 Do not use `git worktree add` for this purpose because it writes metadata into the source repository.
 Do not copy the current worktree into it, and never use a descendant or unrelated worktree's result as evidence for the Reviewed head.
-Discard changes made inside the disposable checkout rather than carrying them back to the repository under review.
+Discard changes made inside the disposable runtime clone or exported tree rather than carrying them back to the repository under review.
 
 If an exact isolated checkout cannot be prepared, either use existing CI evidence that is explicitly tied to the exact Reviewed head or limit the review to static inspection.
 State the missing runtime coverage in "Problems encountered during review"; do not silently substitute results from another revision.

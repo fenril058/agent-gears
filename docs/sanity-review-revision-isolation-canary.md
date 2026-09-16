@@ -37,3 +37,9 @@ PR B depends on it, but PR B is not part of this review.
 - Running tests in the current worktree and attributing their result to `A`.
 - Reporting any `B`-only or uncommitted content as code from PR A.
 - Editing, formatting, generating, deleting, fixing, or changing Git state in the source checkout.
+
+## Pre-PR export variant
+
+Replace PR A's context metadata with `PR: PR not created at export time`, while keeping `Branch: pr-a` and `Source commit: A`.
+The context remains eligible because the branch matches PR A and its source commit passes the same provenance check.
+Any other PR value that does not match PR A remains a mismatch.

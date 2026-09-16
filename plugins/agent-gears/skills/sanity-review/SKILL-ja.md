@@ -141,7 +141,9 @@ conversation contextは実装processに関するhandoff evidenceであってRevi
 
 PR commentまたは `.dev/contexts/` から発見したcontextについて、`PR`・`Branch`・`Source commit` metadataを読む。
 `Source commit` をexact commitへ解決し、Reviewed headと同一またはそのancestorである場合だけ自動的に使用する。ここでancestor関係が示すのはprovenance上の時系列であり、codeの同一性ではない。
-PR reviewでは記録されたPRとbranchも対象PRに一致することを要求し、紐づくbranchがあるnon-PR reviewでは記録されたbranchが一致することを要求する。
+PR reviewでは記録されたbranchが対象PRに一致することを要求し、記録されたPRは対象PRと一致するか、exact placeholder `PR not created at export time` であることを要求する。
+placeholderはbranchが一致し、上記のsource commit確認も通る場合だけ許容し、それ以外のPR不一致は拒否する。
+紐づくbranchがあるnon-PR reviewでは、記録されたbranchが一致することを要求する。
 sourceが以前のancestorである場合、そのcontextはexport後の判断を含まない可能性があると記録する。
 
 metadataが欠けるか解決できない、別の対象を指す、またはsource commitがReviewed headのdescendantかunrelatedであるcontextは自動的に使用しない。
@@ -253,7 +255,7 @@ runtime verificationは任意であり、static inspectionと同じrevision bind
 test・build・format check・generatorなどfileを書きうるcommandは、source checkoutの外にexact Reviewed headから作った別の使い捨てcloneまたはexport済みtree内だけで実行し、実行前にその `HEAD` またはexport元commitを確認する。
 `git worktree add` はsource repositoryへmetadataを書き込むため、この用途には使わない。
 current worktreeをそこへcopyせず、descendantまたはunrelated worktreeの結果をReviewed headのevidenceとして扱わない。
-使い捨てcheckout内で生じた変更は、レビュー対象repositoryへ持ち帰らず破棄する。
+使い捨てruntime cloneまたはexport済みtree内で生じた変更は、レビュー対象repositoryへ持ち帰らず破棄する。
 
 exactな隔離checkoutを用意できない場合は、exact Reviewed headに明示的に紐づく既存CI evidenceを使うか、static inspectionだけに限定する。
 runtime coverageがないことは「レビュー作業において発生した問題」に明記し、別revisionの結果で暗黙に代用しない。
