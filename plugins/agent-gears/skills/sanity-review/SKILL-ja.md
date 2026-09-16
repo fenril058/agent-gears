@@ -14,10 +14,11 @@ compatibility: git が PATH に必要。GitHub PR review では加えて gh CLI(
 feature/bugfix/refactoringの変更(GitHub PR、またはPRの無いcommit range)をレビューし、レビュー報告書を作成する。
 PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了を示し、必要な修正があれば説明するためのものである。
 
-レビュー対象のrepositoryに対して、このreviewはread-onlyである。
-working treeのfileを編集・format・生成・削除などで変更せず、明白なfixであってもfindingをその場で適用しない。
+レビュー対象のsource checkoutとremote repositoryに対して、このreviewはread-onlyである。
+source checkoutのworking-tree file・index・checkout中のbranch・ref・history、およびremote repositoryの状態を変更しない。
+明白なfixであってもfindingをその場で適用しない。
 findingと推奨するfixは報告するだけにする。
-fileを書きうるcommandは、後述するruntime verification用の使い捨てcheckout内だけで実行する。
+source repositoryへのread-only queryは許されるが、fileまたはGit metadataを書きうるcommandは、後述する別の使い捨てcloneまたはexport済みtree内だけで実行する。
 
 ## 対象外
 
@@ -103,7 +104,7 @@ Comparison basis = 実際にレビューした差分の起点となるexact comm
 ```
 
 commitのancestor関係はcommitの同一性ではない。
-Reviewed headを含んでいても、current worktreeがdescendantまたはunrelated commitにあるならReviewed headではなく、そのcode・test・configuration・documentation・context file・runtime resultをreviewに使わない。
+Reviewed headを含んでいても、current worktreeがdescendantまたはunrelated commitにあるならReviewed headではなく、そのcode・test・configuration・documentation・runtime resultをreviewに使わない。
 
 worktreeからレビュー対象repositoryのfileを読む前に、その `HEAD` がexact Reviewed headと等しく、tracked/untracked changeがないことを確認する。
 いずれかを満たさない場合、`git show <Reviewed headのSHA>:<path>` や `git diff <Comparison basisのSHA> <Reviewed headのSHA>` のようにrevisionを指定するread-only commandで対象fileを調べる。
@@ -119,8 +120,8 @@ Reviewed headがcurrent worktreeのancestorであることだけを理由に、�
 
 このskillがnon-PR reviewに対応する前と同じ、以下の順序で探す:
 
-1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容を対話コンテキストとして使用する。
-2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、Reviewed headにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合は、current worktreeにある同名fileではなく、そのrevisionのfileを読み込む。
+1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容をcontext candidateとして扱い、下記のprovenance確認を行う。
+2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。
 3. どちらも見つからなければ、AskUserQuestionツールで以下を確認する:
    - **対話コンテキストなしで続行**: 手順6(考慮漏れの確認)はスキップする
    - **中断**: ユーザーに対話コンテキストの準備を依頼する
@@ -130,8 +131,23 @@ Reviewed headがcurrent worktreeのancestorであることだけを理由に、�
 ここにはPRが無いため、確認すべきPRコメントも無い。代わりに以下の順序で探す:
 
 1. 依頼自体が対話コンテキストを与えている場合(本文への貼り付け、または読めるfile/note)は、それを使用する。ここではこれが第一の情報源である。non-PRのReviewed headは特定のbranchに紐づくとは限らないため、下記2でそれに無関係なcontextへ静かにすり替えない。
-2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、Reviewed headにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合は、そのrevisionのfileを読み込む。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
+2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
 3. どちらも見つからなければ、上と同じ2択でAskUserQuestionツールを使う。
+
+#### 発見したcontextのprovenanceを確認する
+
+`.dev/contexts/` はcommitされないworking-tree scratch areaであり、どのGit revisionにも属さない。
+conversation contextは実装processに関するhandoff evidenceであってReviewed headのcodeではないため、file自体にcodeのrevision invariantを適用しない。
+
+PR commentまたは `.dev/contexts/` から発見したcontextについて、`PR`・`Branch`・`Source commit` metadataを読む。
+`Source commit` をexact commitへ解決し、Reviewed headと同一またはそのancestorである場合だけ自動的に使用する。ここでancestor関係が示すのはprovenance上の時系列であり、codeの同一性ではない。
+PR reviewでは記録されたPRとbranchも対象PRに一致することを要求し、紐づくbranchがあるnon-PR reviewでは記録されたbranchが一致することを要求する。
+sourceが以前のancestorである場合、そのcontextはexport後の判断を含まない可能性があると記録する。
+
+metadataが欠けるか解決できない、別の対象を指す、またはsource commitがReviewed headのdescendantかunrelatedであるcontextは自動的に使用しない。
+意図したcontextの提示または確認、contextなしでの続行、中断のいずれかをユーザーに確認し、current branchのcontextを暗黙に代用しない。
+ユーザーがこのreview用として明示的に与えたcontextはそのまま使用できるが、取得元を記録し、metadataまたはユーザーが裏付けた範囲を超えてcodeを説明するものとは推測しない。
+metadataがdescendantまたはunrelated sourceを示す場合、ユーザーがsupplementalな役割を明示したときだけその役割で使用し、Reviewed headのimplementation contextとして扱わない。
 
 #### 対話コンテキストがリンクする ADR を辿る
 
@@ -234,7 +250,8 @@ non-PR reviewでは照合すべき別のコメントauthorが存在しない。
 変更箇所をテストが覆っている場合は、そのテストが、いま指摘している失敗を実際に捕まえるかを確認する。
 
 runtime verificationは任意であり、static inspectionと同じrevision bindingを守る。
-test・build・format check・generatorなどfileを書きうるcommandは、exact Reviewed headから作った隔離された使い捨てcheckout内だけで実行し、実行前にそのcheckoutの `HEAD` を確認する。
+test・build・format check・generatorなどfileを書きうるcommandは、source checkoutの外にexact Reviewed headから作った別の使い捨てcloneまたはexport済みtree内だけで実行し、実行前にその `HEAD` またはexport元commitを確認する。
+`git worktree add` はsource repositoryへmetadataを書き込むため、この用途には使わない。
 current worktreeをそこへcopyせず、descendantまたはunrelated worktreeの結果をReviewed headのevidenceとして扱わない。
 使い捨てcheckout内で生じた変更は、レビュー対象repositoryへ持ち帰らず破棄する。
 

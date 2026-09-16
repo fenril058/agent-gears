@@ -65,8 +65,9 @@ GitHub PR が無い commit range でも、次の入力を明示的に与えれ�
 対話コンテキストは PR review と同様に任意入力であり、無くてもレビューを完了できる。
 入力の詳細と revision invariant は `sanity-review` skill の SKILL.md を参照。
 
-レビューは対象repositoryに対してread-onlyであり、findingは報告するだけでその場ではfixしない。
-runtime verificationが必要な場合はexact Reviewed headから作った使い捨てcheckoutを使い、current worktreeがReviewed headのdescendantであっても、そのfileやtest結果を代用しない。
+レビューは対象 repository に対して read-only であり、finding は報告するだけでその場では fix しない。
+runtime verification が必要な場合は exact Reviewed head から作った別の使い捨て clone または export 済み tree を使い、current worktree が Reviewed head の descendant であっても、その file や test 結果を代用しない。
+実利用で観測した descendant-worktree 混入事故を固定する [revision-isolation canary](../../docs/sanity-review-revision-isolation-canary.md) は、host の first-party skill testing で使う。
 
 次のどちらも通常の use case である。
 

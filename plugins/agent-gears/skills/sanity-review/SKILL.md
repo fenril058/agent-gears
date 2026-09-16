@@ -18,10 +18,11 @@ Review a feature/bugfix/refactoring change — a GitHub PR, or a commit range th
 PR — and write a review report. For a PR, the report is what a reviewer pastes on
 GitHub to mark the review complete and describe any required fixes.
 
-The review is read-only with respect to the repository being reviewed.
-Do not edit, format, generate, delete, or otherwise change its working-tree files; do not apply a finding's fix, even if the fix is obvious.
+The review is read-only with respect to the source checkout and remote repository being reviewed.
+Do not change the source checkout's working-tree files, index, checked-out branch, refs, or history, and do not change remote repository state.
+Do not apply a finding's fix, even if the fix is obvious.
 Report findings and recommended fixes only.
-Commands that may write files belong only in a disposable checkout used for runtime verification, as described below.
+Read-only queries against the source repository are allowed; commands that write files or Git metadata belong only in a separate disposable clone or exported tree, as described below.
 
 ## Out of scope
 
@@ -135,7 +136,7 @@ Comparison basis = exact commit used as the start of the diff actually reviewed
 ```
 
 Commit ancestry is not commit identity.
-A current worktree that contains the Reviewed head but is at a descendant or unrelated commit is not the Reviewed head and must not supply code, tests, configuration, documentation, context files, or runtime results for that review.
+A current worktree that contains the Reviewed head but is at a descendant or unrelated commit is not the Reviewed head and must not supply code, tests, configuration, documentation, or runtime results for that review.
 
 Before reading target repository files from any worktree, verify both that its `HEAD` equals the exact Reviewed head and that it has no tracked or untracked changes.
 Otherwise, inspect target files with revision-addressed read-only commands such as `git show <Reviewed head SHA>:<path>` and `git diff <Comparison basis SHA> <Reviewed head SHA>`.
@@ -153,10 +154,11 @@ finish with "Follow the ADRs the context links to" below.
 Look in this order — unchanged from before this skill supported non-PR reviews:
 
 1. Check whether any PR comment has a title containing "対話コンテキスト" (conversation
-   context). If found, use its content as the conversation context.
+   context). If found, treat its content as a context candidate and validate its
+   provenance below.
 2. Otherwise, sanitize the branch name (replace `/ \ : * ? " < > |` with `-`) and look
-   for `.dev/contexts/{sanitized branch name}.md` at the Reviewed head. If found, read
-   that revision of the file, not a same-named file from the current worktree.
+   for `.dev/contexts/{sanitized branch name}.md` in the current workspace's scratch
+   area. If found, treat it as a context candidate and validate its provenance below.
 3. If neither is found, ask with the AskUserQuestion tool:
    - **Continue without conversation context**: skip step 6 (omission check).
    - **Abort**: ask the user to prepare the conversation context.
@@ -171,12 +173,28 @@ There is no PR here, so there are no PR comments to check. Look in this order in
    substitute unrelated context for it.
 2. Otherwise, only when a branch name is actually associated with the Reviewed head
    (for example, a self-review of the current checked-out branch), sanitize that branch
-   name and look for `.dev/contexts/{sanitized branch name}.md` at the Reviewed head; if
-   found, read that revision of the file. When the Reviewed head is a bare commit-ish with no associated branch
+   name and look for `.dev/contexts/{sanitized branch name}.md` in the current
+   workspace's scratch area; if found, treat it as a context candidate and validate its
+   provenance below. When the Reviewed head is a bare commit-ish with no associated branch
    name, skip this source without treating its absence as a failure — do not substitute
    the current checked-out branch's context file for a Reviewed head that belongs to a
    different branch or no branch at all.
 3. If neither is found, ask with the AskUserQuestion tool, same two options as above.
+
+#### Validate discovered context provenance
+
+`.dev/contexts/` is an uncommitted working-tree scratch area, not part of any Git revision.
+A conversation context is handoff evidence about the implementation process, not Reviewed-head code, so do not apply the code-revision invariant to the file itself.
+
+For a context discovered from a PR comment or `.dev/contexts/`, read its `PR`, `Branch`, and `Source commit` metadata.
+Resolve `Source commit` to an exact commit and use it automatically only when it is the Reviewed head or an ancestor of the Reviewed head; ancestry here establishes provenance timing, not code identity.
+For a PR review, also require the recorded PR and branch to match the target PR; for a non-PR review with an associated branch, require the recorded branch to match it.
+If the source is an earlier ancestor, record that the context may omit decisions made after it was exported.
+
+Do not automatically use a discovered context when its metadata is missing or cannot be resolved, names another target, or its source commit is a descendant of or unrelated to the Reviewed head.
+Ask the user to supply or confirm the intended context, continue without it, or abort; never substitute the current branch's context silently.
+Context explicitly supplied by the user for this review may be used as supplied, but record its source and do not infer that it describes code beyond what its metadata or the user establishes.
+If its metadata identifies a descendant or unrelated source, use it only when the user explicitly assigns it a supplemental role; do not treat it as the implementation context for the Reviewed head.
 
 #### Follow the ADRs the context links to
 
@@ -304,7 +322,8 @@ Where tests cover the changed area, check whether they would actually catch the 
 you are describing.
 
 Runtime verification is optional and must obey the same revision binding as static inspection.
-Run tests, builds, format checks, generators, or any other command that may write files only in an isolated disposable checkout materialized from the exact Reviewed head; verify that checkout's `HEAD` before running the command.
+Run tests, builds, format checks, generators, or any other command that may write files only in a separate disposable clone or exported tree outside the source checkout, materialized from the exact Reviewed head; verify its `HEAD` or exported commit before running the command.
+Do not use `git worktree add` for this purpose because it writes metadata into the source repository.
 Do not copy the current worktree into it, and never use a descendant or unrelated worktree's result as evidence for the Reviewed head.
 Discard changes made inside the disposable checkout rather than carrying them back to the repository under review.
 
