@@ -125,6 +125,7 @@ CLI の使い方は [`markdown-context/SKILL.md`](plugins/agent-gears/skills/mar
 | plugin 固有の利用上の補足 | [`plugins/agent-gears/README.md`](plugins/agent-gears/README.md) |
 | このリポジトリを編集する際の規則 | [`AGENTS.md`](AGENTS.md) |
 | 設計判断 | [`docs/adr/`](docs/adr/) |
+| sanity-review の revision-isolation canary | [`docs/sanity-review-revision-isolation-canary.md`](docs/sanity-review-revision-isolation-canary.md) |
 | Claude Code の instruction loading canary と暫定回避 | [`docs/claude-code-instruction-loading.md`](docs/claude-code-instruction-loading.md) |
 | 外部由来 skill の出典と許諾 | [`PROVENANCE.json`](PROVENANCE.json)、[`NOTICE`](NOTICE)、[`plugins/agent-gears/LICENSE`](plugins/agent-gears/LICENSE)、[`plugins/agent-gears/NOTICE`](plugins/agent-gears/NOTICE) |
 | 脆弱性の報告方法 | [`SECURITY.md`](SECURITY.md) |

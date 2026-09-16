@@ -12,7 +12,13 @@ compatibility: git が PATH に必要。GitHub PR review では加えて gh CLI(
 # PRレビュー報告書の作成手順書
 
 feature/bugfix/refactoringの変更(GitHub PR、またはPRの無いcommit range)をレビューし、レビュー報告書を作成する。
-PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了を示すためのものであり、修正点がある場合はそれを説明するためのものでもある。
+PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了を示し、必要な修正があれば説明するためのものである。
+
+レビュー対象のsource checkoutとremote repositoryに対して、このreviewはread-onlyである。
+source checkoutのworking-tree file・index・checkout中のbranch・ref・history、およびremote repositoryの状態を変更しない。
+明白なfixであってもfindingをその場で適用しない。
+findingと推奨するfixは報告するだけにする。
+source repositoryへのread-only queryは許されるが、fileまたはGit metadataを書きうるcommandは、後述する別の使い捨てcloneまたはexport済みtree内だけで実行する。
 
 ## 対象外
 
@@ -84,7 +90,7 @@ Reviewed headのコードは、refを現在のworktreeへcheckoutするのでは
 
 このpathでは報告書ヘッダーにPR番号とブランチ名が無い(手順7参照)。どちらもplaceholderで埋めない。
 
-#### 報告書・差分・実際に読むコードをexact revisionへ結びつける
+#### すべてのreview evidenceをexact revisionへ結びつける
 
 コードを読む前に、Reviewed headのexact commit SHAと、差分の起点として実際に使うComparison basisのexact commit SHAを確定する。
 branch名や移動しうるbranchの先端ではなく、commit SHAを記録する。
@@ -92,11 +98,18 @@ branch名や移動しうるbranchの先端ではなく、commit SHAを記録す�
 レビュー中は、次のinvariantを維持する:
 
 ```text
-報告書のReviewed head = 差分のhead = 実際に読んだコードのrevision
+報告書のReviewed head = 差分のhead = review対象codeとして扱うすべてのrepository fileのrevision
+runtime cloneのHEADまたはexport済みtreeのsource commit = 報告書のReviewed head(runtime verificationを行う場合)
 Comparison basis = 実際にレビューした差分の起点となるexact commit
 ```
 
-実際に読むコードがReviewed headそのものであることを確認し、worktreeの未コミット変更をそのrevisionの一部として混入させない。
+commitのancestor関係はcommitの同一性ではない。
+Reviewed headを含んでいても、current worktreeがdescendantまたはunrelated commitにあるならReviewed headではなく、そのcode・test・configuration・documentation・runtime resultをreviewに使わない。
+
+worktreeからレビュー対象repositoryのfileを読む前に、その `HEAD` がexact Reviewed headと等しく、tracked/untracked changeがないことを確認する。
+いずれかを満たさない場合、`git show <Reviewed headのSHA>:<path>` や `git diff <Comparison basisのSHA> <Reviewed headのSHA>` のようにrevisionを指定するread-only commandで対象fileを調べる。
+Reviewed headがcurrent worktreeのancestorであることだけを理由に、そのfileをreview evidenceとして扱わない。
+比較を理解するために古い版を読む場合は、Comparison basisのSHAを指定し、Reviewed headのcodeではなく比較用のevidenceとして区別する。
 実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
 
 ### 手順1: 対話コンテキストの読み込み
@@ -107,8 +120,8 @@ Comparison basis = 実際にレビューした差分の起点となるexact comm
 
 このskillがnon-PR reviewに対応する前と同じ、以下の順序で探す:
 
-1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容を対話コンテキストとして使用する。
-2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、`.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はReadツールで読み込む。
+1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容をcontext candidateとして扱い、下記のprovenance確認を行う。
+2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。
 3. どちらも見つからなければ、AskUserQuestionツールで以下を確認する:
    - **対話コンテキストなしで続行**: 手順6(考慮漏れの確認)はスキップする
    - **中断**: ユーザーに対話コンテキストの準備を依頼する
@@ -118,14 +131,32 @@ Comparison basis = 実際にレビューした差分の起点となるexact comm
 ここにはPRが無いため、確認すべきPRコメントも無い。代わりに以下の順序で探す:
 
 1. 依頼自体が対話コンテキストを与えている場合(本文への貼り付け、または読めるfile/note)は、それを使用する。ここではこれが第一の情報源である。non-PRのReviewed headは特定のbranchに紐づくとは限らないため、下記2でそれに無関係なcontextへ静かにすり替えない。
-2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、`.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はReadツールで読み込む。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
+2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
 3. どちらも見つからなければ、上と同じ2択でAskUserQuestionツールを使う。
+
+#### 発見したcontextのprovenanceを確認する
+
+`.dev/contexts/` はcommitされないworking-tree scratch areaであり、どのGit revisionにも属さない。
+conversation contextは実装processに関するhandoff evidenceであってReviewed headのcodeではないため、file自体にcodeのrevision invariantを適用しない。
+
+PR commentまたは `.dev/contexts/` から発見したcontextについて、`PR`・`Branch`・`Source commit` metadataを読む。
+`Source commit` をexact commitへ解決し、Reviewed headと同一またはそのancestorである場合だけ自動的に使用する。ここでancestor関係が示すのはprovenance上の時系列であり、codeの同一性ではない。
+PR reviewでは記録されたbranchが対象PRに一致することを要求し、記録されたPRは対象PRと一致するか、exact placeholder `PR not created at export time` であることを要求する。
+placeholderはbranchが一致し、上記のsource commit確認も通る場合だけ許容し、それ以外のPR不一致は拒否する。
+紐づくbranchがあるnon-PR reviewでは、記録されたbranchが一致することを要求する。
+sourceが以前のancestorである場合、そのcontextはexport後の判断を含まない可能性があると記録する。
+
+metadataが欠けるか解決できない、別の対象を指す、またはsource commitがReviewed headのdescendantかunrelatedであるcontextは自動的に使用しない。
+意図したcontextの提示または確認、contextなしでの続行、中断のいずれかをユーザーに確認し、current branchのcontextを暗黙に代用しない。
+ユーザーがこのreview用として明示的に与えたcontextはそのまま使用できるが、取得元を記録し、metadataまたはユーザーが裏付けた範囲を超えてcodeを説明するものとは推測しない。
+metadataがdescendantまたはunrelated sourceを示す場合、ユーザーがsupplementalな役割を明示したときだけその役割で使用し、Reviewed headのimplementation contextとして扱わない。
 
 #### 対話コンテキストがリンクする ADR を辿る
 
 ADR に記録された決定について、対話コンテキストは要約しか持たない。根拠は ADR 側にある(`conversation-context-export` 参照)。
 コンテキストがリンクする ADR はすべて読む。
 読まなければ要約を相手にレビューすることになり、意図して記録された決定を、説明のない場当たりな選択として読んでしまう。
+repository内のADRはReviewed headのrevisionを読み、別のworktree revisionにある版で代用しない。
 
 diff が ADR ディレクトリまたは `CONTEXT.md` に触れている場合は、その変更もここで読む。
 決定や定義を変える変更は、自分の diff についてではなくコードベース全体について主張しているからである。
@@ -219,6 +250,15 @@ non-PR reviewでは照合すべき別のコメントauthorが存在しない。
 差分だけでなくコードを読む。差分は、変更された行が動く文脈を隠すからである。
 発見した問題は、その根拠(どこにあり、なぜ誤りか)と共に記録する。
 変更箇所をテストが覆っている場合は、そのテストが、いま指摘している失敗を実際に捕まえるかを確認する。
+
+runtime verificationは任意であり、static inspectionと同じrevision bindingを守る。
+test・build・format check・generatorなどfileを書きうるcommandは、source checkoutの外にexact Reviewed headから作った別の使い捨てcloneまたはexport済みtree内だけで実行し、実行前にその `HEAD` またはexport元commitを確認する。
+`git worktree add` はsource repositoryへmetadataを書き込むため、この用途には使わない。
+current worktreeをそこへcopyせず、descendantまたはunrelated worktreeの結果をReviewed headのevidenceとして扱わない。
+使い捨てruntime cloneまたはexport済みtree内で生じた変更は、レビュー対象repositoryへ持ち帰らず破棄する。
+
+exactな隔離checkoutを用意できない場合は、exact Reviewed headに明示的に紐づく既存CI evidenceを使うか、static inspectionだけに限定する。
+runtime coverageがないことは「レビュー作業において発生した問題」に明記し、別revisionの結果で暗黙に代用しない。
 
 ### 手順6: 対話コンテキストの再読み・考慮漏れ確認
 
