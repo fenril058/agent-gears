@@ -67,7 +67,7 @@ GitHub PR が無い commit range でも、次の入力を明示的に与えれ�
 
 レビューは対象 repository に対して read-only であり、finding は報告するだけでその場では fix しない。
 runtime verification が必要な場合は exact Reviewed head から作った別の使い捨て clone または export 済み tree を使い、current worktree が Reviewed head の descendant であっても、その file や test 結果を代用しない。
-実利用で観測した descendant-worktree 混入事故を固定する [revision-isolation canary](../../docs/sanity-review-revision-isolation-canary.md) は、host の first-party skill testing で使う。
+実利用で観測した descendant-worktree 混入事故を固定する [revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、host の first-party skill testing で使う。
 
 次のどちらも通常の use case である。
 
@@ -125,4 +125,4 @@ working checklist へは逆流させない。
 
 - 追加価値がないと判断して実施しなかった: 通常の main-only investigation。記録しない。
 - 価値があると判断して試みたが、usable result を得られなかった: 調査自体は完全。ただし必要と判断した独立探索経路を得られなかった coverage limitation として報告書に記録する。
-- user が独立探索を明示的に要求していたが実行できなかった: main investigation の結果は提示してよいが、要求された調査形態を満たせなかったことを明示する。
+- user が独立探索を明示的に要求していたが実行できなかった: main review の結果は提示してよいが、要求された調査形態を満たせなかったことを明示する。
