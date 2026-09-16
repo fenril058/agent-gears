@@ -144,8 +144,9 @@ Claude Code が file 操作を Bash-first にすると、nested `CLAUDE.md` と 
 1. `plugins/agent-gears/skills/<name>/SKILL.md` を追加する。
 2. 英語正本の skill には `SKILL-ja.md` を追加し、以後も手動で同期する。
 3. 外部由来なら `PROVENANCE.json` と必要な `LICENSE` / `NOTICE` を更新する。
-4. skill はディレクトリ構成から自動列挙されるため、配布スクリプトへ名前を追加しない。
-5. `nix fmt` と `nix flake check` を実行する。
+4. 上の [Skills](#skills) の表にリンクを追加する。改名・削除のときも同じ表を直す。
+5. skill はディレクトリ構成から自動列挙されるため、配布スクリプトへ名前を追加しない。
+6. `nix fmt` と `nix flake check` を実行する。
 
 frontmatter、帰属表示、配布、plugin metadata の詳細な更新規則は [`AGENTS.md`](AGENTS.md) を参照する。
 
