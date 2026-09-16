@@ -71,6 +71,8 @@ Claude Code は plugin 内の `skills/` を読み込む。
 
 Codex では `skill-installer` に [`plugins/agent-gears/skills/`](plugins/agent-gears/skills/) 内の必要な skill ディレクトリを指定する。
 
+`argument-gap-edit` は `japanese-tech-writing` の内容を参照するため、この2つは併せて入れる。
+
 ### home-manager
 
 全 skill、常時ルール、`mdidx` をまとめて配布する場合は home-manager module を使う。
