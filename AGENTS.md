@@ -15,6 +15,8 @@
 - 単一 plugin の `name`/`version`/`keywords` は `marketplace.json` と `plugins/agent-gears/.claude-plugin/plugin.json` に重複。
   一致と README の Claude plugin install 例は CI の `scripts/check-plugin-meta.sh` が検証する。
   `description` は粒度が違う(marketplace=詳細／plugin.json=短縮)ので手動。
+  `version` は marketplace 経由の更新の pin なので、配布したい変更を入れたら両方 bump する。
+  据え置くと install 済みの利用者へ以後の変更が届かない(新規 install だけが最新を取るので手元では気づきにくい)。
   `marketplace.json` の `source` は `"./plugins/<name>"` 形式で書く。
   Claude Code は `"./"` 始まりの相対パスしか受け付けず、`"<name>"` だと一覧表示は通るのに
   `plugin install` が `source: Invalid input` で落ちる。

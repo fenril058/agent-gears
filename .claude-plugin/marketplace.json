@@ -4,13 +4,13 @@
     "name": "fenril058",
     "email": "fenril.nh@gmail.com"
   },
-  "description": "トークン削減と効率的なエージェント運用のための skill 群(Claude Code・Codex 共用)",
+  "description": "トークン削減と効率的なエージェント運用のための skill 群",
   "plugins": [
     {
       "name": "agent-gears",
       "source": "./plugins/agent-gears",
       "description": "文脈効率、指示設計、批評、記録、レビュー、学習、文章規範をまとめて配布する skill 群。shokai/agent-skills、mattpocock/skills、mizchi/skills、yasunori0418/skills(MIT)と k16shikano の gist(public domain)由来を含む。",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "fenril058"
       },
