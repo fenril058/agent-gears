@@ -99,7 +99,7 @@ branch名や移動しうるbranchの先端ではなく、commit SHAを記録す�
 
 ```text
 報告書のReviewed head = 差分のhead = review対象codeとして扱うすべてのrepository fileのrevision
-                        = runtime verificationを行う場合、そのcheckoutのHEAD
+runtime cloneのHEADまたはexport済みtreeのsource commit = 報告書のReviewed head(runtime verificationを行う場合)
 Comparison basis = 実際にレビューした差分の起点となるexact commit
 ```
 

@@ -131,7 +131,7 @@ Maintain this invariant throughout the review:
 
 ```text
 report's Reviewed head = diff's head = revision of every repository file treated as reviewed code
-                        = runtime checkout's HEAD, if runtime verification is used
+runtime clone's HEAD or exported tree's source commit = report's Reviewed head, if runtime verification is used
 Comparison basis = exact commit used as the start of the diff actually reviewed
 ```
 
