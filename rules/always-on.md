@@ -24,34 +24,10 @@
   推論で書いた安全性の説明は、そのまま欠陥になる。
   実験できないなら断定せず「未確認」と書く。
 
-## Git 操作
-
-- 読み取り専用の依頼、または `.git` に書き込めない状況では `git fetch` を実行せず、`git ls-remote origin main` でリモートの `main` を確認する。
-  リモート先端が現在の `origin/main` と一致し、`git merge-base --is-ancestor origin/main HEAD` が成功した場合だけ、リモートの最新 `main` を含むと述べる。
-  リモート先端が現在の `origin/main` と一致しない場合、または network unavailable などで確認できない場合は「リモートの最新 `main` を含むかは未確認」と明記し、最新性を主張しない。
-  それ以外では、「リモートの最新 `main` を含む」と述べる前に `git fetch origin main` を実行し、`git merge-base --is-ancestor origin/main HEAD` で確認する。
-
 ## PR 本文
 
 - PR 本文に、差分・テストコード・CI 結果から直接確認でき、変更で陳腐化する件数・バージョン・ファイル一覧を転記しない。
   これらは受入条件・比較結果・意思決定の根拠になる場合だけ記載する。
-
-## リポジトリ配置 (ghq)
-
-- GitHub 等の clone は ghq 管理下に置く(`~/ghq/<host>/<owner>/<repo>`)。
-- ただし `<owner>/<repo>` は **`ghq get` した URL** で決まり、現在の `origin` とは一致しないことがある。
-  upstream を ghq get した後に origin を fork へ張り替えた fork では、ディレクトリは upstream owner のまま(例: `~/ghq/github.com/emacs-twist/twist.nix` の origin は `fenril058/twist.nix`)。
-- よって path を `origin` から推測しない。実 path は `ghq list --exact --full-path <repo>` で確認し、同名リポジトリが複数 owner にある場合は `ghq list --exact --full-path <owner>/<repo>` で特定する。
-
-## worktree
-
-- `wt` が使えるなら、worktree の作成・切替・削除に `git worktree` を直接使わず `wt` を通す。
-  ホスト固有の作成経路が `wt` を通ると確認できないなら、その経路に頼らず `wt` を直接呼ぶ。
-  手順は、そのホストに Worktrunk の skill(`worktrunk` / `wt-switch-create`)があればそれに従う。
-- 自分から worktree を作るのは、並列作業(複数セッション/エージェントの同時進行)を意図するときだけ。
-  利用者が worktree を明示的に要求した場合は、この判断を挟まない。
-- worktree の path を渡されたことだけを、その worktree へ書き込める根拠にしない。
-  ホストの書き込み可能範囲と、操作対象がその worktree であることを確認する。
 
 ## Markdownの整形ルール
 
