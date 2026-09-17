@@ -1,9 +1,5 @@
 # Claude Code 専用の常時ルール
 
-## worktree
-
-- 指定した branch 名をそのまま使い、後続の統合手順もその branch を前提とする並列委譲では、`Agent` の `isolation: "worktree"` を直接選ばず、`worktrunk` skill の parallel sub-Agents 手順に従う。
-
 ## Bash
 
 - CI や background job の完了待ちは `Monitor` の until ループか `run_in_background` を使う。
