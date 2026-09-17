@@ -1,5 +1,3 @@
-# Claude Code 専用の常時ルール
-
 ## Bash
 
 - CI や background job の完了待ちは `Monitor` の until ループか `run_in_background` を使う。
