@@ -36,7 +36,7 @@ skill と agent はディレクトリ構成から自動列挙されるので、�
 `description` は粒度が違う(marketplace=詳細 / plugin.json=短縮)ので手動で合わせる。
 配布したい変更を入れたら両方の `version` を bump する(marketplace 経由の更新 pin なので、据え置くと install 済みの利用者へ届かない)。
 `marketplace.json` の `source` は `"./plugins/<name>"` 形式で書く。
-`"<name>"` だと一覧表示は通るのに `plugin install` が `source: Invalid input` で落ち、`metadata.pluginRoot` は解決時に使われないので当てにしない。
+bare な `"<name>"` は `metadata.pluginRoot` 基準で解決されるが、このリポジトリは pluginRoot を設定しないので `plugin install` が落ちる(CLI 2.1.234 では pluginRoot 自体が未実装だった)。
 
 ## Claude Code の Bash-first regression への暫定回避
 

@@ -32,8 +32,9 @@ case "$src" in
 esac
 
 # source は marketplace のルート(このリポジトリのルート)基準で解決される。
-# Claude Code は "./" 始まりの相対パスしか受け付けない。
-# metadata.pluginRoot は schema にはあるが解決時に使われないため、source に plugins/ を含める。
+# bare な source 名は metadata.pluginRoot 基準で解決される(CLI 2.1.234 では未実装、
+# 2.1.274 のバイナリ内 schema で実装を確認)。このリポジトリは pluginRoot を使わず、
+# "./" 始まりの相対パスに plugins/ を含めることで両 version で同じ解決先にする。
 pj="${src#./}/.claude-plugin/plugin.json"
 if [ "$pj" != "$fs_files" ]; then
   echo "NG: marketplace source と plugin.json の配置が不一致: marketplace=$pj, plugins=$fs_files" >&2
