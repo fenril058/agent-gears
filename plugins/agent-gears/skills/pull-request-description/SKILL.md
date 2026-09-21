@@ -1,9 +1,9 @@
 ---
 name: pull-request-description
 description: >-
-  Write or revise the body of a pull request (the PR description). Use for any task that
-  creates, opens, drafts, edits, updates, reviews, or checks a PR body, including a
-  request to create or open a PR that does not mention the body explicitly. Open with a
+  Write, revise, or check the body of a pull request (the PR description).
+  Use whenever a task creates or opens a PR, even if the request does not mention its body.
+  Also use when drafting, editing, updating, reviewing, or checking a PR body. Open with a
   concise summary, then keep the rest of the body to what the diff cannot show — purpose,
   design decisions, acceptance criteria, review context — and keep out inventory the diff,
   commits, test code, and CI results already state.
@@ -42,3 +42,4 @@ For each line ask: **is this an exhaustive listing, a count, or a walkthrough of
 If yes, delete it, unless it is a comparison, an acceptance criterion, or the reason for a decision.
 The opening summary stays; the inventory behind it does not.
 If deleting leaves the body saying nothing the diff does not, the PR needs a stated reason for the change, not a longer body.
+When asked only to check a body, report what violates these rules and leave the rewrite to the author unless they ask for it.
