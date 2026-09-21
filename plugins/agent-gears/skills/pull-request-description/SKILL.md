@@ -2,10 +2,10 @@
 name: pull-request-description
 description: >-
   Write or revise the body of a pull request (the PR description). Use when opening a PR,
-  drafting, editing, or updating its body, or reviewing a body before it is posted. Keep
-  the body to what the diff cannot show — purpose, design decisions, acceptance criteria,
-  review context — and keep out inventory the diff, commits, test code, and CI results
-  already state.
+  drafting, editing, or updating its body, or reviewing a body before it is posted. Open
+  with a concise summary, then keep the rest of the body to what the diff cannot show —
+  purpose, design decisions, acceptance criteria, review context — and keep out inventory
+  the diff, commits, test code, and CI results already state.
 ---
 
 # Pull request description
