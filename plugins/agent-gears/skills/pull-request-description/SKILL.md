@@ -1,11 +1,12 @@
 ---
 name: pull-request-description
 description: >-
-  Write or revise the body of a pull request (the PR description). Use when opening a PR,
-  drafting, editing, or updating its body, or reviewing a body before it is posted. Open
-  with a concise summary, then keep the rest of the body to what the diff cannot show —
-  purpose, design decisions, acceptance criteria, review context — and keep out inventory
-  the diff, commits, test code, and CI results already state.
+  Write or revise the body of a pull request (the PR description). Use for any task that
+  creates, opens, drafts, edits, updates, reviews, or checks a PR body, including a
+  request to create or open a PR that does not mention the body explicitly. Open with a
+  concise summary, then keep the rest of the body to what the diff cannot show — purpose,
+  design decisions, acceptance criteria, review context — and keep out inventory the diff,
+  commits, test code, and CI results already state.
 ---
 
 # Pull request description
@@ -14,15 +15,16 @@ A PR body is read alongside the diff, never instead of it.
 Open with a sentence or two on what the change does, enough to orient the reviewer.
 Spend the rest on what the diff cannot answer, not on re-listing what the reviewer already has in front of them and what the next push will make stale.
 
-## Write, in this priority order
+## Write only what applies, in this priority order
 
 1. The problem this change solves, and why it is worth solving now.
 2. The approach taken, and — when alternatives were actually weighed — why the others were rejected.
 3. Design decisions a reader would otherwise have to reverse-engineer from the diff.
-4. Acceptance criteria: what must hold for the change to be correct, and how that was confirmed.
+4. Non-obvious acceptance criteria the reviewer cannot recover from the diff or the tests.
 5. Context the review needs: scope boundaries, known limitations, follow-up work, risk and rollback, where to look first.
 
-Include an item only when it applies to this change; a small maintenance change may need nothing past the first two.
+Do not create a section merely to cover this list.
+A small change may need only the opening summary and a brief reason.
 Never supply an item you did not actually have — an invented alternative or an after-the-fact rationale misleads the review.
 
 ## Don't transcribe
