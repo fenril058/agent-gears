@@ -40,8 +40,9 @@ What carries the argument is the concrete detail itself, not a reason standing b
 ## Check before posting
 
 Ask it of each concrete detail — a listing, a count, a walkthrough — rather than of the line: **does the diff, the commits, the test code, or the CI result already show this?**
-If so, remove that detail and see whether the same claim survives.
-If it survives, delete the detail alone and keep the rest of the sentence; if it does not, the detail itself is carrying a comparison, an acceptance criterion, or the reason for a decision, so keep it.
+If so, remove that detail and see whether a claim the diff does not make — a reason, a piece of context — still stands without it.
+If one does, delete the concrete detail alone and keep the rest.
+If none does, that is not a reason to keep the detail: ask again whether the detail itself carries a comparison, an acceptance criterion, or the reason for a decision, and drop the whole claim when it does not.
 The opening summary stays; the inventory behind it does not.
 If deleting leaves the body saying nothing the diff does not, the PR needs a stated reason for the change, not a longer body.
 When asked only to check a body, report what violates these rules and leave the rewrite to the author unless they ask for it.
