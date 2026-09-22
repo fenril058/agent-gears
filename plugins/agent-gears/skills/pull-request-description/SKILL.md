@@ -35,11 +35,14 @@ Never supply an item you did not actually have — an invented alternative or an
 
 Such facts belong in the body only when they carry an argument: a before/after comparison, an acceptance criterion, or the basis of a decision.
 "3 queries per request down to 1" is a measurement; "12 files changed" is not.
+What carries the argument is the concrete detail itself, not a reason standing beside it in the same sentence.
 
 ## Check before posting
 
-For each line ask: **is this an exhaustive listing, a count, or a walkthrough of what the diff, the commits, the test code, or the CI result already shows?**
-If yes, delete it, unless it is a comparison, an acceptance criterion, or the reason for a decision.
+Ask it of each concrete detail — a listing, a count, a walkthrough — rather than of the line: **does the diff, the commits, the test code, or the CI result already show this?**
+If so, remove that detail and see whether a claim the diff does not make — a reason, a piece of context — still stands without it.
+If one does, delete the concrete detail alone and keep the rest.
+If none does, that is not a reason to keep the detail: ask again whether the detail itself carries a comparison, an acceptance criterion, or the reason for a decision, and drop the whole claim when it does not.
 The opening summary stays; the inventory behind it does not.
 If deleting leaves the body saying nothing the diff does not, the PR needs a stated reason for the change, not a longer body.
 When asked only to check a body, report what violates these rules and leave the rewrite to the author unless they ask for it.

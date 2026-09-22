@@ -1,7 +1,7 @@
 {
   "name": "agent-gears",
   "description": "文脈効率、指示設計、批評、記録、レビュー、学習、文章規範の skill 群。",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": {
     "name": "fenril058",
     "email": "fenril.nh@gmail.com"
