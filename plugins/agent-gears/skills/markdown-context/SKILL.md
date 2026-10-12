@@ -1,50 +1,51 @@
 ---
 name: markdown-context
-description: Use when a Markdown file is large, its length is unknown, or you need to read only the relevant sections from a file that is not known to be small. Read a known-small Markdown file directly. For READMEs, design docs, specs, long documents, book manuscripts, etc., save tokens by fetching just the right part from a heading index instead of loading the whole file. mdidx is the primary tool; bring in mq only when you need structural queries.
+description: Retrieve selected sections from a long Markdown document when heading-based extraction would avoid reading substantial unrelated content. Use for partial reading of long specs, design docs, or manuscripts. Small files, unknown length alone, and tasks requiring the whole document do not call for this skill.
 compatibility: Requires the mdidx and jq binaries on PATH. mq is optional (structural queries only). These are not bundled with the skill; see the repo README tools section to install (mdidx e.g. `nix profile install github:fenril058/agent-gears#mdidx`).
 ---
 
 # Markdown Context Retrieval
 
-Don't full-text Read a large Markdown file. **Look at the index, take only the sections
-you need.** The built-in Read (offset/limit) + Grep can't reliably find a section's end,
-but mdidx cuts section boundaries at headings, so you neither miss nor over-grab.
+Use `mdidx` to fetch sections by heading when that saves more reading than the index and selection add.
+It splits at recognized headings; it does not determine which sections contain all the requirements for a task.
 
-> Needs `mdidx` and `jq` on PATH (`mq` is optional). They are not shipped with this skill;
-> if missing, install per the [repo README](https://github.com/fenril058/agent-gears#readme)
-> — e.g. `nix profile install github:fenril058/agent-gears#mdidx`.
+## Choose the reading method
 
-## Decision
+- Read small files directly.
+  Unknown length alone is not a reason to index: use available file information, a bounded Read, or a size check if needed.
+- If the task needs the whole document, read it directly, in chunks if necessary.
+  Indexing and then printing `.sections[]` adds work without narrowing the content.
+- For a long document with only part relevant, use the heading index below when helpful.
+  An existing line range or a targeted `rg` search followed by Read or shell extraction may already be sufficient.
+- If `mdidx` or `jq` is missing, use Read or shell operations for the current task.
+  Installation instructions are in the [repo README](https://github.com/fenril058/agent-gears#readme).
 
-- File is small (a few dozen lines) → just Read it.
-- File is large / length unknown / you only need part → the mdidx steps below.
-- You need "only the code blocks", "cross-cutting extraction by element type", or a
-  "transform" → mq (below).
+## Fetch sections with mdidx
 
-## mdidx (primary, fixed 2 steps)
+`mdidx` converts Markdown into `{index, sections}` JSON.
+The N in the index's `## N. heading` corresponds to `sections[N]`.
+Each section ends at the next recognized heading, including a child heading.
+If there is a preamble, it occupies `sections[0]`; otherwise the first heading does.
 
-`mdidx` converts Markdown into `{index, sections}` JSON. `index` is a numbered table of
-contents; `sections` is an array of raw Markdown per heading. The N in the index's
-`## N. heading` corresponds to `sections[N]`.
-
-1. Look at the TOC (a few dozen lines):
+1. Inspect the index unless you already have one for the current file contents:
 
    ```bash
    mdidx path/to/doc.md | jq -r '.index'
    ```
 
-2. Take only the sections you need (N is the index number):
+2. Fetch the selected sections:
 
    ```bash
-   mdidx path/to/doc.md | jq -r '.sections[5]'
+   mdidx path/to/doc.md | jq -r '.sections[3,5,8]'
    ```
 
-   For multiple sections, `jq -r '.sections[3,5,8]'`. To grab a heading together with
-   its subsections, slice the range: `jq -r '.sections[2:6][]'`. Children follow their
-   parent in the numbering, so a contiguous deeper-heading range is that heading's whole
-   subtree. `sections[0]` is any preamble before the first heading.
+   To include a heading's children, use a slice such as `.sections[2:6][]`, ending before the next heading of the same or shallower depth.
+   Choose the numbers from the index, not from this example.
 
-If you query the same file repeatedly, convert once and cache:
+Include governing context such as the parent introduction, global constraints, and referenced definitions or exceptions when they apply.
+If headings do not establish where relevant requirements live, search the body or broaden the read; a selected section alone does not prove completeness.
+
+For repeated queries on unchanged contents, convert once and reuse the result:
 
 ```bash
 mdidx path/to/doc.md > /tmp/doc.idx.json
@@ -52,23 +53,10 @@ jq -r '.index'       /tmp/doc.idx.json
 jq -r '.sections[5]' /tmp/doc.idx.json
 ```
 
-`--pretty` is for human-readable formatting; not needed in a pipeline.
+## Structural queries with mq (optional)
 
-## mq (auxiliary, only when you need structural queries)
+Use `mq` for extraction by element type or transformations, rather than translating heading-section retrieval into a more complex query.
 
-`mq` is jq for Markdown. It can extract / traverse / transform by element type.
-**If your goal is fetching sections, use mdidx.** Use mq only for other purposes like:
-
-- List just the headings: `mq -F text '.h2' doc.md`
-- Collect just the code blocks: `mq -F text '.code' doc.md`
-- When you need to specify the input format or transform, `-I` / `-F` (see `mq --help`)
-
-`mq -F text` output mixes blank lines between elements. If that's hard to read, append
-`| sed '/^[[:space:]]*$/d'` to strip blank lines
-(e.g. `mq -F text '.h2' doc.md | sed '/^[[:space:]]*$/d'`).
-
-## Don't
-
-- Don't full-text Read a large Markdown file without reason.
-- Don't write a "section fetch" that mdidx handles as an mq query (a wrong query
-  silently drops content).
+- Headings: `mq -F text '.h2' doc.md`
+- Code blocks: `mq -F text '.code' doc.md`
+- Input/output formats: `-I` / `-F` (see `mq --help`)
