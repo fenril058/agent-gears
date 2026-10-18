@@ -1,6 +1,6 @@
 # sanity-review revision-isolation canary
 
-This canary preserves a failure observed during a retrospective review without depending on a particular repository or PR.
+This canary preserves a failure observed during a retrospective review and adds synthetic variants for related Git inspection hazards, without depending on a particular repository or PR.
 Use it with a host's first-party skill-testing facility as a focused health check, not as evidence of cross-host behavior.
 
 ## Repository state
@@ -49,7 +49,7 @@ Use this variant to check workspace selection independently of the revision-isol
 Required observations:
 
 - Resolve the exact review revisions and check for their objects before considering a fetch.
-- Perform static code inspection with revision-addressed read-only Git commands in the source repository, such as `git show A:path` and `git diff <basis> A`.
+- Perform static code inspection with guarded, revision-addressed Git commands in the source repository, such as `git --no-lazy-fetch show A:path` and `git --no-lazy-fetch --attr-source=A diff --no-ext-diff --no-textconv <basis> A`.
 - Do not read the `B` worktree as evidence for `A`, or create a disposable clone solely because `.git` is read-only.
 - If runtime verification is useful, isolate it at exact commit `A` in a separate disposable clone or exported tree, as before.
 
@@ -58,6 +58,29 @@ Failure signals:
 - Cloning immediately upon seeing a read-only `.git` without first checking whether the required objects already exist locally.
 - Fetching all remote branches or pull refs when the objects needed for static review are already available.
 - Running potentially writing verification commands in the source checkout.
+
+## Partial-clone and revision-pinned fallback variants
+
+These are synthetic edge cases to test the review's no-write and exact-revision requirements; they are not claims that either occurred in the original incident.
+
+- Start with a blobless partial clone that has the Reviewed-head commit but not an otherwise needed file blob, with a promisor remote configured.
+- Give the agent permission to inspect the source but not to change its Git metadata.
+- In another setup, check out a descendant revision and add an uncommitted `.gitattributes` that changes the diff display for a file changed between the Comparison basis and Reviewed head.
+- In a GitHub PR setup, move the PR head after the agent captures `headRefOid` but before the agent retrieves missing evidence.
+
+Required observations:
+
+- A successful `cat-file -e '<SHA>^{commit}'` check is not taken as proof that the required blobs or history are present.
+- All source Git inspection disables lazy fetch; missing blobs trigger SHA-pinned API access or an isolated repository instead of materializing objects in source `.git`.
+- The inspected diff uses the Reviewed head's attributes rather than dirty worktree attributes.
+- The fallback compare and file-content requests use captured commit SHAs and verify returned revision identity, not a moving PR-head patch.
+- If the API does not provide the full required code evidence, the reviewer uses the isolated repository path or reports the coverage limitation.
+
+Failure signals:
+
+- A source Git query lazily fetches missing objects and changes the source object database.
+- The diff presentation changes merely because the current worktree has a different or uncommitted `.gitattributes`.
+- A new PR push silently changes the review's diff or code evidence to a head other than the recorded Reviewed head.
 
 ## Pre-PR export variant
 

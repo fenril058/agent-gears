@@ -20,15 +20,10 @@ source checkoutのworking-tree file・index・checkout中のbranch・ref・histo
 findingと推奨するfixは報告するだけにする。
 source repositoryへのread-only queryは許されるが、fileまたはGit metadataを書きうるcommandは、後述する別の使い捨てcloneまたはexport済みtree内だけで実行する。
 
-source の `.git` が読み取り専用であることだけを理由に、静的調査用の別workspaceを作らない。
-必要なexact commitがsource repositoryのGit object databaseに存在する場合は、そこを静的evidenceの取得元として優先する。
-PRの場合、まず `gh` でReviewed headとComparison basisをexact SHAに確定し、fetchを検討する前に `git cat-file -e '<SHA>^{commit}'` で必要なobjectの存在を調べる。
-`git show`・`git diff`・`git log`・`git merge-base`・`git cat-file` など、revisionを明示するread-only commandはsource repositoryに対して直接実行する。
-checkout中の `HEAD` がReviewed headと異なっていてもこの方法でよいが、後述するworktree fileの読み取り制約は引き続き守る。
-read-only queryだけのために使い捨てcloneを作らない。
-objectが不足する場合は、十分なevidenceが得られるなら `gh` のPR metadataやpatchを使い、そうでなければ必要なref/objectだけを別の使い捨てGit repositoryへ取得する。
-source repositoryのGit metadataをfetchなどで変更しない。
-書き込みが生じうるruntime commandを隔離する手順5の制約は変更しない。
+exact revisionのevidenceが揃っている場合、静的調査にはsource Git repositoryを優先して使用する。
+sourceの `.git` が読み取り専用であることだけを理由に、静的queryのための使い捨てcloneを作らない。
+暗黙のlazy fetchを含めsourceのGit metadataを変更しない。手順0のfetch抑止とrevision固定のfallbackに従う。
+書き込みが生じうるruntime commandは、手順5のとおり隔離環境でだけ実行する。
 
 ## 対象外
 
@@ -54,7 +49,7 @@ source repositoryのGit metadataをfetchなどで変更しない。
 いずれの場合も、以下のコマンドでPR情報を取得する:
 
 ```
-gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,headRefName,headRefOid
+gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,headRefName,headRefOid,baseRefOid
 ```
 
 自動検出の場合は `{PR番号またはURL}` を省略する。
@@ -71,7 +66,9 @@ PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用�
 4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
 5. Reviewed headとComparison basisとして記録するexact commit間の差分
 
-Comparison basisは別途特定し、base branchの現在の先端を差分の起点だと仮定しない。Reviewed headはPRの `headRefOid` である。
+Reviewed headはPRの `headRefOid` である。
+`baseRefOid` はComparison basisを特定するための入力であり、そのままComparison basisとはしない。
+Comparison basisは、後述するfetch抑止付きのGit query、または履歴が不足している場合はSHA固定のcompare metadataから別途確定する(例: three-dot PR diffのmerge base)。base branchの現在の先端を差分の起点だと仮定しない。
 
 #### Non-PR revision-range review
 
@@ -121,6 +118,24 @@ worktreeからレビュー対象repositoryのfileを読む前に、その `HEAD`
 Reviewed headがcurrent worktreeのancestorであることだけを理由に、そのfileをreview evidenceとして扱わない。
 比較を理解するために古い版を読む場合は、Comparison basisのSHAを指定し、Reviewed headのcodeではなく比較用のevidenceとして区別する。
 実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
+
+#### source Gitの静的調査とobject不足時のfallback
+
+必要なGit objectが存在する場合、revisionを明示した静的queryにはsource repositoryを使用する。
+fetchを検討する前に、既知のexact commitを `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'` で確認する。
+これはcommit objectの存在確認に過ぎない。partial cloneではtree/blobが欠け、shallow cloneでは `merge-base` に必要な履歴が不足しうる。
+sourceへの **すべての** Git読み取りでは、`git --no-lazy-fetch` または `GIT_NO_LAZY_FETCH=1` を使って暗黙のobject取得を抑止する。`git show`・`git diff`・`git log`・`git merge-base` も例外ではない。
+実際に読むobjectの存在をその都度確認し、不足や履歴の欠落はfallbackを使う理由とする。コードや変更が存在しない証拠とは扱わない。
+revisionを明示してGit objectを読む場合、checkout中の `HEAD` がReviewed headと異なっていてもよい。ただしworktree fileをevidenceに使う条件は変えない。
+diff表示ではattributesもReviewed headに固定する: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`。
+これにより、無関係なworktreeや未コミットの `.gitattributes` がdiffを変えることを防ぐ。Gitがattribute sourceの指定に対応しない場合、影響を受けたdiffを使わずSHA固定のAPI結果または隔離repositoryを使う。
+
+GitHub PRでobjectが不足する場合、SHAを指定したAPIだけを使う。例: 比較には `gh api 'repos/{owner}/{repo}/compare/{basis SHA}...{head SHA}'`、ファイル全体には `gh api 'repos/{owner}/{repo}/contents/{path}?ref={head SHA}'` (必要に応じpathをURL encodeする)。
+merge baseが手元で求められない場合も、取得済みの `baseRefOid` と `headRefOid` のSHAを指定してcompare APIを呼び、`merge_base_commit` を確認する。
+APIのrevisionが記録したSHAと一致すること、レビューに必要なevidenceが揃うことを確認する。patchは省略・切り詰められる場合があり、diffだけではコード全体の確認に代えられない。
+Reviewed headを確定した後、移動するPR headを参照する `gh pr diff` などの結果で代用しない。
+SHA固定のAPIで十分なevidenceを得られない場合だけ、必要なref/objectを **別の使い捨てGit repository** (独立したobject database)に取得する。source Git metadataにはfetchも含めて書き込まない。
+source checkoutとremoteは終始read-onlyのままとする。
 
 ### 手順1: 対話コンテキストの読み込み
 
