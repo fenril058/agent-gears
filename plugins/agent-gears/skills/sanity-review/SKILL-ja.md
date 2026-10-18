@@ -20,6 +20,16 @@ source checkoutのworking-tree file・index・checkout中のbranch・ref・histo
 findingと推奨するfixは報告するだけにする。
 source repositoryへのread-only queryは許されるが、fileまたはGit metadataを書きうるcommandは、後述する別の使い捨てcloneまたはexport済みtree内だけで実行する。
 
+source の `.git` が読み取り専用であることだけを理由に、静的調査用の別workspaceを作らない。
+必要なexact commitがsource repositoryのGit object databaseに存在する場合は、そこを静的evidenceの取得元として優先する。
+PRの場合、まず `gh` でReviewed headとComparison basisをexact SHAに確定し、fetchを検討する前に `git cat-file -e '<SHA>^{commit}'` で必要なobjectの存在を調べる。
+`git show`・`git diff`・`git log`・`git merge-base`・`git cat-file` など、revisionを明示するread-only commandはsource repositoryに対して直接実行する。
+checkout中の `HEAD` がReviewed headと異なっていてもこの方法でよいが、後述するworktree fileの読み取り制約は引き続き守る。
+read-only queryだけのために使い捨てcloneを作らない。
+objectが不足する場合は、十分なevidenceが得られるなら `gh` のPR metadataやpatchを使い、そうでなければ必要なref/objectだけを別の使い捨てGit repositoryへ取得する。
+source repositoryのGit metadataをfetchなどで変更しない。
+書き込みが生じうるruntime commandを隔離する手順5の制約は変更しない。
+
 ## 対象外
 
 - ライブラリ更新PR(dependabot/renovatebot等)は `library-update-review` skillの対象であり、このスキルの対象外

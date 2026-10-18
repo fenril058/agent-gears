@@ -24,6 +24,16 @@ Do not apply a finding's fix, even if the fix is obvious.
 Report findings and recommended fixes only.
 Read-only queries against the source repository are allowed; commands that write files or Git metadata belong only in a separate disposable clone or exported tree, as described below.
 
+Read-only inspection does not require a separate workspace just because the source `.git` is read-only.
+Choose the source repository for static evidence whenever its Git object database already contains the required exact commits.
+For a PR, resolve the Reviewed head and Comparison basis with `gh`, then check the needed objects with `git cat-file -e '<SHA>^{commit}'` before considering any fetch.
+Use revision-addressed read-only commands (for example, `git show`, `git diff`, `git log`, `git merge-base`, and `git cat-file`) directly against that source repository.
+This is safe even if its checked-out `HEAD` differs from the Reviewed head; the worktree-file restrictions below still apply.
+Do not create a disposable clone merely to perform those read-only queries.
+If an object is missing, use `gh` PR metadata or patches when they provide sufficient evidence; otherwise obtain only the required refs/objects in a separate disposable Git repository.
+Never fetch into or otherwise modify the source repository's Git metadata.
+The isolation rule for potentially writing runtime commands in Step 5 remains unchanged.
+
 ## Out of scope
 
 - Library-update PRs (dependabot/renovatebot etc.) belong to the `library-update-review`

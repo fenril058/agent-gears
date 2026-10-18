@@ -38,6 +38,27 @@ PR B depends on it, but PR B is not part of this review.
 - Reporting any `B`-only or uncommitted content as code from PR A.
 - Editing, formatting, generating, deleting, fixing, or changing Git state in the source checkout.
 
+## Read-only source Git variant
+
+Use this variant to check workspace selection independently of the revision-isolation checks above.
+
+- The source `.git` is read-only to the reviewer, but it already contains commits `A` and `B` and their objects.
+- The current checkout is at `B` (and may be dirty), while the review target is exact commit `A`.
+- GitHub PR metadata is available through `gh`.
+
+Required observations:
+
+- Resolve the exact review revisions and check for their objects before considering a fetch.
+- Perform static code inspection with revision-addressed read-only Git commands in the source repository, such as `git show A:path` and `git diff <basis> A`.
+- Do not read the `B` worktree as evidence for `A`, or create a disposable clone solely because `.git` is read-only.
+- If runtime verification is useful, isolate it at exact commit `A` in a separate disposable clone or exported tree, as before.
+
+Failure signals:
+
+- Cloning immediately upon seeing a read-only `.git` without first checking whether the required objects already exist locally.
+- Fetching all remote branches or pull refs when the objects needed for static review are already available.
+- Running potentially writing verification commands in the source checkout.
+
 ## Pre-PR export variant
 
 Replace PR A's context metadata with `PR: PR not created at export time`, while keeping `Branch: pr-a` and `Source commit: A`.
