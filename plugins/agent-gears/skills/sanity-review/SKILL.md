@@ -154,7 +154,7 @@ Use the source repository for revision-addressed static queries when the necessa
 Before fetching anything, check the known exact commits with `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'`.
 This only establishes commit-object availability: a partial clone may lack trees/blobs, and a shallow clone may lack the history needed for `merge-base`.
 Disable implicit object fetching on **every** source Git read with `git --no-lazy-fetch`, including `git show`, `git diff`, `git log`, and `git merge-base`.
-Prefer the option to `GIT_NO_LAZY_FETCH=1`: Git before 2.45 rejects the unknown option visibly, but does not know the environment variable, so setting it has no effect there.
+Prefer the option to `GIT_NO_LAZY_FETCH=1`: a Git without the option rejects it visibly, but whether the environment variable takes effect depends on the build (Git 2.45, maintenance releases such as 2.39.4, 2.43.4, and 2.44.1, and distribution builds with that fix backported honor it; older builds ignore it silently).
 If Git rejects `--no-lazy-fetch`, do not simply retry without it: lazy fetching needs a promisor remote, so first run `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'`.
 If that prints nothing, unguarded revision-addressed reads cannot fetch objects; otherwise use the fallback below.
 Check the objects actually needed as you read; treat missing objects or incomplete history as a reason to use the fallback, never as evidence that code or changes are absent.

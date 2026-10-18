@@ -127,7 +127,7 @@ Reviewed headがcurrent worktreeのancestorであることだけを理由に、�
 fetchを検討する前に、既知のexact commitを `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'` で確認する。
 これはcommit objectの存在確認に過ぎない。partial cloneではtree/blobが欠け、shallow cloneでは `merge-base` に必要な履歴が不足しうる。
 sourceへの **すべての** Git読み取りでは、`git --no-lazy-fetch` を使って暗黙のobject取得を抑止する。`git show`・`git diff`・`git log`・`git merge-base` も例外ではない。
-`GIT_NO_LAZY_FETCH=1` よりこのoptionを優先する。2.45より前のGitは未知のoptionを目に見える形で拒否するが、この環境変数は知らないので設定しても効かない。
+`GIT_NO_LAZY_FETCH=1` よりこのoptionを優先する。optionを持たないGitはそれを目に見える形で拒否するが、環境変数が効くかはbuildによる(Git 2.45、2.39.4・2.43.4・2.44.1などのmaintenance release、その修正をbackportしたdistribution buildは解釈し、それより古いbuildは黙って無視する)。
 Gitが `--no-lazy-fetch` を拒否した場合、確認せずにoptionを外して再実行しない。lazy fetchにはpromisor remoteが必要なので、まず `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'` を実行する。
 何も出力されなければ、ガードなしでrevisionを指定して読んでもobjectは取得されない。出力があれば後述のfallbackを使う。
 実際に読むobjectの存在をその都度確認し、不足や履歴の欠落はfallbackを使う理由とする。コードや変更が存在しない証拠とは扱わない。
