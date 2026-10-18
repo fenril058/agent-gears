@@ -67,7 +67,8 @@ GitHub PR が無い commit range でも、次の入力を明示的に与えれ�
 
 レビューは対象 repository に対して read-only であり、finding は報告するだけでその場では fix しない。
 runtime verification が必要な場合は exact Reviewed head から作った別の使い捨て clone または export 済み tree を使い、current worktree が Reviewed head の descendant であっても、その file や test 結果を代用しない。
-実利用で観測した descendant-worktree 混入事故を固定する [revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、host の first-party skill testing で使う。
+[revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、実利用で観測した descendant-worktree 混入事故と、読み取り専用 `.git` を理由にした不要な clone・広範囲 fetch を固定するとともに、partial clone・worktree attributes・移動するPR headのsynthetic variantを加えたものである。
+host の first-party skill testing で使う。
 
 次のどちらも通常の use case である。
 

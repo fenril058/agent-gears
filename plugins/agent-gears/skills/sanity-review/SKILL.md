@@ -24,6 +24,11 @@ Do not apply a finding's fix, even if the fix is obvious.
 Report findings and recommended fixes only.
 Read-only queries against the source repository are allowed; commands that write files or Git metadata belong only in a separate disposable clone or exported tree, as described below.
 
+Prefer the source Git repository for static inspection when exact-revision evidence is available there.
+A read-only source `.git` is not a reason to create a clone solely for static queries.
+Keep source Git metadata unchanged, including implicit lazy fetches; follow Step 0 for guarded reads and revision-pinned fallbacks.
+Potentially writing runtime commands must run only in the isolated environment described in Step 5.
+
 ## Out of scope
 
 - Library-update PRs (dependabot/renovatebot etc.) belong to the `library-update-review`
@@ -63,7 +68,7 @@ to the current branch.
 Either way, fetch PR info:
 
 ```
-gh pr view {PR number or URL} --json number,title,body,url,author,comments,headRefName,headRefOid
+gh pr view {PR number or URL} --json number,title,body,url,author,comments,headRefName,headRefOid,baseRefOid
 ```
 
 For auto-detection, omit `{PR number or URL}`.
@@ -81,8 +86,9 @@ Fetch the following:
 4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
 5. The diff between the exact commits recorded as the Reviewed head and Comparison basis.
 
-Determine the Comparison basis separately; do not assume that the current tip of the
-base branch is the diff's basis. The Reviewed head is the PR's `headRefOid`.
+The Reviewed head is the PR's `headRefOid`.
+Obtain `baseRefOid` as an input to determining the Comparison basis, not as the basis itself.
+Determine the Comparison basis separately (for example, the merge base for a three-dot PR diff) using guarded Git reads below or SHA-pinned compare metadata if local history is incomplete; do not assume that the current tip of the base branch is the diff's basis.
 
 #### Non-PR revision-range review
 
@@ -100,21 +106,19 @@ proceed to reading code until you have all three:
 Resolve both refs to exact commit SHAs before reading any code:
 
 ```
-git rev-parse <Reviewed head ref>^{commit}
-git rev-parse <Comparison basis ref>^{commit}
+git --no-lazy-fetch rev-parse <Reviewed head ref>^{commit}
+git --no-lazy-fetch rev-parse <Comparison basis ref>^{commit}
 ```
 
-Record the resulting SHAs — not the ref names — as the Reviewed head and Comparison
-basis, and compute the diff directly between them:
+Record the resulting SHAs — not the ref names — as the Reviewed head and Comparison basis.
+Compute the diff directly between them, with the guards described in "Source Git inspection and missing-object fallback" below:
 
 ```
-git diff <Comparison basis SHA> <Reviewed head SHA>
+git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>
 ```
 
-Read the code at the Reviewed head with `git show <Reviewed head SHA>:<path>` (or
-equivalent read-only plumbing) rather than checking the ref out into the current
-worktree — this keeps uncommitted worktree changes out of the review without needing a
-separate workspace.
+Read the code at the Reviewed head with `git --no-lazy-fetch show <Reviewed head SHA>:<path>` (or equivalent guarded read-only plumbing) rather than checking the ref out into the current worktree.
+This keeps uncommitted worktree changes out of the review without needing a separate workspace.
 
 There is no PR body, PR comments, inline review comments, or PR reviews for this path.
 Their absence is expected here, not a failure; skip the steps below that depend on them.
@@ -139,10 +143,33 @@ Commit ancestry is not commit identity.
 A current worktree that contains the Reviewed head but is at a descendant or unrelated commit is not the Reviewed head and must not supply code, tests, configuration, documentation, or runtime results for that review.
 
 Before reading target repository files from any worktree, verify both that its `HEAD` equals the exact Reviewed head and that it has no tracked or untracked changes.
-Otherwise, inspect target files with revision-addressed read-only commands such as `git show <Reviewed head SHA>:<path>` and `git diff <Comparison basis SHA> <Reviewed head SHA>`.
+Otherwise, inspect target files with guarded, revision-addressed read-only commands such as `git --no-lazy-fetch show <Reviewed head SHA>:<path>` and the attribute-pinned diff described below.
 Do not treat files from the current worktree as review evidence merely because the Reviewed head is their ancestor.
 If you inspect an older version to understand the comparison, address it by the Comparison basis SHA and label it as comparison evidence rather than Reviewed-head code.
 If you cannot verify the inspected code against the Reviewed head, do not complete the review as a review of that commit; report the problem to the user and stop.
+
+#### Source Git inspection and missing-object fallback
+
+Use the source repository for revision-addressed static queries when the necessary Git objects are available.
+Before fetching anything, check the known exact commits with `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'`.
+This only establishes commit-object availability: a partial clone may lack trees/blobs, and a shallow clone may lack the history needed for `merge-base`.
+Disable implicit object fetching on **every** source Git read with `git --no-lazy-fetch`, including `git show`, `git diff`, `git log`, and `git merge-base`.
+Prefer the option to `GIT_NO_LAZY_FETCH=1`: a Git without the option rejects it visibly, but whether the environment variable takes effect depends on the build (Git 2.45, maintenance releases such as 2.39.4, 2.43.4, and 2.44.1, and distribution builds with that fix backported honor it; older builds ignore it silently).
+If Git rejects `--no-lazy-fetch`, do not simply retry without it: lazy fetching needs a promisor remote, so first run `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'`.
+If that prints nothing, unguarded revision-addressed reads cannot fetch objects; otherwise use the fallback below.
+Check the objects actually needed as you read; treat missing objects or incomplete history as a reason to use the fallback, never as evidence that code or changes are absent.
+Before trusting history from `git log` or `git merge-base`, check `git --no-lazy-fetch rev-parse --is-shallow-repository`; a shallow repository can truncate `git log` output without an error.
+A checked-out `HEAD` different from the Reviewed head is acceptable for these revision-addressed object reads, but not for worktree-file evidence.
+For any command that prints a patch (`git diff`, `git show <commit>`, `git log -p`), pin attributes to the Reviewed head and disable external diff drivers and textconv, for example: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`.
+This prevents unrelated or uncommitted worktree `.gitattributes` from changing the reviewed diff; if the Git version cannot select an attribute source, use a revision-pinned API response or isolated repository rather than an affected diff.
+
+For a GitHub PR whose objects are missing, use immutable SHA-addressed API requests, such as `gh api 'repos/{owner}/{repo}/compare/{basis SHA}...{head SHA}'` for a comparison and `gh api 'repos/{owner}/{repo}/contents/{path}?ref={head SHA}'` for full files (URL-encode the path as needed).
+To determine a missing merge base, compare the captured `baseRefOid` against `headRefOid` using the same SHA-addressed compare API and inspect `merge_base_commit`.
+Verify that the returned revisions match the recorded SHAs and that the response covers the evidence required for review; API patches may be omitted or truncated, and the diff alone does not replace reading code.
+Do not substitute `gh pr diff` or another moving-PR-head response after binding the Reviewed head.
+If pinned API evidence is unavailable or insufficient, fetch only the needed refs/objects into a **separate disposable Git repository**; never fetch into or otherwise modify source Git metadata.
+To avoid downloading objects again, the disposable repository may borrow the source's objects read-only through `objects/info/alternates`, but every write, including fetched objects, must land only in the disposable repository.
+The source checkout and remote remain read-only throughout.
 
 ### Step 1: Load the conversation context
 
