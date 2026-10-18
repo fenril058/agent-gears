@@ -81,17 +81,19 @@ Comparison basisは、後述するfetch抑止付きのGit query、または履�
 コードを読む前に、両方のrefをexact commit SHAへ確定する:
 
 ```
-git rev-parse <Reviewed headのref>^{commit}
-git rev-parse <Comparison basisのref>^{commit}
+git --no-lazy-fetch rev-parse <Reviewed headのref>^{commit}
+git --no-lazy-fetch rev-parse <Comparison basisのref>^{commit}
 ```
 
-確定した結果はref名ではなくSHAとしてReviewed headとComparison basisに記録し、その2commit間で直接差分を計算する:
+確定した結果はref名ではなくSHAとしてReviewed headとComparison basisに記録する。
+後述する「source Gitの静的調査とobject不足時のfallback」のガードを付けて、その2commit間で直接差分を計算する:
 
 ```
-git diff <Comparison basisのSHA> <Reviewed headのSHA>
+git --no-lazy-fetch --attr-source=<Reviewed headのSHA> diff --no-ext-diff --no-textconv <Comparison basisのSHA> <Reviewed headのSHA>
 ```
 
-Reviewed headのコードは、refを現在のworktreeへcheckoutするのではなく `git show <Reviewed headのSHA>:<path>` (または同等のread-only plumbing)で読む。これによりworktreeの未コミット変更をレビューへ混入させずに済み、別のworkspaceも不要である。
+Reviewed headのコードは、refを現在のworktreeへcheckoutするのではなく `git --no-lazy-fetch show <Reviewed headのSHA>:<path>` (または同等のガード付きread-only plumbing)で読む。
+これによりworktreeの未コミット変更をレビューへ混入させずに済み、別のworkspaceも不要である。
 
 このpathにはPR本文・PRコメント・インラインレビューコメント・PRレビューが存在しない。それらが無いことはこのpathでは想定どおりであり失敗ではない。それらに依存する後続手順はskipする。
 
@@ -114,7 +116,7 @@ commitのancestor関係はcommitの同一性ではない。
 Reviewed headを含んでいても、current worktreeがdescendantまたはunrelated commitにあるならReviewed headではなく、そのcode・test・configuration・documentation・runtime resultをreviewに使わない。
 
 worktreeからレビュー対象repositoryのfileを読む前に、その `HEAD` がexact Reviewed headと等しく、tracked/untracked changeがないことを確認する。
-いずれかを満たさない場合、`git show <Reviewed headのSHA>:<path>` や `git diff <Comparison basisのSHA> <Reviewed headのSHA>` のようにrevisionを指定するread-only commandで対象fileを調べる。
+いずれかを満たさない場合、`git --no-lazy-fetch show <Reviewed headのSHA>:<path>` や後述するattributes固定のdiffのように、ガード付きでrevisionを指定するread-only commandで対象fileを調べる。
 Reviewed headがcurrent worktreeのancestorであることだけを理由に、そのfileをreview evidenceとして扱わない。
 比較を理解するために古い版を読む場合は、Comparison basisのSHAを指定し、Reviewed headのcodeではなく比較用のevidenceとして区別する。
 実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
@@ -124,17 +126,22 @@ Reviewed headがcurrent worktreeのancestorであることだけを理由に、�
 必要なGit objectが存在する場合、revisionを明示した静的queryにはsource repositoryを使用する。
 fetchを検討する前に、既知のexact commitを `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'` で確認する。
 これはcommit objectの存在確認に過ぎない。partial cloneではtree/blobが欠け、shallow cloneでは `merge-base` に必要な履歴が不足しうる。
-sourceへの **すべての** Git読み取りでは、`git --no-lazy-fetch` または `GIT_NO_LAZY_FETCH=1` を使って暗黙のobject取得を抑止する。`git show`・`git diff`・`git log`・`git merge-base` も例外ではない。
+sourceへの **すべての** Git読み取りでは、`git --no-lazy-fetch` を使って暗黙のobject取得を抑止する。`git show`・`git diff`・`git log`・`git merge-base` も例外ではない。
+`GIT_NO_LAZY_FETCH=1` よりこのoptionを優先する。2.45より前のGitは未知のoptionを目に見える形で拒否するが、この環境変数は知らないので設定しても効かない。
+Gitが `--no-lazy-fetch` を拒否した場合、確認せずにoptionを外して再実行しない。lazy fetchにはpromisor remoteが必要なので、まず `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'` を実行する。
+何も出力されなければ、ガードなしでrevisionを指定して読んでもobjectは取得されない。出力があれば後述のfallbackを使う。
 実際に読むobjectの存在をその都度確認し、不足や履歴の欠落はfallbackを使う理由とする。コードや変更が存在しない証拠とは扱わない。
+`git log` や `git merge-base` の履歴を信頼する前に、`git --no-lazy-fetch rev-parse --is-shallow-repository` を確認する。shallow repositoryでは `git log` がerrorなしで出力を切り詰めることがある。
 revisionを明示してGit objectを読む場合、checkout中の `HEAD` がReviewed headと異なっていてもよい。ただしworktree fileをevidenceに使う条件は変えない。
-diff表示ではattributesもReviewed headに固定する: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`。
+patchを出力するcommand(`git diff`・`git show <commit>`・`git log -p`)では、attributesをReviewed headに固定し、外部diff driverとtextconvを無効にする。例: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`。
 これにより、無関係なworktreeや未コミットの `.gitattributes` がdiffを変えることを防ぐ。Gitがattribute sourceの指定に対応しない場合、影響を受けたdiffを使わずSHA固定のAPI結果または隔離repositoryを使う。
 
 GitHub PRでobjectが不足する場合、SHAを指定したAPIだけを使う。例: 比較には `gh api 'repos/{owner}/{repo}/compare/{basis SHA}...{head SHA}'`、ファイル全体には `gh api 'repos/{owner}/{repo}/contents/{path}?ref={head SHA}'` (必要に応じpathをURL encodeする)。
 merge baseが手元で求められない場合も、取得済みの `baseRefOid` と `headRefOid` のSHAを指定してcompare APIを呼び、`merge_base_commit` を確認する。
 APIのrevisionが記録したSHAと一致すること、レビューに必要なevidenceが揃うことを確認する。patchは省略・切り詰められる場合があり、diffだけではコード全体の確認に代えられない。
 Reviewed headを確定した後、移動するPR headを参照する `gh pr diff` などの結果で代用しない。
-SHA固定のAPIで十分なevidenceを得られない場合だけ、必要なref/objectを **別の使い捨てGit repository** (独立したobject database)に取得する。source Git metadataにはfetchも含めて書き込まない。
+SHA固定のAPIで十分なevidenceを得られない場合だけ、必要なref/objectを **別の使い捨てGit repository** に取得する。source Git metadataにはfetchも含めて書き込まない。
+再ダウンロードを避けるため、使い捨てrepositoryは `objects/info/alternates` でsourceのobjectを読み取り専用に参照してよい。ただし取得したobjectを含むすべての書き込みは、使い捨てrepository側だけに行う。
 source checkoutとremoteは終始read-onlyのままとする。
 
 ### 手順1: 対話コンテキストの読み込み
