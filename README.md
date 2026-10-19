@@ -49,9 +49,9 @@ skill は `SKILL.md` の `description` が作業に合致したときに読み�
 | [agent-instructions-refine](plugins/agent-gears/skills/agent-instructions-refine/SKILL.md) | [argument-gap-edit](plugins/agent-gears/skills/argument-gap-edit/SKILL.md) | [codepatrol](plugins/agent-gears/skills/codepatrol/SKILL.md) |
 | [codex-consultation](plugins/agent-gears/skills/codex-consultation/SKILL.md) | [conversation-context-export](plugins/agent-gears/skills/conversation-context-export/SKILL.md) | [conversation-context-import](plugins/agent-gears/skills/conversation-context-import/SKILL.md) |
 | [domain-modeling](plugins/agent-gears/skills/domain-modeling/SKILL.md) | [durable-knowledge-export](plugins/agent-gears/skills/durable-knowledge-export/SKILL.md) | [empirical-prompt-tuning](plugins/agent-gears/skills/empirical-prompt-tuning/SKILL.md) |
-| [gh-cli-network](plugins/agent-gears/skills/gh-cli-network/SKILL.md) | [ghq-repository-location](plugins/agent-gears/skills/ghq-repository-location/SKILL.md) | [grilling](plugins/agent-gears/skills/grilling/SKILL.md) |
-| [japanese-tech-writing](plugins/agent-gears/skills/japanese-tech-writing/SKILL.md) | [library-update-review](plugins/agent-gears/skills/library-update-review/SKILL.md) | [markdown-context](plugins/agent-gears/skills/markdown-context/SKILL.md) |
-| [navigating](plugins/agent-gears/skills/navigating/SKILL.md) | [pull-request-description](plugins/agent-gears/skills/pull-request-description/SKILL.md) | [quizzing](plugins/agent-gears/skills/quizzing/SKILL.md) |
+| [ghq-repository-location](plugins/agent-gears/skills/ghq-repository-location/SKILL.md) | [grilling](plugins/agent-gears/skills/grilling/SKILL.md) | [japanese-tech-writing](plugins/agent-gears/skills/japanese-tech-writing/SKILL.md) |
+| [library-update-review](plugins/agent-gears/skills/library-update-review/SKILL.md) | [markdown-context](plugins/agent-gears/skills/markdown-context/SKILL.md) | [navigating](plugins/agent-gears/skills/navigating/SKILL.md) |
+| [pull-request-description](plugins/agent-gears/skills/pull-request-description/SKILL.md) | [quizzing](plugins/agent-gears/skills/quizzing/SKILL.md) | [sandbox-network-access](plugins/agent-gears/skills/sandbox-network-access/SKILL.md) |
 | [sanity-review](plugins/agent-gears/skills/sanity-review/SKILL.md) | [spec-ambiguity-audit](plugins/agent-gears/skills/spec-ambiguity-audit/SKILL.md) | [subagent-consultation](plugins/agent-gears/skills/subagent-consultation/SKILL.md) |
 | [unconventional-simplification](plugins/agent-gears/skills/unconventional-simplification/SKILL.md) |  |  |
 
