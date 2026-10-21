@@ -129,6 +129,7 @@ CLI の使い方は [`markdown-context/SKILL.md`](plugins/agent-gears/skills/mar
 | 設計判断 | [`docs/adr/`](docs/adr/) |
 | sanity-review の revision-isolation canary | [`docs/sanity-review-revision-isolation-canary.md`](docs/sanity-review-revision-isolation-canary.md) |
 | Claude Code の instruction loading canary と暫定回避 | [`docs/claude-code-instruction-loading.md`](docs/claude-code-instruction-loading.md) |
+| zsh の NOMATCH 対策ルールの health check と canary(不採用) | [`docs/zsh-nomatch-health-check.md`](docs/zsh-nomatch-health-check.md) |
 | 外部由来 skill の出典と許諾 | [`PROVENANCE.json`](PROVENANCE.json)、[`NOTICE`](NOTICE)、[`plugins/agent-gears/LICENSE`](plugins/agent-gears/LICENSE)、[`plugins/agent-gears/NOTICE`](plugins/agent-gears/NOTICE) |
 | 脆弱性の報告方法 | [`SECURITY.md`](SECURITY.md) |
 
