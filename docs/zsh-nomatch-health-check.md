@@ -13,8 +13,10 @@ canary は ADR 0001 の再開条件を満たす隔離境界を構成して始め
 zsh は既定で `NOMATCH` が有効で、どのファイルにもマッチしない glob を含む単純コマンドを実行せずにエラーにする。
 bash はマッチしない glob をそのまま引数として渡すので、同じコマンドが bash では通る。
 
-`zsh -c` では、エラーになった単純コマンド(パイプラインの1段)だけが実行されず、後続のコマンドは続けて実行される。
+失敗後に後続のコマンドが実行されるかは、失敗したコマンドによって異なる。
+zsh 5.9 の `zsh -fc` で確認した範囲では、外部コマンド(`ls`、`grep`)、パイプラインの段、`&&` の後、コマンド置換の中で失敗した場合は、そのコマンドだけが実行されず、後続は実行された。
 コマンド列全体の終了コードが 0 になることもある。
+一方、builtin(`echo`、`print`、`cd`)を単独で実行して失敗した場合は、後続が実行されず、終了コードは 1 だった。
 
 ```console
 $ zsh -fc 'echo first; grep -r foo --include=*.ts . | head -1; echo after'; echo "exit=$?"
@@ -22,6 +24,10 @@ first
 zsh:1: no matches found: --include=*.ts
 after
 exit=0
+$ zsh -fc 'echo first; echo /definitely-absent/*.ts; echo after'; echo "exit=$?"
+first
+zsh:1: no matches found: /definitely-absent/*.ts
+exit=1
 ```
 
 ## Health check(Claude Code の transcript)
