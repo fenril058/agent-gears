@@ -27,7 +27,8 @@ sourceの `.git` が読み取り専用であることだけを理由に、静的
 
 ## 対象外
 
-- ライブラリ更新PR(dependabot/renovatebot等)は `library-update-review` skillの対象であり、このスキルの対象外
+- 通常の依存関係更新レビューは、エージェント標準のレビュー手順で行う。
+  対話コンテキストと実装の整合性のレビューをユーザーが依頼した場合に限り、依存関係更新にもこのskillを適用する。
 
 ## 手順
 
@@ -414,5 +415,4 @@ userが明示的に要求した場合は、この判断を挟まず実施する�
 - **subagent-consultation**: Agentツール(subagent)と相談するスキル。任意の独立レビューでのみ使用する。Codex を含む相談先の選定もこのskillが行う
 - **conversation-context-import**: 対話コンテキストを読み込むスキル。手順1の背景知識
 - **conversation-context-export**: 対話コンテキストを書き出すスキル。対話コンテキストの形式の背景知識
-- **library-update-review**: ライブラリ更新PRのレビュースキル。このスキルの対象外であるPRの種類
 - **domain-modeling**: 記録層(`CONTEXT.md` と ADR)を担当するスキル。手順1で辿る ADR の書式と supersede 規則の背景知識
