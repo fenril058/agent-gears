@@ -40,29 +40,15 @@ Claude Codeの[標準レビューの公式説明](https://code.claude.com/docs/e
 [`codepatrol`](../plugins/agent-gears/skills/codepatrol/SKILL.md)は継続的なセキュリティ調査、[`pull-request-description`](../plugins/agent-gears/skills/pull-request-description/SKILL.md)はPR本文の編集を担う。
 これらを通常の依存更新レビューの代替として起動する必要はない。
 
-ローカル履歴は、既存のctx索引を更新せず、`library-update-review` と `ライブラリ更新` で検索し、次のevent周辺の原記録を確認した。
-
-| 日付と用途 | 確認できたこと | 原記録 |
-| --- | --- | --- |
-| 2026-08-13、Dependabot導入後の設定相談 | 特定のライブラリ更新を評価する依頼以外でもskillを読んで起動した。 | [記録A](#記録a) |
-| 2026-09-18、lockfileのBundler指定変更の相談 | skillを読み、公式資料と実行環境を照合していた。 | [記録B](#記録b) |
-| 2026-10-01、Wrangler更新PRのレビュー | sanity-reviewの対象外規定により切り替え、2ファイルの更新に対し中間版、連動パッケージ、全参照箇所、過去の事故の照合を宣言した。 | [記録C](#記録c) |
+ローカルのエージェント履歴を `library-update-review` と `ライブラリ更新` で検索し、2026年8月から10月の利用記録を3件確認した。
+1件は依存関係更新ツールの設定相談で、特定のライブラリ更新を評価する依頼ではないのにskillを読んで起動していた。
+1件はlockfileの指定変更の相談で、skillを読み、公式資料と実行環境を照合していた。
+残る1件は依存関係更新PRのレビューで、sanity-reviewの対象外規定によりこのskillへ切り替え、2ファイルの更新に対し中間版、連動パッケージ、全参照箇所、過去の事故の照合を宣言していた。
+原記録はローカル環境にだけあり、このリポジトリの読者は参照できない。
 
 これらは利用実績と起動範囲を示すが、skillがなければ欠陥を見逃したという比較にはならない。
-記録Cの宣言も、全調査の完了、所要時間、調査による害を立証するものではない。
-ctx索引には未取込や古いsourceがあり、検索結果は全利用を網羅しない。
-
-### 記録A
-
-provider: Codex、ctx session: `7a980e52-a44b-7017-a217-5f4673e9e938`、event: `3d77d666-d759-7f0e-b857-ba6f19986e8d`、provider session: `019ffb0b-0a7b-77c0-bc9f-2216c0244738`。
-
-### 記録B
-
-provider: Codex、ctx session: `d01fb69f-4e16-7c84-8e33-94777051d5c7`、event: `1a78d86c-7de0-7a45-9f77-c8711dda7a3a`、provider session: `01a0b533-7405-7c40-a009-b063994efa24`。
-
-### 記録C
-
-provider: Codex、ctx session: `6606f91b-aa7d-735c-b4ac-b1eb5b91652f`、event: `90cf3dc5-6f53-7293-96f7-c8b05bdcaa14`、provider session: `01a0f880-c786-7cd2-b4e0-b2b461b98582`。
+3件目の宣言も、全調査の完了、所要時間、調査による害を立証するものではない。
+検索に使った履歴の索引には未取込や古い記録があり、検索結果は全利用を網羅しない。
 
 ## 3案の比較と変更
 
@@ -75,7 +61,8 @@ provider: Codex、ctx session: `6606f91b-aa7d-735c-b4ac-b1eb5b91652f`、event: `
 英語正本と日本語版を削除し、README、PROVENANCE、NOTICEの現役一覧から外す。
 shokai由来の他skillが残るため、pluginのMIT許諾文は維持する。
 sanity-reviewの英日両版は、通常の依存更新を標準レビューへ任せ、対話コンテキストとの整合性レビューを依頼された場合に適用するよう直す。
-残存項目を常時ルールや他skillへ移植せず、pluginとmarketplaceのversionをともに0.4.4へ上げる。
+残存項目は常時ルールや他skillへ移植しない。
+変更を配布するため、pluginとmarketplaceのversionをともに上げる。
 配布対象はディレクトリから自動列挙されるため、install.shとHome Manager moduleの変更は不要である。
 
 この判断は静的評価と利用記録に基づく保守判断であり、削除による品質向上や同等性を測定した結論ではない。
