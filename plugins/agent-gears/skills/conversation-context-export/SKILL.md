@@ -51,7 +51,7 @@ If the conversation and destination appear to refer to different work, clarify t
 A different worktree alone is no reason to require a different session; obtain any host-required write approval through the normal permission mechanism.
 
 Use the selected branch in the heading and `Branch`, its HEAD in `Source commit`, and the current datetime (`YYYY-MM-DD HH:mm:ss`) in `Updated at`.
-Check the selected worktree's status and identify uncommitted work in the record so `Source commit` is not presented as containing it.
+Check the selected worktree's status and identify uncommitted work under remaining work, including its implementation and verification status, so `Source commit` is not presented as containing it.
 Keep branch and HEAD consistent through saving and posting; if they change, recheck the target and refresh the record before proceeding.
 
 ### Filename convention
@@ -65,7 +65,7 @@ Replace each of these characters in the branch name with `-`, matching `conversa
 Example: `dependabot/npm_and_yarn/feed-5.2.0` → `dependabot-npm_and_yarn-feed-5.2.0`
 
 Use `{worktree root}/.dev/contexts/{sanitized branch name}.md` by default.
-If the user explicitly chooses a different filename, honor it and report that import must name that file explicitly.
+If the user explicitly chooses a different filename, honor it and report that local discovery by `conversation-context-import` and `sanity-review` uses the conventional filename; supply the chosen file explicitly when using it with either skill.
 Before updating an existing file, verify its heading and branch metadata refer to the intended branch; sanitization can map different branch names to the same filename.
 Do not overwrite another branch's record on a filename collision; resolve a distinct destination.
 
@@ -105,6 +105,10 @@ Keep goals, decisions, rejected alternatives and their reasons, constraints, and
 Distinguish verified implementation behavior from assumptions and unverified work.
 Avoid repeating code inventories or process anecdotes.
 Do not include secrets or personal information, even in a local-only record.
+
+For a local-only export, report the saved path and state that PR comments were not updated and any previously shared context may now be stale.
+Point to the saved file as explicit input when the latest context is needed for review.
+This notice does not require checking whether a PR or an earlier comment exists.
 
 ### Existing-record rules
 
