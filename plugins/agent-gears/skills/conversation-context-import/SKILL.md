@@ -13,9 +13,8 @@ Load past conversation contexts saved in `.dev/contexts/`.
 
 ## Naming convention
 
-The current branch's context lives at `.dev/contexts/{sanitized branch name}.md`. Take the
-branch name from `git branch --show-current`; the sanitized form replaces each of these
-characters with `-`:
+The current branch's context lives at `.dev/contexts/{sanitized branch name}.md`.
+Take the branch name from `git branch --show-current`; the sanitized form replaces each of these characters with `-`:
 
 ```
 / \ : * ? " < > |
@@ -25,13 +24,17 @@ Example: `dependabot/npm_and_yarn/feed-5.2.0` → `dependabot-npm_and_yarn-feed-
 
 ## What to load
 
-List `.dev/contexts/*.md`, then branch on what's there:
+Honor the user's requested files, branches, or scope before applying defaults, including requests to load all contexts or use a past branch.
+Do not ask again for permission already given.
+If a specified file or branch's context is missing, report that rather than silently substituting another context.
 
-- **Only the current branch's file** → load it without asking.
-- **Only other branches' files** → load them all without asking.
-- **Both** → ask with AskUserQuestion which to take: the current branch's file only, or
-  every file in `.dev/contexts/` (list the filenames in the options).
-- **Nothing** → report that no context file was found, and stop.
+For a general request to load context, list `.dev/contexts/*.md` and select as follows:
+
+- If the current branch's file exists, load only that file without asking, even if other branches' files exist.
+- Otherwise, use the request and available filenames to identify relevant context.
+  If the target is unclear, present the candidate filenames and ask only what is needed to identify it before reading their contents.
+  Do not load all other branches' files by default.
+- If no context files exist, report that none were found and stop; do not invent context.
 
 Report which files you loaded.
 
