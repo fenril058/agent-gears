@@ -31,8 +31,8 @@ Potentially writing runtime commands must run only in the isolated environment d
 
 ## Out of scope
 
-- Library-update PRs (dependabot/renovatebot etc.) belong to the `library-update-review`
-  skill, not this one.
+- Ordinary dependency-update reviews use the agent's standard review workflow.
+  Apply this skill to a dependency update only when the user requests a review of consistency between the conversation context and the implementation.
 
 ## Procedure
 
@@ -522,7 +522,5 @@ The template headings are in Japanese; write the report in the user's working la
 - **conversation-context-import**: load the conversation context. Background for step 1.
 - **conversation-context-export**: write out the conversation context. Background on the
   conversation-context format.
-- **library-update-review**: review skill for library-update PRs — the kind of PR out of
-  scope for this skill.
 - **domain-modeling**: owns the record tier (`CONTEXT.md` and the ADRs). Background on the
   ADR format and superseding rules for the ADRs step 1 follows.
