@@ -17,7 +17,7 @@ They are vendored and adapted, not tracked upstream.
 - Derived from shokai/agent-skills (MIT). The license is retained in
   plugins/agent-gears/LICENSE:
     subagent-consultation, codex-consultation, sanity-review,
-    library-update-review, codepatrol, unconventional-simplification,
+    codepatrol, unconventional-simplification,
     conversation-context-export, conversation-context-import
 
 - Derived from mattpocock/skills (MIT), with a per-skill LICENSE:
