@@ -27,7 +27,7 @@ model**, not the location.
 
 | Tier | Sink | Update model |
 | --- | --- | --- |
-| Ephemeral (`conversation-context-export`) | `.dev/contexts/` + PR comment | regenerated per branch, never committed |
+| Ephemeral (`conversation-context-export`) | `.dev/contexts/`; PR comment when sharing is requested or authorized | regenerated per branch, never committed |
 | **Record (this skill)** | `CONTEXT.md`, ADR directory | **append and supersede; never rewritten** |
 | Durable (`durable-knowledge-export`) | GitHub wiki or knowledge repo | living page, always current |
 

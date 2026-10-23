@@ -215,8 +215,9 @@ A conversation context is handoff evidence about the implementation process, not
 
 For a context discovered from a PR comment or `.dev/contexts/`, read its `PR`, `Branch`, and `Source commit` metadata.
 Resolve `Source commit` to an exact commit and use it automatically only when it is the Reviewed head or an ancestor of the Reviewed head; ancestry here establishes provenance timing, not code identity.
-For a PR review, require the recorded branch to match the target PR and require the recorded PR either to match the target PR or to be the exact placeholder `PR not created at export time`.
-Accept that placeholder only when the branch matches and the source-commit check above passes; reject any other PR mismatch.
+For a PR review, require the recorded branch to match the target PR and require the recorded PR either to match the target PR or to be one of the export placeholders: `PR not created at export time`, `PR not checked at export time`, or `PR unverified at export time`.
+Accept those placeholders only when the branch matches and the source-commit check above passes; reject any other PR mismatch.
+The latter two placeholders do not establish PR absence at export time; report their unverified status without treating it as a code-revision mismatch.
 For a non-PR review with an associated branch, require the recorded branch to match it.
 If the source is an earlier ancestor, record that the context may omit decisions made after it was exported.
 

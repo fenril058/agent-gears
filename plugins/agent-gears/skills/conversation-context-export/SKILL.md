@@ -1,87 +1,62 @@
 ---
 name: conversation-context-export
 description: >-
-  Export the conversation context. Write the goal, intent, design decisions, and
-  constraints shared in the conversation to the `.dev/contexts/` directory, and post to
-  a PR comment if a PR exists. Hand off to the next worker (a reviewer, an AI in another
-  session, a bug-hunting AI, etc.). Use when the user says "export the context", "write
-  out the conversation context", or "save what we discussed to .dev".
-compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to detect a PR and post/update the context comment. Install gh from https://cli.github.com.
+  Export conversation context for handoff: save the goal, intent, design decisions,
+  and constraints to `.dev/contexts/`, and share via a PR comment when requested or
+  already authorized for this export.
+  Use when the user says "export the context",
+  "write out the conversation context", or "save what we discussed to .dev".
+compatibility: >-
+  Requires git on PATH.
+  GitHub PR lookup and sharing additionally require the authenticated gh CLI (https://cli.github.com).
+  Local-only export does not require gh or GitHub access.
 ---
 
-# Conversation context export procedure
+# Conversation context export
 
-Write the development context shared through the conversation (goal, intent, design
-decisions, constraints, etc.) to `.dev/contexts/{sanitized branch name}.md`. If a PR
-exists, also post it to a PR comment.
+Save context for the next session or reviewer at `.dev/contexts/{sanitized branch name}.md` in the selected worktree.
+Use [TEMPLATE.md](TEMPLATE.md) for the record structure.
 
-## Uses
+## Requested scope
 
-This file is used in these situations:
+A general request to "export the context" or "save to .dev" defaults to local saving.
+Share via a PR comment when the user requests it or has already authorized that sharing for this export in the conversation; do not ask for the same permission again.
+An explicit local-only instruction limits the export to local saving.
+The existence or creation of a PR alone does not authorize posting conversation context.
+Ask only when information needed to identify the destination or sharing scope is missing.
 
-- **Reviewing the PR description**: an AI cross-checks the human-written PR description
-  against the implementation context to point out errors or missing explanations.
-- **AI-vs-AI bug hunting on a feature PR**: a briefing for the defense-side AI to
-  understand the design intent.
-- **Continuing development in a new session**: carry over the previous session's
-  context.
-- **Sharing via a PR comment**: when a PR exists, also post it as a comment so other
-  workers or sanity-review can reference it directly.
+`.dev/contexts/` is an uncommitted working-tree scratch area for per-branch context, the **ephemeral tier**.
+Do not `git add` `.dev/`.
+If the user wants it ignored, use their global gitignore rather than changing the repository's ignore policy for this artifact.
+PR comments are the sharing channel when sharing is authorized; a local save alone remains available in that worktree.
+Route findings that need to survive the branch per "Related skills" below.
 
-## Lifetime
+## Select the worktree and metadata
 
-`.dev/contexts/` is a **working-tree scratch area that is never committed**. The file
-dies with the branch, and that is intended: this skill is the ephemeral tier.
+Honor an explicitly requested destination, including another worktree, within the host's filesystem permissions.
+Otherwise use the Git worktree containing the host-provided session workspace root, rather than a shell's incidental current directory.
+Resolve the selected path to its Git root and use that `{worktree root}` for all file paths and Git/gh operations:
 
-The sharing channel is therefore the **PR comment** (step 4), not the repo. That is why
-step 4 exists — without a PR, the context reaches nobody but the next session on this
-same worktree.
-
-Do not `git add` `.dev/`. If the user wants it ignored, `.dev/` belongs in their global
-gitignore rather than the repo's — it is an agent artifact, not a property of the
-project.
-
-A finding that must survive the branch does not belong here at all; route it per
-"Related skills" below.
-
-## Worktree scope
-
-Export only to the Git worktree that contains the current session's workspace root.
-Run every Git and `gh` command below in that worktree, and resolve every `.dev/` path against its root, so the metadata, context file, and PR all refer to the same branch.
-
-Never export to a different (sibling) worktree, even if the filesystem sandbox permits the write or the user authorizes it.
-Ask the user to switch to a session whose workspace root is the intended worktree and invoke this skill there.
-
-## Procedure
-
-### 1. Fetch metadata
-
-Use the host-provided session workspace root, not the Bash tool's current working directory, to locate the target worktree:
-
-```
-git -C "{session workspace root}" rev-parse --show-toplevel
+```bash
+git -C "{selected path}" rev-parse --show-toplevel
+git -C "{worktree root}" branch --show-current
+git -C "{worktree root}" rev-parse HEAD
 ```
 
-Record the output as `{worktree root}`.
-If the session workspace root is not inside a Git worktree, stop and report that the export has no valid target.
+For an explicit file destination, resolve its containing worktree from an existing parent directory.
+Do not silently choose a sibling worktree, switch branches, or change Git state to make a destination fit.
+If the destination is not in a Git worktree or the branch cannot be identified, resolve the missing target information with the user.
+Use the selected worktree as the subject of the record: check relevant local files before describing implementation facts, and do not relabel facts from another branch as facts about this one.
+If the conversation and destination appear to refer to different work, clarify the intended subject.
+A different worktree alone is no reason to require a different session; obtain any host-required write approval through the normal permission mechanism.
 
-Run the metadata commands in that worktree within one Bash invocation:
+Use the selected branch in the heading and `Branch`, its HEAD in `Source commit`, and the current datetime (`YYYY-MM-DD HH:mm:ss`) in `Updated at`.
+Check the selected worktree's status and identify uncommitted work in the record so `Source commit` is not presented as containing it.
+Keep branch and HEAD consistent through saving and posting; if they change, recheck the target and refresh the record before proceeding.
 
-```
-git -C "{worktree root}" branch --show-current &&
-git -C "{worktree root}" rev-parse --short HEAD &&
-(cd "{worktree root}" && gh pr view --json number -q .number)
-```
+### Filename convention
 
-Get the branch name, source commit, and PR number. For "Updated at" use the current
-datetime (YYYY-MM-DD HH:mm:ss).
-
-- If a PR exists, get its number and fill the PR field of the metadata.
-- If the command errors (PR not created), write "PR not created at export time".
-
-### Branch name sanitization
-
-When using the branch name as a filename, replace these characters with `-`:
+Replace each of these characters in the branch name with `-`, matching `conversation-context-import`:
 
 ```
 / \ : * ? " < > |
@@ -89,202 +64,98 @@ When using the branch name as a filename, replace these characters with `-`:
 
 Example: `dependabot/npm_and_yarn/feed-5.2.0` → `dependabot-npm_and_yarn-feed-5.2.0`
 
-Below, the sanitized branch name is called the "sanitized branch name".
+Use `{worktree root}/.dev/contexts/{sanitized branch name}.md` by default.
+If the user explicitly chooses a different filename, honor it and report that import must name that file explicitly.
+Before updating an existing file, verify its heading and branch metadata refer to the intended branch; sanitization can map different branch names to the same filename.
+Do not overwrite another branch's record on a filename collision; resolve a distinct destination.
 
-### 2. Check for an existing file
+### PR metadata and lookup failures
 
-Check whether `{worktree root}/.dev/contexts/{sanitized branch name}.md` already exists.
+For local-only saving, do not require PR detection or GitHub authentication.
+If the target PR is already reliably known from the conversation, record it after checking that it belongs to the selected target.
+Otherwise use `PR not checked at export time`; do not infer that no PR exists.
 
-If it exists, read it with the Read tool. Then judge whether **you exported it in this
-conversation (same session) or another session wrote it (different session)**:
+When sharing or a request for PR metadata requires lookup, run `gh` from `{worktree root}`.
+For example, `gh pr view --json number,url,headRefName,headRefOid,headRepository,headRepositoryOwner` supplies the PR identity and head information.
+Verify the repository and head branch match the selected worktree and that `Source commit` is the PR head or an ancestor of it before posting.
+If local commits are not included in the PR, save locally and report the mismatch; do not push commits as part of export.
 
-- **Same session**: you wrote it with the Write tool in this conversation.
-- **Different session**: anything else (a previous-session AI, another AI).
+Distinguish these PR field values:
 
-Based on this, apply the "rules for updating an existing file" in step 3.
+- `#{number}`: the target PR was identified and checked.
+- `PR not created at export time`: absence of a matching PR was confirmed.
+- `PR not checked at export time`: no lookup was needed or performed.
+- `PR unverified at export time`: lookup failed and PR existence or identity remains unknown.
 
-### 3. Write out the context
+An error from `gh pr view` alone does not establish PR absence.
+Use an explicit no-match response or a successful query with no matching PR to establish absence.
+For connection, authentication, permission, or other retrieval failures, report the observed reason without declaring credentials invalid from the error alone.
+Retry through a permitted execution path when an environment restriction may explain the failure, without changing credentials or configuration.
+If lookup remains unavailable, complete independent local saving and leave requested sharing pending.
+Record the failure reason and incomplete sharing under remaining work, and report them to the user.
+Do not create a PR merely to make export possible.
 
-Read [TEMPLATE.md](TEMPLATE.md) in the same directory as this SKILL.md and create the
-file in its structure.
+## Save the context
 
-If the `{worktree root}/.dev/contexts/` directory does not exist, create it.
+Read any existing destination file before writing it.
+Apply the existing-record rules below, then write using the template and create the parent directory if necessary.
+Include suggested skills with a one-line reason when useful for the next worker; otherwise omit that section.
 
-Include the "suggested skills" section of the template when there are skills the next
-worker should invoke to continue (e.g. conversation-context-import, sanity-review, a
-domain skill used in this work); add a one-line reason each. Omit the section if there
-are none.
+Keep goals, decisions, rejected alternatives and their reasons, constraints, and remaining work that the next worker cannot recover from the code alone.
+Distinguish verified implementation behavior from assumptions and unverified work.
+Avoid repeating code inventories or process anecdotes.
+Do not include secrets or personal information, even in a local-only record.
 
-**Redact sensitive information** — API keys, tokens, passwords, and personally
-identifiable information must not appear in the file. This matters doubly because step
-4 posts the same content to a PR comment, which publishes it.
+### Existing-record rules
 
-Write to `{worktree root}/.dev/contexts/{sanitized branch name}.md` with the Write tool.
+- For a record created in this conversation, regenerate from the full conversation and current understanding.
+- For another session's record, preserve prior findings and append new information.
+  Correct or delete a finding only after verifying that it is wrong; inference alone is insufficient.
+  Misclassified content may move between sections without being lost.
+  Ask only about unresolved changes in intent, approach, or scope; an explicit user decision need not be reconfirmed.
+- Keep the resulting record current, without strikethroughs or a running change log.
+  `.dev/` is not committed, so do not rely on Git history to recover overwritten findings.
 
-### 4. Post to a PR comment
+### Decisions recorded in ADRs
 
-If no PR number was obtained in step 1 (PR not created), skip this step.
+Preserve the existing division of recording responsibilities.
+When a decision belongs in an ADR (`domain-modeling`), retain a one-line summary and a link to that ADR in this context.
+Keep the grounds and alternatives that explain that architectural decision in the ADR; other rejected alternatives remain here.
+The link lets the reviewer follow the design intent beyond the ephemeral record.
 
-Posting publishes the content. Before posting, re-confirm the file contains no
-unredacted secrets or personal information (step 3's redaction rule).
+## Share via a PR comment
 
-#### 4-1. Get repo info and the current GitHub user
+Run this section only when sharing is requested or already authorized and the target PR is verified.
+If the PR is confirmed absent, keep the local save and report that sharing could not be completed because no matching PR exists.
+If the PR is unverified, report the lookup failure and pending sharing separately from confirmed absence.
 
-Run with the Bash tool:
+Read the saved file and check for secrets or personal information before posting.
+Resolve the repository and authenticated GitHub user from the selected worktree, then inspect the target PR's comments (including all pages).
+Match the complete first heading line `# {branch name} 対話コンテキスト`, using the unsanitized branch name, rather than a substring elsewhere in the body.
 
-```
-cd "{worktree root}" &&
-gh repo view --json owner,name -q '.owner.login + "/" + .name' &&
-gh api user -q .login
-```
+Prefer the latest matching comment by the authenticated user.
+Read its body and apply the same existing-record rules as for a local file, preserving another session's findings before an update.
+If this requires merging additional findings, update the local record too so the posted content matches it.
+Do not edit another user's comment or an unrelated comment.
+If there is no matching comment of your own, create a separate comment within the authorized sharing scope without asking for the same sharing permission again.
+If the request specifically requires updating a comment you cannot edit, clarify that limitation instead of silently substituting a new post.
 
-Line 1 is the repo's `{owner}/{repo}`, line 2 is the current GitHub username.
+Use file-based bodies to avoid shell escaping problems:
 
-#### 4-2. Search for an existing conversation-context comment
-
-Run the following to search the PR comments for the conversation-context comment. Target
-only comments whose body starts with the TEMPLATE.md heading `# {branch name} 対話コンテキスト`:
-
-```
-cd "{worktree root}" &&
-gh api repos/{owner}/{repo}/issues/{PR number}/comments --paginate -q '.[] | select(.body | startswith("# {branch name} 対話コンテキスト")) | {id: .id, login: .user.login}'
-```
-
-Embed the current branch name (before sanitization) in `{branch name}`. Confirming the
-exact heading line with `startswith` excludes unrelated comments that merely contain the
-string "対話コンテキスト".
-
-If several are found, prefer your own comment. If you have several, use the latest. If
-you have none and only another user's comments exist, target the latest.
-
-#### 4-3. Decide and execute the post
-
-Branch by the search result. Read the comment body from a file to avoid shell escaping
-issues.
-
-##### If no existing comment is found
-
-Post a new comment:
-
-```
-cd "{worktree root}" &&
-gh pr comment {PR number} --body-file "{worktree root}/.dev/contexts/{sanitized branch name}.md"
-```
-
-##### If an existing comment is found and you are the author
-
-Update the existing comment:
-
-```
-cd "{worktree root}" &&
-gh api repos/{owner}/{repo}/issues/comments/{comment ID} --method PATCH -F "body=@{worktree root}/.dev/contexts/{sanitized branch name}.md"
+```bash
+# Run from {worktree root}; {context file} is the resolved local destination.
+gh pr comment {PR number} --repo {owner}/{repo} --body-file "{context file}"
+# To update a verified matching comment owned by the authenticated user:
+gh api repos/{owner}/{repo}/issues/comments/{comment ID} --method PATCH -F "body=@{context file}"
 ```
 
-##### If an existing comment is found and another user is the author
-
-You cannot edit another user's comment, so ask with the AskUserQuestion tool:
-
-- **Post as a separate comment**: post a new comment with `gh pr comment`.
-- **Skip the GitHub post**: finish with only the local file write.
-
-#### 4-4. Report the result
-
-If the post/update completed, report the PR comment URL to the user. If skipped, report
-that.
-
-## Guidelines for what to write
-
-### Emphasize
-
-- **Accurate description of the implementation's behavior**: not "it works like this"
-  but "given this input, it behaves like this".
-- **Rejected alternatives and their reasons**: the judgment a human later wonders "why
-  didn't we do it this way".
-- **Discovered constraints and pitfalls**: information so the next worker doesn't step
-  in the same trap.
-
-### Keep thin
-
-- Things obvious from reading the code (function names used, list of changed files,
-  etc.).
-
-### "What not to write" rules per section
-
-- **Design approach**: don't write the reason for a config value that is clear from
-  reading the code/config (e.g. filename naming, env version choice).
-- **Newly confirmed facts**: don't write impressions, reflections on the process, or war
-  stories. Only facts that affect future decisions.
-- **Pitfalls to watch**: a constraint (an unchangeable fact) goes in "discovered
-  constraints". A positive discovery goes in "newly confirmed facts".
-
-### Section boundary guide
-
-**"Design approach" vs "rejected alternatives":**
-
-- Design approach = the adopted approach and its grounds.
-- Rejected alternatives = approaches considered but not adopted, and why.
-
-**When the approach rests on a decision recorded as an ADR:**
-
-Some of what lands in "design approach" is not a choice made for this branch but an
-architectural decision — hard to reverse, surprising without context, the result of a real
-trade-off. That belongs in an ADR (`domain-modeling`), because this file is regenerated
-and dies with the branch.
-
-When that happens, **do not drop it from this file** — split it:
-
-- Here: a one-line summary of the decision and a **link to the ADR**.
-- In the ADR: the decision, its grounds, and the alternatives whose rejection is what makes
-  it non-obvious.
-
-The link is required, not optional. `sanity-review` and the AI reading this as a briefing
-see only this file and the PR comment; without the pointer they lose the design intent
-entirely. Rejected alternatives otherwise stay here by default — the ADR takes only the
-ones that explain the decision.
-
-**"Discovered constraints" vs "pitfalls to watch":**
-
-- Constraint = a fact that binds the judgment and won't disappear no matter how careful
-  the worker is.
-- Pitfall = an accident avoidable by changing the steps or approach if you know about it.
-
-### Rules for updating an existing file
-
-#### Re-export within the same session
-
-- Fully regenerate based on the whole conversation context.
-- Not bound by the existing file's content. The current understanding is authoritative.
-
-#### Updating another session's record
-
-Respect the prior session's record as "a predecessor's findings":
-
-- Keep existing items as a rule.
-- Append newly discovered information.
-- **Correct or delete only when you actually re-tested/verified and disproved it in your
-  own work.** Don't delete on inference alone.
-- If an item is clearly misclassified, you may move it between sections (the content is
-  preserved).
-- If you infer a change of intent / approach / scope judgment, confirm with the user.
-
-#### Common rules
-
-- The file always represents "the currently correct state". Don't leave strikethroughs
-  or change history (leave history to git).
+If posting fails, retain the local record, note the failure and pending sharing under remaining work, and report sharing as incomplete.
+Report the saved path and, if shared successfully, the PR comment URL.
+Distinguish local-only completion, confirmed PR absence, and failed or unverified sharing; do not report a post as complete without a successful result.
 
 ## Related skills
 
-- **conversation-context-import**: load a saved conversation context. Used when
-  continuing development in a new session or reviewing a feature PR.
-- **sanity-review**: write a PR review report. Loads the conversation context posted to
-  the PR comment and uses it in the review.
-- **durable-knowledge-export**: the durable tier, outside the repo. A finding about the
-  system itself that should outlive the branch goes there. Route by that skill's own
-  judgment rather than a copy of it here.
-- **domain-modeling**: the record tier — this codebase's glossary and its ADRs, committed
-  with the code. An architectural decision goes there; see the section boundary guide for
-  how this file links to it.
-
-This skill is the **ephemeral tier**: per-branch context that dies with the PR. When a
-finding does not belong here, hand it to the tier that owns it rather than keeping a
-weaker copy.
+- **conversation-context-import**: load saved context to continue development or review.
+- **sanity-review**: use conversation context and linked ADRs to review implementation intent.
+- **durable-knowledge-export**: findings about the system itself that should outlive the branch; use that skill's routing criteria.
+- **domain-modeling**: this codebase's glossary and architectural decisions, committed with the code; link to its ADRs from this ephemeral record.

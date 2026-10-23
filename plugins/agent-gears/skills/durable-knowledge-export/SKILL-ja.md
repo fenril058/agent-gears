@@ -16,7 +16,7 @@ compatibility: git と gh CLI(GitHub CLI・認証済み)が PATH に必要。gh 
 
 これは**永続層**である。対になる層が2つある。
 
-- `conversation-context-export` — **揮発層**(ブランチ/PR 単位の文脈を `.dev/contexts/` + PR コメントへ)。
+- `conversation-context-export`：**揮発層**（ブランチ/PR単位の文脈を `.dev/contexts/` へ保存し、共有が依頼または許可された場合はPRコメントへ投稿する）。
 - `domain-modeling` — **記録層**(このコードベースの用語集とアーキテクチャ決定記録。コードと一緒に commit される)。
 
 セクション1の判定で発見を振り分ける。
@@ -165,6 +165,8 @@ origin を張り替えた fork ではディレクトリが upstream owner のま
 
 ## 関連スキル
 
-- **conversation-context-export**: 揮発層——ブランチ/PR 単位の文脈を `.dev/contexts/` + PR コメントへ。揮発する発見はこちらへ回す。
+- **conversation-context-export**: 揮発層。
+  ブランチ/PR単位の文脈を `.dev/contexts/` へ保存し、共有が依頼または許可された場合はPRコメントへ投稿する。
+  揮発する発見はこちらへ回す。
 - **conversation-context-import**: 保存した揮発文脈を読み込む。
 - **domain-modeling**: 記録層——このコードベースの用語集(`CONTEXT.md`)とアーキテクチャ決定記録。コードと一緒に commit される。決定と用語はこちらへ回す。living page ではなく不変の記録だからである。
