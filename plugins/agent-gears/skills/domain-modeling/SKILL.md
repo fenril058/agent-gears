@@ -2,13 +2,14 @@
 name: domain-modeling
 description: >-
   Clarify this project's domain language and architectural decisions; record agreed vocabulary in CONTEXT.md and qualifying decisions in ADRs when recording is part of the task.
-  Use for terminology discussions, "write this up as an ADR", "record this decision", or recording delegated by another skill such as grilling.
+  Use when pinning down this project's terminology or ubiquitous language, for "write this up as an ADR" or "record this decision", or for recording delegated by another skill such as grilling.
   Discussing a term alone does not authorize file edits.
 ---
 
 # Domain modeling procedure
 
 Clarify the project's concepts and record agreed terms and decisions within the requested scope.
+Merely reading `CONTEXT.md` to use its existing vocabulary does not require this skill.
 
 ## Requested scope
 
@@ -57,13 +58,14 @@ Create it only when recording is within scope and the first agreed term needs sa
 
 ## ADRs
 
-An ADR belongs here only when **all three** hold:
+Propose an ADR only when **all three** hold:
 
 1. **Hard to reverse** — the cost of changing your mind later is meaningful.
 2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off** — there were genuine alternatives and one was picked for specific reasons.
 
-If any is missing, skip it.
+If any is missing, do not propose an ADR yourself.
+For an explicit ADR request that appears not to meet these conditions, explain which condition is missing and clarify the intended record only if needed; do not silently drop the request or reconfirm an informed choice already made.
 Most sessions need few or no ADRs.
 
 Numbering, superseding, and the template: [ADR-FORMAT.md](ADR-FORMAT.md).

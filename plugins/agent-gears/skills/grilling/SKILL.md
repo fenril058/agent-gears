@@ -19,6 +19,7 @@ Rules:
 - Before asking about a decision, resolve every decision it depends on.
   Do not ask a question whose answer depends on an unresolved prerequisite decision.
 - When unresolved decisions are independent, do not invent dependencies between them or make one wait on the other's answer.
+  Continue to ask only one question at a time; this rule does not require asynchronous or background work.
 - Before asking the user to confirm the shared understanding, check that no unresolved decision or silently assumed decision remains.
   If any remains, surface and resolve it one question at a time.
 - Do not implement the plan until the user confirms the shared understanding.
@@ -38,7 +39,7 @@ Recording permission does not authorize implementation, commit, push, or externa
 ## Finish within the requested scope
 
 Summarize the shared understanding, rejected alternatives, and remaining work in the conversation.
-Use `conversation-context-export` when the request or established handoff intent calls for saving that context.
+Use `conversation-context-export` when handoff intent established by the request, conversation, or project instructions calls for saving that context.
 Apply its local-save default and sharing rules: local-only stays local, and a PR's existence does not authorize sharing.
 Do not ask again for saving or sharing already authorized for this export.
 

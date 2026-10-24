@@ -40,6 +40,9 @@ When an agreed and recorded decision is reversed or replaced, preserve its histo
 2. Mark the old one `superseded by ADR-MMMM`.
    Leave its body intact.
 
+For an unadopted proposal, append its rejection, withdrawal, or replacement outcome using existing conventions; preserve the original body and link to any replacement ADR.
+Do not describe the proposal as ever accepted.
+
 Never delete or rewrite the old ADR.
 "We decided X, then found out Y and switched to Z" is the information that makes the record worth keeping; a record that only shows Z is indistinguishable from never having considered X.
 
@@ -48,7 +51,7 @@ Changing what it says is not.
 
 ## When to write one
 
-All three conditions in SKILL.md must hold, and writing must be within the requested scope.
+Use the three conditions and handling of explicit requests in SKILL.md, and write only within the requested scope.
 What typically qualifies:
 
 - **Architectural shape.**
@@ -70,4 +73,4 @@ What typically qualifies:
 - **Rejected alternatives when the rejection is non-obvious.**
   If GraphQL was considered and REST chosen for subtle reasons, record it — otherwise someone proposes GraphQL again in six months.
 
-What does not: reversible choices, obvious ones, and anything with no real alternative.
+Normally omit reversible choices, obvious ones, and anything with no real alternative.
