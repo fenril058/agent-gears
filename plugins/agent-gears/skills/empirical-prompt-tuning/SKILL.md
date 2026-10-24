@@ -93,4 +93,4 @@ A number produced under a broken baseline is worse than no number, because it ge
 ## Related
 
 - `agent-instructions-refine`: rewriting the instruction once this has found what is wrong with it.
-- `spec-ambiguity-audit`: a cold read of a document by a cheap model, when the question is what a from-scratch implementer would trip on.
+- `spec-ambiguity-audit`: a document audit with source verification and an independent read when useful, when the question is what a from-scratch implementer cannot decide.
