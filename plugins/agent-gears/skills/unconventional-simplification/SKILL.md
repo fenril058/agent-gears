@@ -95,6 +95,9 @@ Consult an external agent only when the user explicitly asks for it. Delegate th
 mechanics of the consultation to `subagent-consultation`; this skill only specifies the
 content of the consultation.
 
+For independent reconsideration, pass the target implementation, constraints, and comparison criteria without your own assumption list, alternatives, or conclusions.
+Keep the consultation within the requested target and the proposal-only scope of this skill.
+
 Left alone, an external agent drifts into an ordinary review. Request steps 2–5
 themselves, not a review: have the external agent enumerate grounded assumptions
 itself, and for each assumption examine whether replacing it with "the case without

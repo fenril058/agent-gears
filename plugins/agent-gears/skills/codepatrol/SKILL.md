@@ -222,10 +222,9 @@ it — run one without weighing it up.
 Choosing not to use one is not a gap in the investigation, and does not belong in the
 report.
 
-To run one, call `subagent-consultation` via the Skill tool. State the depth ("Consult
-well") in the same turn as the question — without a depth the consultation skill asks
-the user back and interrupts the investigation. Do not ask for any particular kind of
-consultant; `subagent-consultation` owns that choice.
+To run one, call `subagent-consultation` via the Skill tool.
+Request independent exploration of the selected area within the investigation's operation limits.
+Pass through any user requirements on rounds or consultant selection; otherwise let `subagent-consultation` select the consultant and decide whether unresolved points need follow-up.
 
 #### What the independent investigator gets
 

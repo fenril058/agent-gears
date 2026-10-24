@@ -426,10 +426,8 @@ Choosing not to use one is not a gap in the review, and does not belong in "Prob
 encountered during review".
 
 To run one, call `subagent-consultation` via the Skill tool.
-State the depth ("Consult well") in the same turn as the question — without a depth the
-consultation skill asks the user back and interrupts the review.
-Do not ask for any particular kind of consultant; `subagent-consultation` owns that
-choice.
+Request an independent review with the review scope and operation limits stated above.
+Pass through any user requirements on rounds or consultant selection; otherwise let `subagent-consultation` select the consultant and decide whether unresolved points need follow-up.
 
 #### What the independent reviewer gets
 
@@ -518,8 +516,7 @@ The template headings are in Japanese; write the report in the user's working la
 
 ## Related skills
 
-- **subagent-consultation**: consult a subagent (the Agent tool). Used only for the
-  optional independent review; it decides which consultant to use, Codex included.
+- **subagent-consultation**: arrange the optional independent review using an available consultant, including Codex, while respecting the user's requirements.
 - **conversation-context-import**: load the conversation context. Background for step 1.
 - **conversation-context-export**: write out the conversation context. Background on the
   conversation-context format.
