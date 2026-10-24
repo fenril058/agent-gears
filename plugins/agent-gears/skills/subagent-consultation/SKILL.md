@@ -17,7 +17,8 @@ Use the host's available agent tools or an execution adapter for the run itself.
 Use the user's question and the established task context to determine the target and the kind of judgment needed.
 Proceed without a depth-selection question when these are clear.
 Ask only for missing information that materially affects the consultation and cannot be inferred from that context.
-Respect explicit limits on rounds, target, model, execution means, and prohibited actions; carry them into the consultant's instructions.
+Respect explicit requirements on the target, model, execution means, and prohibited actions.
+Apply model and execution-mechanism requirements when launching the consultant, and include the target and applicable operation constraints in its instructions.
 
 Keep exploration within the requested scope, including related code and sources needed to assess it.
 A request about one function does not authorize a repository-wide audit.
@@ -38,7 +39,7 @@ Choose the framing by purpose:
 - **Design consultation or critique of a proposal:** supply the proposal being evaluated, its rationale, and constraints so the consultant can challenge it and offer alternatives.
   Distinguish your hypotheses from established facts.
 
-Do not require either framing for every consultation.
+Do not impose the same framing on every consultation.
 For example, "review this diff once" calls for an independent read; "evaluate this design" requires the design.
 If the available mechanism cannot meet a requested independence condition, report that limitation rather than calling the result independent.
 
@@ -87,7 +88,6 @@ Distinguish these outcomes:
 Use follow-up to resolve a material objection, evidence gap, or unanswered part of the question when the request permits it.
 A single review needs no additional consultation when its answer is sufficient.
 A request for deep consultation calls for pursuing important unresolved points, not meeting a default round count.
-Honor explicit round instructions; if their limit leaves an issue open, report it.
 
 Continue the same consultant when its prior context helps resolve the issue and the mechanism supports continuation.
 Use a fresh reader when an independent judgment is needed; a consultant already shown your hypothesis is no longer a fresh reader of it.
@@ -95,7 +95,7 @@ For a continued conversation, send the focused question and new evidence.
 For a new invocation, include the necessary background, question, constraints, and evidence again; include the earlier answer only when the purpose permits it.
 The Codex adapter is always a new invocation, even for follow-up on the same issue.
 
-Respect explicit round instructions and stop at their limit.
+Honor explicit round instructions and stop at their limit; report any issue left open at that point.
 When no further rounds are required, stop as soon as the requested question is adequately answered, further consultation makes no progress, or the remaining gap cannot be resolved with available authorized means.
 Do not keep adding questions or consultants to seek exhaustive coverage.
 Report remaining uncertainty instead of retrying indefinitely or inventing permission changes or host-configuration workarounds.

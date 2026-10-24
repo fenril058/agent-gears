@@ -223,7 +223,7 @@ Choosing not to use one is not a gap in the investigation, and does not belong i
 report.
 
 To run one, call `subagent-consultation` via the Skill tool.
-Request independent exploration of the selected area within the investigation's operation limits.
+Request independent exploration of the selected area within the operations the user has authorized for this investigation.
 Pass through any user requirements on rounds or consultant selection; otherwise let `subagent-consultation` select the consultant and decide whether unresolved points need follow-up.
 
 #### What the independent investigator gets
