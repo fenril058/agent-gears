@@ -86,6 +86,12 @@ class CliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("=== 行 9-11", result.stdout)
 
+    def test_negative_margin_is_an_error(self):
+        result = self.run_cli("--margin", "-1", "--range", "10")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("margin must be >= 0", result.stderr)
+
     def test_out_of_range_citation_is_an_error(self):
         result = self.run_cli("--range", "999")
         self.assertNotEqual(result.returncode, 0)

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Mechanically extract merged context windows around cited line ranges.
 
-Used by the spec-ambiguity-audit skill to check a cheap model's flagged
-ambiguities against their surrounding text, without re-reading the whole
-document. Ranges are sorted and overlapping/adjacent windows are merged
-before extraction, so the same lines are never read twice.
+Optional helper for the spec-ambiguity-audit skill to inspect candidate
+findings against their surrounding text. Ranges are sorted and overlapping
+or adjacent windows are merged before extraction to avoid duplicate lines.
+This does not check whether another section or reference answers a finding.
 
 Usage:
     extract_context.py <file> --margin 10 --range 62 --range 316-318 ...
@@ -64,6 +64,9 @@ def main() -> int:
                          help='line or "start-end", repeatable')
     parser.add_argument("--ranges-file", help="file with one range per line")
     args = parser.parse_args()
+
+    if args.margin < 0:
+        parser.error("margin must be >= 0")
 
     raw_ranges: list[tuple[int, int, str]] = []
     try:

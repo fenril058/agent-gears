@@ -46,6 +46,6 @@ Do not ask again for saving or sharing already authorized for this export.
 ## Related skills
 
 - **domain-modeling**: owns the glossary and ADRs when recording is part of the task.
-- **spec-ambiguity-audit**: audits a written spec for gaps with a cold-reading cheap model.
+- **spec-ambiguity-audit**: audits a written spec for implementation ambiguities, using an independent read when useful and verifying findings against the sources.
   Grilling resolves the open decisions with the user directly.
 - **conversation-context-export**: save context for handoff when called for by the task.

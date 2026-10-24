@@ -47,6 +47,6 @@ description: >-
 ## 関連スキル
 
 - **domain-modeling**: 記録が依頼範囲に含まれる場合の用語集とADRを担当する。
-- **spec-ambiguity-audit**: 書かれた仕様書のギャップを安価モデルの素読みで監査する。
+- **spec-ambiguity-audit**: 書かれた仕様書で実装を左右する曖昧さを監査し、有用なら独立した読解を使い、指摘を原文と照合する。
   grillingは未決定事項をユーザーと直接解決する。
 - **conversation-context-export**: 依頼に応じて、引き継ぎのための文脈を保存する。

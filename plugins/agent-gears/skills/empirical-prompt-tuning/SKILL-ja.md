@@ -108,4 +108,4 @@ checklist を渡された arm はそれをそのまま実装できてしまい�
 ## 関連
 
 - `agent-instructions-refine`: 何が悪いか判明したあと、指示を書き直す。
-- `spec-ambiguity-audit`: 白紙の実装者が何につまずくかを問うとき、安価な model に文書を素読みさせる。
+- `spec-ambiguity-audit`: 初見の実装者が何を判断できないかを問う文書の監査で、指摘を原文と照合し、有用なら独立した読解を使う。
