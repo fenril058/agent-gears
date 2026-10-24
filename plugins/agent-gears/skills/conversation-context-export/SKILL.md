@@ -123,8 +123,9 @@ This notice does not require checking whether a PR or an earlier comment exists.
 ### Decisions recorded in ADRs
 
 Preserve the existing division of recording responsibilities.
-When a decision belongs in an ADR (`domain-modeling`), retain a one-line summary and a link to that ADR in this context.
+When a decision has been recorded in an ADR (`domain-modeling`), retain a one-line summary and a link to that ADR in this context.
 Keep the grounds and alternatives that explain that architectural decision in the ADR; other rejected alternatives remain here.
+If ADR recording is also entrusted to you, use `domain-modeling` within that scope; an export request alone does not require creating ADRs or glossary entries.
 The link lets the reviewer follow the design intent beyond the ephemeral record.
 
 ## Share via a PR comment

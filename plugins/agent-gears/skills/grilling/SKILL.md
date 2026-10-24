@@ -1,10 +1,8 @@
 ---
 name: grilling
 description: >-
-  Grill the user about a plan, decision, or idea — one question at a time, with a
-  recommended answer for each — until a shared understanding is reached. Use when the
-  user wants to stress-test their thinking before implementation, or says "grill me",
-  "interview me", or "要件を詰めて".
+  Grill the user about a plan, decision, or idea — one question at a time, with a recommended answer for each — until a shared understanding is reached.
+  Use when the user wants to stress-test their thinking before implementation, or says "grill me", "interview me", or "要件を詰めて".
 ---
 
 # Grilling procedure
@@ -14,41 +12,39 @@ Explore every relevant aspect, resolving dependencies between decisions one by o
 
 Rules:
 
-- Ask the questions **one at a time**, waiting for feedback on each question before
-  continuing. Asking multiple questions at once is bewildering.
+- Ask questions **one at a time**, waiting for feedback before continuing.
 - For each question, provide your **recommended answer**.
-- If a **fact** can be found by exploring the environment (filesystem, tools, git
-  history, etc.), look it up yourself rather than asking. The **decisions**, though,
-  are the user's — put each one to them and wait for their answer.
+- Look up **facts** available in the environment (files, tools, Git history) yourself.
+  Put **decisions** to the user and wait for their answer.
 - Before asking about a decision, resolve every decision it depends on.
   Do not ask a question whose answer depends on an unresolved prerequisite decision.
 - When unresolved decisions are independent, do not invent dependencies between them or make one wait on the other's answer.
-  Continue to ask only one question at a time; this rule does not require asynchronous or background work.
 - Before asking the user to confirm the shared understanding, check that no unresolved decision or silently assumed decision remains.
   If any remains, surface and resolve it one question at a time.
-- Do not act on the plan until the user confirms you have reached a shared
-  understanding.
+- Do not implement the plan until the user confirms the shared understanding.
+  If implementation was already requested, proceed after that confirmation without asking for a separate start approval.
+  Confirmation alone does not turn a consultation into an implementation request.
 
 ## Record what settles, as it settles
 
-A grilling that leaves no trace evaporates when the session ends. So while the interview
-runs, write down the two things that outlive it — via `domain-modeling`, which owns both:
+Determine whether recording is part of the task from the request, conversation, and project instructions.
+A consultation alone does not require file changes or a question about recording; ask only when missing information affects the requested work.
+Honor instructions to leave files unchanged.
 
-- **A term, the moment it is pinned down** → the `CONTEXT.md` glossary.
-- **A decision that is hard to reverse, surprising without context, and the result of a
-  real trade-off** → an ADR. All three, or skip it; most sessions produce few or none.
+When recording is entrusted to you, use `domain-modeling` to save agreed terms and qualifying decisions as they settle, without waiting for agreement on the whole plan or asking for the same recording permission per item.
+Keep tentative names and options under discussion distinct from agreed terms and adopted decisions.
+Recording permission does not authorize implementation, commit, push, or external posting; follow the scope already established for each action.
 
-Write these inline, not batched at the end. The end is exactly where a long interview
-runs out of room.
+## Finish within the requested scope
 
-Everything else the session produced — the approach, the alternatives you turned down,
-what is left to do — goes to `conversation-context-export` when you finish.
+Summarize the shared understanding, rejected alternatives, and remaining work in the conversation.
+Use `conversation-context-export` when the request or established handoff intent calls for saving that context.
+Apply its local-save default and sharing rules: local-only stays local, and a PR's existence does not authorize sharing.
+Do not ask again for saving or sharing already authorized for this export.
 
 ## Related skills
 
-- **domain-modeling**: the record tier. Owns the glossary and the ADRs this skill feeds.
-- **spec-ambiguity-audit**: audits a written spec for gaps with a cold-reading cheap
-  model. Grilling is the interactive counterpart: it resolves the open
-  decisions with the user directly.
-- **conversation-context-export**: once the shared understanding is reached, export it
-  so the next session inherits the decisions.
+- **domain-modeling**: owns the glossary and ADRs when recording is part of the task.
+- **spec-ambiguity-audit**: audits a written spec for gaps with a cold-reading cheap model.
+  Grilling resolves the open decisions with the user directly.
+- **conversation-context-export**: save context for handoff when called for by the task.

@@ -1,5 +1,8 @@
 # CONTEXT.md Format
 
+Apply the recording scope established in [SKILL.md](SKILL.md) before creating or updating files.
+Only agreed terms belong in the glossary; a tentative or withdrawn name does not create an entry.
+
 ## Structure
 
 ```md
@@ -24,24 +27,24 @@ _Avoid_: Client, buyer, account
 
 ## Rules
 
-- **Be opinionated.** When several words exist for one concept, pick the best and list the
-  rest under `_Avoid_`. If the field has an established term, that is the one to pick.
-- **Keep definitions tight.** One or two sentences. Define what it IS, not what it does.
-- **Only terms specific to this project's context.** General programming concepts
-  (timeouts, error types, utility patterns) don't belong even if the project uses them
-  constantly. Before adding a term, ask: is this unique to this context, or is it a
-  general concept? Only the former belongs.
-- **No implementation details.** Not a spec, not a scratch pad. A term's definition should
-  survive a rewrite of the code that implements it.
-- **Group under subheadings** when natural clusters emerge. A flat list is fine when all
-  terms belong to one cohesive area.
+- **Be opinionated.**
+  When several words exist for one concept, propose the best and list the rest under `_Avoid_` once agreed.
+  If the field has an established term, that is the one to pick.
+- **Keep definitions tight.**
+  Use one or two sentences defining what it IS, not what it does.
+- **Only terms specific to this project's context.**
+  General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them constantly.
+  Before adding a term, check whether it is unique to this context rather than a general concept.
+- **No implementation details.**
+  A term's definition should survive a rewrite of the code that implements it.
+- **Group under subheadings** when natural clusters emerge.
+  A flat list is fine when all terms belong to one cohesive area.
 
 ## Single vs multi-context repos
 
 **Single context (most repos):** one `CONTEXT.md` at the repo root.
 
-**Multiple contexts:** a `CONTEXT-MAP.md` at the root lists the contexts, where they live,
-and how they relate:
+**Multiple contexts:** a `CONTEXT-MAP.md` at the root lists the contexts, where they live, and how they relate:
 
 ```md
 # Context Map
@@ -54,10 +57,8 @@ and how they relate:
 
 ## Relationships
 
-- **Ordering → Fulfillment**: Ordering emits `OrderPlaced`; Fulfillment consumes it to
-  start picking
-- **Fulfillment → Billing**: Fulfillment emits `ShipmentDispatched`; Billing consumes it
-  to generate invoices
+- **Ordering → Fulfillment**: Ordering emits `OrderPlaced`; Fulfillment consumes it to start picking
+- **Fulfillment → Billing**: Fulfillment emits `ShipmentDispatched`; Billing consumes it to generate invoices
 - **Ordering ↔ Billing**: shared types for `CustomerId` and `Money`
 ```
 
@@ -65,19 +66,19 @@ Infer which structure applies:
 
 - `CONTEXT-MAP.md` exists → read it to find the contexts.
 - Only a root `CONTEXT.md` → single context.
-- Neither → single context; create the root `CONTEXT.md` lazily when the first term
-  resolves.
+- Neither → single context; create the root `CONTEXT.md` only when recording is within scope and the first agreed term needs saving.
 
-With multiple contexts, infer which one the current topic belongs to. If unclear, ask.
+With multiple contexts, infer which one the current topic belongs to.
+If unclear, ask.
 
 ## Updating
 
-Unlike the durable tier's living pages, a glossary entry is a definition, and changing one
-changes the meaning of every document that used the term. So:
+Changing a glossary definition changes the meaning of every document that used the term.
 
-- Adding a term is routine — do it inline, the moment it resolves.
-- **Changing an existing definition is not.** Surface it: say what the old definition was,
-  what the new one is, and confirm before editing. A silent redefinition is how two people
-  end up meaning different things by the same word again.
-- Removing a term needs the same treatment. Prefer moving it to `_Avoid_` under the term
-  that replaced it, so the old word still resolves.
+- When recording is entrusted to you, add agreed terms inline without asking for the same recording permission per term.
+- **Changing an existing definition needs agreement to that change.**
+  State the old and proposed definitions and resolve the difference before editing.
+  If that specific change is already agreed, apply it without reconfirming.
+  Permission to maintain the glossary alone does not authorize silent redefinition.
+- Removing a term needs the same treatment.
+  Prefer moving it to `_Avoid_` under the term that replaced it, so the old word still resolves.
