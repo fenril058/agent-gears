@@ -20,7 +20,7 @@ description: >-
 
 | 層 | sink | 更新モデル |
 | --- | --- | --- |
-| 揮発層(`conversation-context-export`) | `.dev/contexts/` + PR コメント | ブランチごとに再生成。commit しない |
+| 揮発層(`conversation-context-export`) | `.dev/contexts/`、共有が依頼または許可された場合はPRコメント | ブランチごとに再生成。commit しない |
 | **記録層(この skill)** | `CONTEXT.md`、ADR ディレクトリ | **追記と supersede。書き換えない** |
 | 永続層(`durable-knowledge-export`) | GitHub wiki または knowledge リポジトリ | living page。常に現在状態 |
 

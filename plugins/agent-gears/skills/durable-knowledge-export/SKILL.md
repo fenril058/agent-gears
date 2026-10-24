@@ -23,7 +23,7 @@ skill deliberately writes elsewhere.
 This is the **durable tier**. It has two siblings:
 
 - `conversation-context-export` — the **ephemeral tier** (per-branch/PR context in
-  `.dev/contexts/` + a PR comment).
+  `.dev/contexts/`, with a PR comment when sharing is requested or authorized).
 - `domain-modeling` — the **record tier** (this codebase's glossary and architectural
   decision records, committed alongside the code).
 
@@ -219,7 +219,8 @@ Updating an existing page (either sink is cross-session, the wiki possibly cross
 ## Related skills
 
 - **conversation-context-export**: the ephemeral tier — per-branch/PR context to
-  `.dev/contexts/` + a PR comment. Route ephemeral findings there.
+  `.dev/contexts/`, with a PR comment when sharing is requested or authorized.
+  Route ephemeral findings there.
 - **conversation-context-import**: load saved ephemeral context.
 - **domain-modeling**: the record tier — this codebase's glossary (`CONTEXT.md`) and its
   architectural decision records, committed with the code. Route decisions and vocabulary

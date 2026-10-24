@@ -174,8 +174,9 @@ conversation contextは実装processに関するhandoff evidenceであってRevi
 
 PR commentまたは `.dev/contexts/` から発見したcontextについて、`PR`・`Branch`・`Source commit` metadataを読む。
 `Source commit` をexact commitへ解決し、Reviewed headと同一またはそのancestorである場合だけ自動的に使用する。ここでancestor関係が示すのはprovenance上の時系列であり、codeの同一性ではない。
-PR reviewでは記録されたbranchが対象PRに一致することを要求し、記録されたPRは対象PRと一致するか、exact placeholder `PR not created at export time` であることを要求する。
-placeholderはbranchが一致し、上記のsource commit確認も通る場合だけ許容し、それ以外のPR不一致は拒否する。
+PR reviewでは記録されたbranchが対象PRに一致することを要求し、記録されたPRは対象PRと一致するか、exportのplaceholder `PR not created at export time`、`PR not checked at export time`、`PR unverified at export time` のいずれかであることを要求する。
+これらのplaceholderはbranchが一致し、上記のsource commit確認も通る場合だけ許容し、それ以外のPR不一致は拒否する。
+後二者はexport時点でのPR不在を示さないため、コードのrevision不一致とは扱わず、PRが未確認だったことを報告する。
 紐づくbranchがあるnon-PR reviewでは、記録されたbranchが一致することを要求する。
 sourceが以前のancestorである場合、そのcontextはexport後の判断を含まない可能性があると記録する。
 

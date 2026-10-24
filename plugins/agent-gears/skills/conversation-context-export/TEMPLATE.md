@@ -1,9 +1,13 @@
 # {ブランチ名} 対話コンテキスト
 
-- PR: #{番号}(PRが未作成の場合は「export時点でPR未作成」と記入する)
+- PR: {#{番号} / PR not created at export time / PR not checked at export time / PR unverified at export time}
 - Branch: `{ブランチ名}`
-- Source commit: {git rev-parse --short HEADの出力}
+- Source commit: {選択したworktreeでのgit rev-parse HEADの出力}
 - Updated at: {YYYY-MM-DD HH:mm:ss}
+
+<!-- PRフィールドは、確認済みの番号、不在確認済み、取得未実施、取得失敗による未確認を区別する。
+ローカル保存だけならPR検出は不要で、未取得を「PR未作成」と記録しない。
+依頼された共有が未完了の場合は、理由と残る操作を「残作業」に書く。 -->
 
 ## 目的
 
@@ -54,6 +58,8 @@ ADR に記録した決定は、ここには一行要約とリンクだけを置�
 例: 「CIのキャッシュが効いていると設定変更が反映されない。設定を変えたらキャッシュクリアしてから検証すること」
 
 ## 残作業
+
+<!-- 未コミットの作業があれば、Source commitに含まれないことと、実装と検証の状況を記録する。 -->
 
 - (スコープ内だが未完了の作業。全て完了している場合は「なし」と記入)
 
