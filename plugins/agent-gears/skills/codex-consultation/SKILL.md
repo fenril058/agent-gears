@@ -24,7 +24,7 @@ Do not route the run through `codex:codex-rescue`, a background job, or any othe
 Require the caller to supply:
 
 - The complete consultation prompt.
-  It must stand on its own: Codex sees nothing of the caller's conversation, and nothing of an earlier round (see "Second round").
+  It must stand on its own: Codex sees nothing of the caller's conversation, and nothing of an earlier invocation (see "Follow-up consultation").
 - The target worktree's absolute path.
 - Whether the consultation is static or verification-capable.
 - Whether remote information is required.
@@ -149,13 +149,14 @@ Never pass the task ID, the output path, or a suggestion to check on it later to
 
 Handling a host lifecycle inside the adapter is within the contract; exposing one is not.
 
-## Second round
+## Follow-up consultation
 
-`codex exec` is single-shot: a second run has no memory of the first.
+`codex exec` is single-shot: each invocation has no memory of earlier runs.
 This adapter keeps no Codex thread and does not use `--resume`.
 
-A second round is therefore a fresh invocation whose prompt restates everything it needs: the original background, goal, constraints, and evaluation angles, a summary of the first answer, and the caller's rebuttal, supplements, and follow-up questions.
-The caller builds that prompt; this adapter only runs it.
+Each prompt must restate the background, question, constraints, and evidence needed for that invocation.
+The caller decides whether to include earlier answers or rebuttals according to the consultation's purpose, including any requirement for an independent read.
+The caller builds the prompt and decides whether follow-up is needed; this adapter only runs it.
 
 ## Classify the outcome
 

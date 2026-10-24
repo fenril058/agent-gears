@@ -1,281 +1,108 @@
 ---
 name: subagent-consultation
 description: >-
-  Consult an independent agent for a second opinion. Use when the user says "consult a
-  subagent", "ask a subagent", "have a subagent review this", or similar. Build a prompt
-  from the current conversation, run it on whichever consultant this host can reach —
-  a subagent through the Agent tool, or another vendor's CLI through an execution
-  adapter — then digest the result against your own view and report a summary to the
-  user.
+  Consult another agent for a second opinion when the user asks to consult a subagent,
+  ask a subagent, or have one review something, or a calling skill requests consultation.
+  Distinguish independent review from critique of a supplied proposal, select an
+  available consultant, and verify and synthesize its answer within the requested scope.
 ---
 
-# Subagent consultation procedure
+# Subagent consultation
 
-## Overview
+Own the consultation question, consultant selection, follow-up decisions, and synthesis.
+Use the host's available agent tools or an execution adapter for the run itself.
 
-Get a second opinion from a consultant agent (a subagent) and report a digested
-summary to the user. The user does not need to see the subagent's raw output. The
-consulting agent chews on the subagent's answer, checks it against its own view, and
-reports.
+## Purpose and scope
 
-### Roles
+Use the user's question and the established task context to determine the target and the kind of judgment needed.
+Proceed without a depth-selection question when these are clear.
+Ask only for missing information that materially affects the consultation and cannot be inferred from that context.
+Respect explicit requirements on the target, model, execution means, and prohibited actions.
+Apply model and execution-mechanism requirements when launching the consultant, and include the target and applicable operation constraints in its instructions.
 
-Three parties appear in this procedure:
+Keep exploration within the requested scope, including related code and sources needed to assess it.
+A request about one function does not authorize a repository-wide audit.
+A consultation or review request alone does not authorize implementing fixes, committing, pushing, or posting externally.
+Continue investigation and operations already authorized by the task without asking for permission again.
 
-- **User**: the human requesting the consultation.
-- **Consulting agent**: you, running this procedure. You take the user's request,
-  consult the consultant, and report to the user.
-- **Consultant**: the independent agent that provides the second opinion. What supplies
-  it depends on the host — a subagent launched via the Agent tool, or another vendor's
-  CLI run through an execution adapter ("Platform implementations" below). The rest of
-  this document says "the subagent" for it, whichever mechanism supplied it.
+## What the consultant receives
 
-When reporting to the user, use your own agent name in the heading (e.g. "Claude
-Code's view", "Cline's view").
+Provide the question, target materials or exact revisions, evaluation criteria, relevant constraints, and the permitted operations.
+Make the prompt self-contained for a consultant without this conversation.
+Ask for conclusions tied to evidence and for any missing information or failed verification that affects them.
 
-Which consultant is available depends on the host; see "Platform implementations"
-below. The rest of the procedure is the same everywhere.
+Choose the framing by purpose:
 
-## 1. Confirm consultation depth
+- **Independent review:** supply raw target materials and evaluation criteria, withholding your findings, suspected locations, preferred answers, and conclusions.
+  Check what conversation and background the launch mechanism actually passes, including automatic history inheritance; omitting a hypothesis from the prompt alone does not keep it out of inherited context.
+  Use a fresh context without that history when available.
+- **Design consultation or critique of a proposal:** supply the proposal being evaluated, its rationale, and constraints so the consultant can challenge it and offer alternatives.
+  Distinguish your hypotheses from established facts.
 
-If the user did not state a depth ("thoroughly", "deeply", "well", "lightly", etc.),
-offer these three options with the AskUserQuestion tool:
+Do not impose the same framing on every consultation.
+For example, "review this diff once" calls for an independent read; "evaluate this design" requires the design.
+If the available mechanism cannot meet a requested independence condition, report that limitation rather than calling the result independent.
 
-| Option | Round-trips | Consulting agent's draft view | Gap-chasing |
-| --- | --- | --- | --- |
-| **Consult well** (recommended) | 2 if needed | agent decides | check for gaps and report |
-| **Consult fully / deeply** | 2 as a rule (skip only if clearly unneeded) | always include; push the subagent to push back | actively rebut, supplement, chase further |
-| **Consult lightly** | 1 only | agent decides | organize the subagent's points and report |
+## Consultant and execution mechanism
 
-If the user explicitly specified a depth, skip this and follow it.
+Read the current host's tool descriptions and available capabilities before choosing how to launch, continue, and collect a consultant's answer.
+Do not assume a tool named `Agent`, a particular schema, or a fixed model name exists.
+Use a consultant suited to the judgment and follow any user or caller requirements.
+Treat these as separate capabilities:
 
-## 2. Design the prompt
+- **Model selection:** the host may allow an override; that alone says nothing about history inheritance or model family.
+- **Fresh context:** a consultant without the main conversation can reread materials without seeing your conclusions.
+- **Different model family:** when available and appropriate, it may expose different blind spots, but it does not guarantee independent reasoning or errors.
 
-You design the prompt sent to the subagent. Follow these guidelines:
+Do not silently replace a required model, family, or context condition with a weaker substitute.
+If no available consultant meets the requirement, state what cannot be fulfilled and distinguish your own analysis from the missing consultation.
 
-### Prompt design
+### Host-specific execution
 
-- Judge "what should be consulted now" from the conversation context.
-- If the user named a topic explicitly, follow it.
-- If not, pick an appropriate topic from the immediately preceding discussion or work.
+On Claude Code, use the current `Agent` tool when available and suitable; inspect its model and continuation options rather than prescribing them here.
+When selecting the Codex CLI from Claude Code, use [codex-consultation](../codex-consultation/SKILL.md).
+Supply the complete prompt, absolute target worktree path, whether tests/builds/diagnostics may be needed, and whether remote information is required.
+That adapter owns execution capability, the run's time bound, cleanup, and execution facts.
+It completes each call synchronously in the foreground with an answer or explicit failure; it keeps no persistent thread and returns no background job for later collection.
 
-### Prompt examples by context
+On Codex, use the exposed subagent operations according to their descriptions, including their history-inheritance controls.
+For follow-up, use an operation that actually starts or resumes work: merely delivering a message may leave an idle agent idle.
+Separate threads do not by themselves establish fresh context or a different model family.
 
-- **Review uncommitted changes**: "Review the uncommitted changes in this
-  repository. Point out code quality, design soundness, potential bugs, and
-  improvements."
-- **Consult on a design**: "Give me your opinion on the following design. [design
-  summary]. Suggest alternatives and trade-offs if any."
-- **Consult on an implementation approach**: "I want to implement [task summary].
-  Given this repository's codebase, propose the best implementation approach."
+## Verification, follow-up, and stopping
 
-### Prompt structure
+Check the returned answer against primary evidence before adopting its claims.
+Keep supported findings, unresolved hypotheses, and unavailable evidence distinct.
+A consultant's agreement is not verification, and disagreement calls for comparing reasons and evidence.
 
-1. Project background (briefly).
-2. The specific question to consult on.
-3. The consulting agent's current draft view (include when useful; always include in
-   "fully" mode).
-4. A request to explore broadly beyond the stated angles (always include).
+Distinguish these outcomes:
 
-#### Template when including the consulting agent's draft view
+- **No usable answer:** report the execution failure.
+  If an untried suitable consultant can still meet the request within its limits, use it; fallback selection belongs here, not in the execution adapter.
+  Do not repeat exhausted attempts or silently relax requirements.
+  If no suitable option remains, report the missing consultation and give only the analysis you could perform yourself.
+- **Usable answer with some failed execution:** keep the usable parts and identify which conclusions depend on missing information.
+  Retrieve that information within existing authorization when feasible, correct affected conclusions, and report what remains unverified.
+  Do not discard the whole answer or switch consultants merely because one fetch, test, or diagnostic failed.
 
-```
-For reference, the consulting agent ([your agent name]) currently thinks:
-- [draft view]
+Use follow-up to resolve a material objection, evidence gap, or unanswered part of the question when the request permits it.
+A single review needs no additional consultation when its answer is sufficient.
+A request for deep consultation calls for pursuing important unresolved points, not meeting a default round count.
 
-Review broadly, including gaps or errors in this view.
-If anything beyond the stated angles concerns you, report it proactively.
-```
+Continue the same consultant when its prior context helps resolve the issue and the mechanism supports continuation.
+Use a fresh reader when an independent judgment is needed; a consultant already shown your hypothesis is no longer a fresh reader of it.
+For a continued conversation, send the focused question and new evidence.
+For a new invocation, include the necessary background, question, constraints, and evidence again; include the earlier answer only when the purpose permits it.
+The Codex adapter is always a new invocation, even for follow-up on the same issue.
 
-#### Broad-exploration request (always include in the prompt)
+Honor explicit round instructions and stop at their limit; report any issue left open at that point.
+When no further rounds are required, stop as soon as the requested question is adequately answered, further consultation makes no progress, or the remaining gap cannot be resolved with available authorized means.
+Do not keep adding questions or consultants to seek exhaustive coverage.
+Report remaining uncertainty instead of retrying indefinitely or inventing permission changes or host-configuration workarounds.
 
-The stated angles are a starting point, not a constraint. Always include a request
-that the subagent explore the repo itself and proactively report anything that
-concerns it.
+## Reporting
 
-## 3. Choose the consultant and run it
-
-### Choosing the consultant
-
-A consultation is judgment work: use a consultant capable of that judgment. Beyond that
-baseline, two things help, and they are separate effects, not tiers of one
-"independence" axis:
-
-- **Fresh context.** A session with no memory of this conversation is not anchored to
-  the view you have already formed. Useful whenever the job is re-reading or
-  re-judging something rather than learning something new.
-- **A different model family**, when a suitable one is available. It may surface a
-  blind spot correlated with your own training, which is worth the extra cost when you
-  may be systematically wrong rather than merely under-informed — correctness,
-  security, "is this explanation actually true". Treat this as a diversity heuristic,
-  not an independence guarantee: different training does not establish that priors or
-  errors are independent.
-
-There is no formal ranking such as "different-family beats same-family fresh beats
-whatever mechanism". Pick whichever effect the question needs, use both when the host
-makes both available, or fall back to whatever subagent/task mechanism the host has
-when neither is available — see "Platform implementations" below for what actually
-exists on this host.
-
-A cross-family consultant costs more to use. It cannot see this conversation, its tool
-access and permissions differ, and a round-trip is slower. Write the prompt to stand
-completely on its own (section 2 already requires this).
-
-If whoever invoked this skill stated which kind of consultant the task needs, follow
-that.
-
-### Launching
-
-Launch the consultant with the mechanism this host uses for that kind of consultant
-("Platform implementations" below). For an Agent-tool consultant:
-
-- `prompt`: the prompt designed in section 2.
-- `description`: a 3-5 word summary of the consultation.
-
-### Consultation failure vs. execution degradation
-
-A consultation ends in one of two ways, and they call for opposite responses.
-
-A **consultation failure** is the absence of an answer: the consultant's CLI is not
-installed, the run hit its time bound, the process exited non-zero, or the output says
-only that it could not proceed. There is nothing to digest, and the fallback is yours,
-not the adapter's — an execution adapter reports the failure and stops there. If a
-suitable consultant you have not yet tried is available, reselect one using the same
-heuristic and any caller-stated requirement (section 3, "Choosing the consultant") and
-run the same consultation there. If none is left, say so and give your own view alone.
-Either way, state in the report which consultant answered, and which one failed and
-how.
-
-A **usable result with execution degradation** is a real answer from a run where some
-command failed — a fetch, a test, a build, a diagnostic. Do not fall back on that one.
-Use the answer, and handle the gap as section 4's "If you detect a subagent execution
-failure" describes.
-
-### Deciding on a second round-trip
-
-In **fully** mode, after the first round, do a second round as a rule. Skip only when
-no further depth is clearly needed (the first round already covered things
-thoroughly).
-
-In **well** mode, after the first round, do a second round if any of these hold:
-
-- The subagent's points contain an important thread worth digging into.
-- The consulting agent wants to rebut or supplement the subagent's points.
-- The consulting agent judges some area was under-explored.
-
-Before deciding on a second round, check the first round's output for signs of
-execution failure (error messages, "could not fetch", "failed", "permission denied",
-"not found"). If you detect a failure, the consulting agent first fetches/corrects the
-right information, then decides whether a second round is needed (see section 4, "If you
-detect a subagent execution failure").
-
-Second-round prompt structure.
-
-**Continue the same consultant instead of launching a new one.**
-When the host can continue the same consultant with its context intact, send only the delta:
-
-1. The consulting agent's rebuttals / supplements / follow-up questions.
-2. Angles to dig into further.
-
-Only when the consultant cannot be continued, restate everything from scratch: the original consultation (background / goal / constraints / evaluation angles, structured, nothing dropped), a summary of the first-round answer, and then the two items above.
-
-Round-trips are 2 at most as a rule. For a third or more, confirm with the user first.
-
-## 4. Summarize and report
-
-Read the subagent's output and report to the user in this structure:
-
-### Report structure
-
-#### What was consulted
-
-Explain the prompt sent to the subagent in 1-2 sentences.
-
-#### Subagent's answer summary
-
-Summarize the subagent's main points and proposals as a bullet list.
-
-#### [Your agent name]'s view
-
-- Points you agree with.
-- Points you disagree with (with reasons).
-- Points you think the subagent missed.
-- If you did a second round, why, and what it revealed.
-
-**Stance:**
-
-- Do not accept the subagent's points uncritically. Try to verify as the consulting
-  agent before reporting.
-- Deliberately look for areas the subagent may not have explored.
-- When your view and the subagent's diverge, surface the divergence as valuable
-  information.
-
-#### Suggested next actions
-
-Show what to discuss with the user, or the recommended next step.
-
-### Reporting style
-
-- Keep it concise. Avoid verbose quoting.
-- When views differ, explain both sides' reasons so the user can decide.
-- Make clear what the user should do next.
-
-### If you detect a subagent execution failure
-
-When reading the subagent's output, check carefully for signs of failure. Examples:
-error messages, "could not fetch", "failed", "permission denied", "not found".
-
-If you detect a failure:
-
-1. First, the consulting agent fetches the correct information itself. Run the command
-   the subagent failed on (e.g. `gh pr view`) with the Bash tool and check the result.
-2. Then correct the subagent's analysis with the fetched information. Identify points
-   that went off-target from missing info and re-evaluate them in correct context.
-3. Finally, state the missing info explicitly in the view section of the report.
-   Describe the missing info and which points it affected.
-
-## 5. Improvement suggestions
-
-If you recognize a pattern where the subagent failed, suggest improvements for next
-time to the user.
-
-## Platform implementations
-
-### Claude Code
-
-A different-family consultant and a same-family consultant are reached by different
-mechanisms:
-
-- **Different family**: the Codex CLI, through the `codex-consultation` skill (Skill
-  tool), when that skill is installed and `codex` is on PATH. This skill owns prompt
-  design and synthesis; `codex-consultation` is only the Codex-specific execution
-  adapter. Supply it with the complete prompt, the target worktree's absolute path,
-  whether tests/builds/diagnostics may be required, and whether remote information is
-  required. It runs Codex in the foreground and returns a usable answer or a consultation
-  failure within that one call; it never hands back a job to collect later.
-- **Same family**: the `Agent` tool with `subagent_type: general-purpose`,
-  `model: opus` (or `fable`). A fresh session with no memory of this conversation.
-
-For a same-family consultant, address `SendMessage` to the consultant's ID or name
-for the second round. A fresh `Agent` call starts cold.
-
-Codex cannot be continued. `codex exec` is single-shot and `codex-consultation` keeps
-no thread, so a second Codex round is a fresh call carrying the full restatement
-described in section 3 ("Only when the consultant cannot be continued...").
-
-### Codex
-
-Codex has no single tool named `Agent`, but it may expose the subagent workflow through separate operations: spawn a thread, send follow-up work and start a turn, wait for it, list the running threads, and stop one when supported.
-Agent threads run separately, and the parent thread waits for their results and integrates them.
-Builds may also expose agent inspection through `/agent` and definitions through the `agents_dir` config (`$CODEX_HOME/agents/*.toml`).
-
-**Read the tool names off the Codex you are actually running, not off this file.**
-They differ between builds, and similar-looking operations may have different semantics.
-For example, in some builds `followup_task` starts a turn for an idle agent while `send_message` only delivers a message and does not start one.
-Select by the tool description, not by the name.
-
-Spawn the consultant on a strong model.
-For the second round, use the operation that starts or resumes a turn for the same agent.
-Merely delivering a message to an idle agent is not enough.
-If another vendor's CLI is installed, that is the different-family consultant.
-A Codex agent thread with no project context loaded is the same-family consultant.
+Scale the report to the consultation: a short review can be a paragraph or a few bullets.
+State what was consulted and who actually answered, the main points, your evidence-based assessment (including material disagreements), and any limitations that affect the result.
+Include follow-up outcomes or failed attempts when they matter to that assessment.
+Use headings only when they help; no fixed report template or agent-name heading is required.
