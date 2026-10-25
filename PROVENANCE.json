@@ -34,7 +34,6 @@
         "subagent-consultation",
         "sanity-review",
         "codepatrol",
-        "unconventional-simplification",
         "conversation-context-export",
         "conversation-context-import"
       ]
