@@ -1,70 +1,51 @@
 ---
 name: agent-instructions-refine
-description:  Review and refine an agent instruction file (such as CLAUDE.md or AGENTS.md) to keep it concise, high-signal, and easy for the agent to follow. Remove information that can be derived from the code, preserve essential project guidance, and rewrite the remainder as terse, testable, imperative rules.
+description: Review or simplify persistent agent instruction files such as AGENTS.md or CLAUDE.md. Favor concise, project-specific rules over codebase summaries while preserving non-obvious constraints and the user's intended behavior.
 ---
 
 # Refine Agent Instructions
 
-Agent instruction files (e.g., CLAUDE.md or AGENTS.md) compete for the agent's limited attention.
-A bloated file doesn't just cost tokens—it buries the rules that matter.
-Keep them small and high-signal: include only broadly applicable guidance and information the agent cannot derive on its own.
-Move everything else to skills, imported files, or other documentation.
+Prefer instructions that change a project decision over descriptions of how the code works.
+Preserve the user's intended behavior and conventions; shortening the file is secondary.
 
-These principles apply to any persistent agent instruction file, including CLAUDE.md, AGENTS.md, and equivalent files.
+## Decide what belongs
 
-## The test
+Read the target file and the imports, local conventions, and decisions relevant to the proposed edits.
+Check sources where they affect a keep, cut, or rewrite decision; an editing task does not require an exhaustive repository audit.
 
-For every line ask: **"If I delete this, will the agent get something wrong?"**
-If not, cut it. That single question drives every keep/cut decision below.
+Preserve credential setup requirements, but never add or retain actual secret values in instruction files.
+If found, remove the values and flag their presence without quoting them.
 
-## Keep vs cut
+- Keep project-specific constraints, departures from tool defaults, ownership boundaries, and prerequisites that affect how work should proceed.
+  Keep easy-to-miss follow-up edits and compatibility conditions even when they can be reconstructed from code.
+  Derivability alone is not a reason to delete a useful reminder.
+- Remove generic advice, duplicate explanations, and codebase inventories that add no decision guidance.
+  Link to maintained documentation for detail, keeping the rule and any rationale needed to apply it correctly.
+- Check a suspected stale rule against its source before deleting it.
+  A mismatch with current code can mean an implementation defect or an intentional constraint; it does not by itself revoke the rule.
+  If a safeguard's purpose remains uncertain after a focused check, retain it and note the uncertainty.
+  Ask only when an unresolved choice materially changes the intended behavior and cannot be settled from the request or available evidence.
 
-| Keep (can't be derived; applies broadly) | Cut (derivable, generic, or volatile) |
-| --- | --- |
-| Bash commands the agent can't guess — the **exact** command, not a description (`pytest -v --no-header`, not "run the tests") | Anything the agent can learn by reading the code |
-| Code style that differs from defaults, as concrete rules ("validate with Zod, never raw types"; "API routes go through `/lib/auth`") | Standard language conventions the agent already knows |
-| Testing instructions, the preferred test runner, and where fixtures live | Detailed API docs — link to them instead |
-| Repo etiquette: branch naming, PR / commit conventions | Information that changes frequently |
-| The **rules** a project-specific architecture decision imposes ("events cross context boundaries, never synchronous HTTP") | The decision's rationale and rejected alternatives — that is an ADR (see `domain-modeling`); link it, don't retell it |
-| Non-standard directory layout / conventions that deviate from the norm — the deviation, not a file-by-file tour | Self-evident advice ("write clean code") |
-| **Ownership boundaries** — in a monorepo, what each service / module owns and, crucially, does **not** own | **Secrets / credentials** (API keys, passwords, tokens) — never, even in a private repo |
-| Dev-env quirks (required env vars, `.env.example` location), non-obvious gotchas, easy-to-miss follow-up edits | Aspirational rules the team doesn't actually follow — the agent applies them strictly and causes friction; document what you *do* |
-|  | Stale context you won't maintain — the agent follows written rules confidently, so outdated ones actively mislead |
+Rewrite retained rules as specific actions with their conditions and scope: for example, "When changing X, also update Y."
+Do not widen a local rule into a universal one or remove exceptions while compressing it.
+Follow the document's conventions and group related rules; avoid a mandatory classification for every line.
 
-## Where moved-out content goes
+## Keep editing within scope
 
-- **Sometimes-relevant** domain knowledge or a multi-step workflow → a **skill** (loaded on demand), or a **separate file referenced via `@path`** so it loads only when needed.
-  Leave at most a one-line pointer in CLAUDE.md.
-- **Must happen every time, deterministically** (a check that can't be left to the model's discretion) → a **hook**, not prose. Instructions are advisory; hooks are enforced.
+If a failure prompted the review, check as needed whether the instruction was loaded, applicable, current, or in conflict before attributing the failure to its wording or length.
+A repeated mistake or an already-answered question is a reason to investigate, not a diagnosis.
 
-## Procedure
+Document cleanup does not itself call for creating skills, hooks, or settings.
+Make such changes only when the task and existing authorization cover them.
+When changing where instructions live or how checks run, verify the affected host's loading and execution behavior rather than assuming conditional loading or enforcement.
+For Claude Code, consult the official [memory](https://code.claude.com/docs/en/memory) and [hooks](https://code.claude.com/docs/en/hooks) documentation when those mechanisms are relevant.
 
-1. **Inventory**: read the target file and anything it imports. Record current line count and rough token count as the "before" baseline.
-2. **Classify** each line with the test above, sorting into: keep (invariant, broad, non-derivable) / move to a skill or `@`-file / convert to a hook / delete (derivable, outdated, contradicted by code, duplicated).
-3. **Rewrite** what stays:
-   - Imperative, specific, testable ("when you change X, also change Y" — not "be careful with X").
-   - No undefined terms or ad-hoc coinages; use established terminology.
-   - One sentence per line; blank line between paragraphs.
-   - Group by topic with short headers.
-   - Reserve emphasis (IMPORTANT / YOU MUST) for the few rules that actually get
-     ignored — if everything shouts, nothing does.
-4. **Report**: a change summary (for each removal, why — derivable / outdated / duplicated / moved-to-skill / moved-to-hook) plus before/after line and token counts.
+## Check and report
 
-## Guard
+Review the diff for lost constraints, changed scope, conflicting rules, and broken references.
+Run existing checks relevant to the changed files.
+Summarize consequential edits and their reasons, plus any unresolved choices; do not require a report for every removed line or default to line and token counts.
+Reduced length and static checks do not establish better agent behavior; state whether behavior under the revised instructions was observed.
 
-Don't delete anything you can't confirm is derivable or wrong.
-When unsure, flag it for the user instead of dropping it. A missing safeguard is worse than a slightly long file.
-
-## Signals it needs refining
-
-- The agent repeats a mistake **despite** a rule against it → the file is too long and the rule is getting lost. Prune.
-- The agent asks something **already answered** in the file → the phrasing is ambiguous.
-  Rewrite that line, don't add a new one.
-
-## Combine with
-
-- `empirical-prompt-tuning` checks instruction text. It runs only on an explicit request for an empirical evaluation or for a description / body consistency check, never automatically.
-  This skill is the direct editing procedure. When an operator asks whether the slimmed file still works, [[empirical-prompt-tuning]] starts from a static description / body audit and the host's own tooling; a candidate-vs-baseline comparison happens only on explicit request, and only when its isolation conditions can be met.
-
-Based on Anthropic's "Write an effective CLAUDE.md" guidance
-(<https://code.claude.com/docs/en/best-practices>).
+Use `empirical-prompt-tuning` only when explicitly asked for an empirical evaluation or a description/body consistency check.
+Ordinary instruction editing does not trigger it or require a new evaluation runner.

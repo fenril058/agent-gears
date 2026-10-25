@@ -92,5 +92,5 @@ A number produced under a broken baseline is worse than no number, because it ge
 
 ## Related
 
-- `agent-instructions-refine`: rewriting the instruction once this has found what is wrong with it.
+- `agent-instructions-refine`: editing persistent agent instruction files while preserving project constraints; usable without running an empirical evaluation.
 - `spec-ambiguity-audit`: a document audit with source verification and an independent read when useful, when the question is what a from-scratch implementer cannot decide.
