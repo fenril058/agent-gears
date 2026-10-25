@@ -52,7 +52,7 @@ skill は `SKILL.md` の `description` が作業に合致したときに読み�
 | [ghq-repository-location](plugins/agent-gears/skills/ghq-repository-location/SKILL.md) | [grilling](plugins/agent-gears/skills/grilling/SKILL.md) | [japanese-tech-writing](plugins/agent-gears/skills/japanese-tech-writing/SKILL.md) |
 | [markdown-context](plugins/agent-gears/skills/markdown-context/SKILL.md) | [navigating](plugins/agent-gears/skills/navigating/SKILL.md) | [pull-request-description](plugins/agent-gears/skills/pull-request-description/SKILL.md) |
 | [quizzing](plugins/agent-gears/skills/quizzing/SKILL.md) | [sanity-review](plugins/agent-gears/skills/sanity-review/SKILL.md) | [spec-ambiguity-audit](plugins/agent-gears/skills/spec-ambiguity-audit/SKILL.md) |
-| [subagent-consultation](plugins/agent-gears/skills/subagent-consultation/SKILL.md) | [unconventional-simplification](plugins/agent-gears/skills/unconventional-simplification/SKILL.md) | |
+| [subagent-consultation](plugins/agent-gears/skills/subagent-consultation/SKILL.md) | | |
 
 `codex-consultation`、`sanity-review`、`codepatrol` の利用上の補足は [plugin README](plugins/agent-gears/README.md) に置く。
 
