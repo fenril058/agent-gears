@@ -13,6 +13,9 @@ Preserve the user's intended behavior and conventions; shortening the file is se
 Read the target file and the imports, local conventions, and decisions relevant to the proposed edits.
 Check sources where they affect a keep, cut, or rewrite decision; an editing task does not require an exhaustive repository audit.
 
+Preserve credential setup requirements, but never add or retain actual secret values in instruction files.
+If found, remove the values and flag their presence without quoting them.
+
 - Keep project-specific constraints, departures from tool defaults, ownership boundaries, and prerequisites that affect how work should proceed.
   Keep easy-to-miss follow-up edits and compatibility conditions even when they can be reconstructed from code.
   Derivability alone is not a reason to delete a useful reminder.
@@ -23,7 +26,7 @@ Check sources where they affect a keep, cut, or rewrite decision; an editing tas
   If a safeguard's purpose remains uncertain after a focused check, retain it and note the uncertainty.
   Ask only when an unresolved choice materially changes the intended behavior and cannot be settled from the request or available evidence.
 
-Rewrite retained rules as specific actions with their conditions and scope: for example, “When changing X, also update Y.”
+Rewrite retained rules as specific actions with their conditions and scope: for example, "When changing X, also update Y."
 Do not widen a local rule into a universal one or remove exceptions while compressing it.
 Follow the document's conventions and group related rules; avoid a mandatory classification for every line.
 
