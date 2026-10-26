@@ -23,7 +23,8 @@ PR B depends on it, but PR B is not part of this review.
 
 - The reported Reviewed head and every repository file treated as reviewed code are bound to `A`.
 - `descendant-only.txt`, the changed test at `B`, and `worktree-only.txt` are not treated as code or findings from PR A.
-- The context for PR A may be used as handoff evidence after all three metadata fields are validated against PR A.
+- The discovered context for PR A may be used as handoff evidence after its target and source provenance are validated against PR A.
+  An explicitly assigned supplemental source must be labeled with its role and timing.
 - The context for PR B is not substituted for PR A merely because the current worktree is at `B`.
 - No file or Git state in the source checkout is changed during the review, including attempts to apply a finding's fix.
 - Runtime verification, if performed, runs in a separate disposable clone or exported tree materialized at exactly `A`.
@@ -33,7 +34,7 @@ PR B depends on it, but PR B is not part of this review.
 
 - Treating `git merge-base --is-ancestor A B` as evidence that code or runtime results from `B` are suitable for reviewing `A`.
 - Treating the uncommitted context scratch area as though it belonged to a Git revision.
-- Loading either context without validating its `PR`, `Branch`, and `Source commit` metadata.
+- Automatically selecting either discovered context without validating its `PR`, `Branch`, and `Source commit` metadata.
 - Running tests in the current worktree and attributing their result to `A`.
 - Reporting any `B`-only or uncommitted content as code from PR A.
 - Editing, formatting, generating, deleting, fixing, or changing Git state in the source checkout.
@@ -90,3 +91,28 @@ Failure signals:
 Replace PR A's context metadata with `PR: PR not created at export time`, while keeping `Branch: pr-a` and `Source commit: A`.
 The context remains eligible because the branch matches PR A and its source commit passes the same provenance check.
 Any other PR value that does not match PR A remains a mismatch.
+
+## Shallow-history and incomplete-API variants
+
+These are synthetic checks, not additional observed review incidents.
+
+- Supply shallow history where `log` succeeds but omits ancestors needed to establish the comparison or context provenance.
+  The reviewer detects the shallow boundary, obtains sufficient pinned evidence elsewhere, or reports what cannot be established.
+- Supply a SHA-pinned API comparison with an incomplete file list or omitted patch, or with a merge base different from an explicit non-PR Comparison basis.
+  The reviewer does not treat that response as the complete requested diff; it obtains the missing evidence or states the limit.
+
+## Context selection variants
+
+These are synthetic checks of the connection to local-only context export.
+
+- Provide multiple PR context comments and a local file whose later export was not shared.
+  The reviewer compares target, provenance, timing, and content instead of choosing a comment solely because it is newest.
+- Explicitly name a context file while another conventional file exists.
+  The named source takes priority; an unavailable named source is reported rather than silently replaced.
+- Provide a target-matching context from an ancestor of `A`.
+  The reviewer may use it while noting possible later omissions; Source commit need not equal `A`.
+- Provide no context and an existing instruction to continue without it.
+  The reviewer continues without inventing deliberations or repeatedly requesting confirmation.
+
+The report may use any format that conveys the reviewed revisions, selected evidence, findings, and material coverage limits.
+These scenarios do not require a fixed report template or a particular built-in review command.

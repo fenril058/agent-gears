@@ -1,524 +1,141 @@
 ---
 name: sanity-review
 description: >-
-  Write a review report for a PR, or — when there is no GitHub PR — for an explicit
-  commit range given a review brief, Reviewed head, and Comparison basis. Beyond
-  investigating bugs and vulnerabilities, verify the coherence between the exported
-  conversation context, the description, and the implemented code — doubt the
-  implementer's sanity. Use when the user says "write a review report for this PR",
-  "code-review this with the conversation context", "doubt this PR's sanity", or asks
-  for the same kind of review on a commit range that has no PR.
+  Review a PR or explicit commit range against its explanation and available
+  conversation context, including the grounds for decisions and omissions.
+  Use when asked for a sanity-review, a PR review report, or a review connecting
+  implementation with conversation context and prior decisions.
 argument-hint: "[PR-URL-or-number | review brief + Reviewed head + Comparison basis]"
-compatibility: Requires git on PATH. For a GitHub PR review, also requires the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read the PR, diffs, and comments. Install gh from https://cli.github.com.
+compatibility: >-
+  Requires git for local inspection; Git options vary by build (see below).
+  GitHub PR reviews need authenticated GitHub read access through available tools
+  or the gh CLI (https://cli.github.com).
 ---
 
-# PR review report procedure
-
-Review a feature/bugfix/refactoring change — a GitHub PR, or a commit range that has no
-PR — and write a review report. For a PR, the report is what a reviewer pastes on
-GitHub to mark the review complete and describe any required fixes.
-
-The review is read-only with respect to the source checkout and remote repository being reviewed.
-Do not change the source checkout's working-tree files, index, checked-out branch, refs, or history, and do not change remote repository state.
-Do not apply a finding's fix, even if the fix is obvious.
-Report findings and recommended fixes only.
-Read-only queries against the source repository are allowed; commands that write files or Git metadata belong only in a separate disposable clone or exported tree, as described below.
-
-Prefer the source Git repository for static inspection when exact-revision evidence is available there.
-A read-only source `.git` is not a reason to create a clone solely for static queries.
-Keep source Git metadata unchanged, including implicit lazy fetches; follow Step 0 for guarded reads and revision-pinned fallbacks.
-Potentially writing runtime commands must run only in the isolated environment described in Step 5.
-
-## Out of scope
-
-- Ordinary dependency-update reviews use the agent's standard review workflow.
-  Apply this skill to a dependency update only when the user requests a review of consistency between the conversation context and the implementation.
-
-## Procedure
-
-### Step 0: Determine the review target and bind the reviewed revisions
-
-This skill has two input modes. Determine which applies in this priority order, before
-doing anything else. Decide by **intent**, not by whether every required input has
-already been given — an incomplete non-PR request is still a non-PR request:
-
-1. **An explicit PR number/URL argument, or the request otherwise naming a specific
-   GitHub PR** → GitHub PR review on that PR. This takes priority over everything
-   below.
-2. **The request expresses non-PR revision-range intent** — it gives, or asks you to
-   use, a Reviewed head, a Comparison basis, or a review brief / change description for
-   a commit range that has no PR, even if not all three are given yet — and (1) did not
-   apply → Non-PR revision-range review. Enter the non-PR path below now and ask there
-   for whichever of the three required inputs is still missing; do not wait for
-   completeness before selecting this mode, and do not fall back to auto-detection or to
-   stopping just because one input is missing. Use this mode even if the current branch
-   happens to have an unrelated PR open: an unrelated PR that current-branch
-   auto-detection would find is not a reason to override an explicit non-PR target.
-3. **Neither of the above — no PR named and no non-PR intent expressed — but the
-   current branch has an associated PR** → GitHub PR review on the auto-detected PR.
-4. **None of the above** — no PR named or auto-detected, and no non-PR intent expressed
-   — report to the user and stop, as before.
-
-#### GitHub PR review
-
-If a PR number or URL is given as an argument, target that PR. Otherwise — only when
-neither a PR nor non-PR intent was named (priority 3 above) — auto-detect the PR linked
-to the current branch.
-
-Either way, fetch PR info:
-
-```
-gh pr view {PR number or URL} --json number,title,body,url,author,comments,headRefName,headRefOid,baseRefOid
-```
-
-For auto-detection, omit `{PR number or URL}`.
-
-If no PR is found and no non-PR intent was expressed, report to the user and stop.
-
-PR title, PR number, and branch name go in the report header. For "Reviewed at" use the
-current datetime (YYYY-MM-DD HH:mm:ss); for "Reviewer" use your own agent name.
-
-Fetch the following:
-
-1. PR body (description).
-2. PR comments: from `gh pr view` comments.
-3. Inline review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
-4. PR reviews: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. The diff between the exact commits recorded as the Reviewed head and Comparison basis.
-
-The Reviewed head is the PR's `headRefOid`.
-Obtain `baseRefOid` as an input to determining the Comparison basis, not as the basis itself.
-Determine the Comparison basis separately (for example, the merge base for a three-dot PR diff) using guarded Git reads below or SHA-pinned compare metadata if local history is incomplete; do not assume that the current tip of the base branch is the diff's basis.
-
-#### Non-PR revision-range review
-
-Required inputs. Step 0 may route here before all three are given — ask the user for
-whichever is still missing rather than guessing or substituting a default, and do not
-proceed to reading code until you have all three:
-
-1. **Review brief / change description**: prose describing the change. It may be given
-   inline in the request or as a file/note you can read. No particular schema, front
-   matter, or storage location is required — read whatever is given, in place of the PR
-   description for the rest of this procedure.
-2. **Reviewed head**: a ref or commit-ish naming the code to review.
-3. **Comparison basis**: a ref or commit-ish naming the start of the diff.
-
-Resolve both refs to exact commit SHAs before reading any code:
-
-```
-git --no-lazy-fetch rev-parse <Reviewed head ref>^{commit}
-git --no-lazy-fetch rev-parse <Comparison basis ref>^{commit}
-```
-
-Record the resulting SHAs — not the ref names — as the Reviewed head and Comparison basis.
-Compute the diff directly between them, with the guards described in "Source Git inspection and missing-object fallback" below:
-
-```
-git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>
-```
-
-Read the code at the Reviewed head with `git --no-lazy-fetch show <Reviewed head SHA>:<path>` (or equivalent guarded read-only plumbing) rather than checking the ref out into the current worktree.
-This keeps uncommitted worktree changes out of the review without needing a separate workspace.
-
-There is no PR body, PR comments, inline review comments, or PR reviews for this path.
-Their absence is expected here, not a failure; skip the steps below that depend on them.
-
-The report header has no PR number and no branch name for this path (see Step 7); do
-not fill either with a placeholder.
-
-#### Bind all review evidence to exact revisions
-
-Before reading the code, establish the exact commit SHA for the Reviewed head and the exact commit SHA actually used as the diff's Comparison basis.
-Record commit SHAs rather than a branch name or a moving branch tip.
-
-Maintain this invariant throughout the review:
-
-```text
-report's Reviewed head = diff's head = revision of every repository file treated as reviewed code
-runtime clone's HEAD or exported tree's source commit = report's Reviewed head, if runtime verification is used
-Comparison basis = exact commit used as the start of the diff actually reviewed
-```
-
-Commit ancestry is not commit identity.
-A current worktree that contains the Reviewed head but is at a descendant or unrelated commit is not the Reviewed head and must not supply code, tests, configuration, documentation, or runtime results for that review.
-
-Before reading target repository files from any worktree, verify both that its `HEAD` equals the exact Reviewed head and that it has no tracked or untracked changes.
-Otherwise, inspect target files with guarded, revision-addressed read-only commands such as `git --no-lazy-fetch show <Reviewed head SHA>:<path>` and the attribute-pinned diff described below.
-Do not treat files from the current worktree as review evidence merely because the Reviewed head is their ancestor.
-If you inspect an older version to understand the comparison, address it by the Comparison basis SHA and label it as comparison evidence rather than Reviewed-head code.
-If you cannot verify the inspected code against the Reviewed head, do not complete the review as a review of that commit; report the problem to the user and stop.
-
-#### Source Git inspection and missing-object fallback
-
-Use the source repository for revision-addressed static queries when the necessary Git objects are available.
-Before fetching anything, check the known exact commits with `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'`.
-This only establishes commit-object availability: a partial clone may lack trees/blobs, and a shallow clone may lack the history needed for `merge-base`.
-Disable implicit object fetching on **every** source Git read with `git --no-lazy-fetch`, including `git show`, `git diff`, `git log`, and `git merge-base`.
-Prefer the option to `GIT_NO_LAZY_FETCH=1`: a Git without the option rejects it visibly, but whether the environment variable takes effect depends on the build (Git 2.45, maintenance releases such as 2.39.4, 2.43.4, and 2.44.1, and distribution builds with that fix backported honor it; older builds ignore it silently).
-If Git rejects `--no-lazy-fetch`, do not simply retry without it: lazy fetching needs a promisor remote, so first run `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'`.
-If that prints nothing, unguarded revision-addressed reads cannot fetch objects; otherwise use the fallback below.
-Check the objects actually needed as you read; treat missing objects or incomplete history as a reason to use the fallback, never as evidence that code or changes are absent.
-Before trusting history from `git log` or `git merge-base`, check `git --no-lazy-fetch rev-parse --is-shallow-repository`; a shallow repository can truncate `git log` output without an error.
-A checked-out `HEAD` different from the Reviewed head is acceptable for these revision-addressed object reads, but not for worktree-file evidence.
-For any command that prints a patch (`git diff`, `git show <commit>`, `git log -p`), pin attributes to the Reviewed head and disable external diff drivers and textconv, for example: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`.
-This prevents unrelated or uncommitted worktree `.gitattributes` from changing the reviewed diff; if the Git version cannot select an attribute source, use a revision-pinned API response or isolated repository rather than an affected diff.
-
-For a GitHub PR whose objects are missing, use immutable SHA-addressed API requests, such as `gh api 'repos/{owner}/{repo}/compare/{basis SHA}...{head SHA}'` for a comparison and `gh api 'repos/{owner}/{repo}/contents/{path}?ref={head SHA}'` for full files (URL-encode the path as needed).
-To determine a missing merge base, compare the captured `baseRefOid` against `headRefOid` using the same SHA-addressed compare API and inspect `merge_base_commit`.
-Verify that the returned revisions match the recorded SHAs and that the response covers the evidence required for review; API patches may be omitted or truncated, and the diff alone does not replace reading code.
-Do not substitute `gh pr diff` or another moving-PR-head response after binding the Reviewed head.
-If pinned API evidence is unavailable or insufficient, fetch only the needed refs/objects into a **separate disposable Git repository**; never fetch into or otherwise modify source Git metadata.
-To avoid downloading objects again, the disposable repository may borrow the source's objects read-only through `objects/info/alternates`, but every write, including fetched objects, must land only in the disposable repository.
-The source checkout and remote remain read-only throughout.
-
-### Step 1: Load the conversation context
-
-Look for the conversation context depending on which mode Step 0 selected. Either way,
-finish with "Follow the ADRs the context links to" below.
-
-#### GitHub PR review
-
-Look in this order — unchanged from before this skill supported non-PR reviews:
-
-1. Check whether any PR comment has a title containing "対話コンテキスト" (conversation
-   context). If found, treat its content as a context candidate and validate its
-   provenance below.
-2. Otherwise, sanitize the branch name (replace `/ \ : * ? " < > |` with `-`) and look
-   for `.dev/contexts/{sanitized branch name}.md` in the current workspace's scratch
-   area. If found, treat it as a context candidate and validate its provenance below.
-3. If neither is found, ask with the AskUserQuestion tool:
-   - **Continue without conversation context**: skip step 6 (omission check).
-   - **Abort**: ask the user to prepare the conversation context.
-
-#### Non-PR revision-range review
-
-There is no PR here, so there are no PR comments to check. Look in this order instead:
-
-1. Check whether the request itself supplies the conversation context — pasted inline,
-   or as a file/note you can read. If found, use it. This is the primary source here:
-   a non-PR Reviewed head need not be tied to any branch, so do not let step 2 below
-   substitute unrelated context for it.
-2. Otherwise, only when a branch name is actually associated with the Reviewed head
-   (for example, a self-review of the current checked-out branch), sanitize that branch
-   name and look for `.dev/contexts/{sanitized branch name}.md` in the current
-   workspace's scratch area; if found, treat it as a context candidate and validate its
-   provenance below. When the Reviewed head is a bare commit-ish with no associated branch
-   name, skip this source without treating its absence as a failure — do not substitute
-   the current checked-out branch's context file for a Reviewed head that belongs to a
-   different branch or no branch at all.
-3. If neither is found, ask with the AskUserQuestion tool, same two options as above.
-
-#### Validate discovered context provenance
-
-`.dev/contexts/` is an uncommitted working-tree scratch area, not part of any Git revision.
-A conversation context is handoff evidence about the implementation process, not Reviewed-head code, so do not apply the code-revision invariant to the file itself.
-
-For a context discovered from a PR comment or `.dev/contexts/`, read its `PR`, `Branch`, and `Source commit` metadata.
-Resolve `Source commit` to an exact commit and use it automatically only when it is the Reviewed head or an ancestor of the Reviewed head; ancestry here establishes provenance timing, not code identity.
-For a PR review, require the recorded branch to match the target PR and require the recorded PR either to match the target PR or to be one of the export placeholders: `PR not created at export time`, `PR not checked at export time`, or `PR unverified at export time`.
-Accept those placeholders only when the branch matches and the source-commit check above passes; reject any other PR mismatch.
-The latter two placeholders do not establish PR absence at export time; report their unverified status without treating it as a code-revision mismatch.
-For a non-PR review with an associated branch, require the recorded branch to match it.
-If the source is an earlier ancestor, record that the context may omit decisions made after it was exported.
-
-Do not automatically use a discovered context when its metadata is missing or cannot be resolved, names another target, or its source commit is a descendant of or unrelated to the Reviewed head.
-Ask the user to supply or confirm the intended context, continue without it, or abort; never substitute the current branch's context silently.
-Context explicitly supplied by the user for this review may be used as supplied, but record its source and do not infer that it describes code beyond what its metadata or the user establishes.
-If its metadata identifies a descendant or unrelated source, use it only when the user explicitly assigns it a supplemental role; do not treat it as the implementation context for the Reviewed head.
-
-#### Follow the ADRs the context links to
-
-The conversation context keeps only a summary of a decision recorded as an ADR; the
-grounds live in the ADR itself (see `conversation-context-export`). Read every ADR the
-context links to — without them you are reviewing against a summary and will read a
-deliberate, recorded decision as an unexplained choice.
-Read repository ADRs at the Reviewed head; do not substitute versions from another worktree revision.
-
-If the diff touches the ADR directory or `CONTEXT.md`, read those changes here too. A
-change that changes a decision or a definition is making a claim about the whole
-codebase, not just about its own diff.
-
-### Step 2: Assess description quality
-
-**Do this before reading the code.** It prevents being pulled toward code-coherence
-and missing structural problems in the description.
-
-For a PR review this is the PR description; for a non-PR review it is the review brief / change description from Step 0.
-Either way, use the same checklist below — this skill does not define a separate rubric for the non-PR case.
-
-For a non-PR review, use the review brief / change description as the explanation of the change for Steps 2 and 3, and verify its claims against the diff and code.
-Do not infer that the implementer wrote or approved it unless the request or available context establishes that relationship.
-If that relationship is not established, still assess the brief's other quality criteria and its coherence with the implementation, but record "Is the implementer's own understanding visible?" as N/A and explain why.
-
-The description may have been written without real understanding, or generated by AI and pasted as-is.
-In this step, read only the description and assess whether a reviewer can "judge the validity of the change" from it.
-
-#### Description checklist
-
-Assess **all four** items and note the results. Finish all before the next step:
-
-1. **Is the prior behavior / problem explained?** A reviewer needs to know the prior
-   state to judge validity. "What was done" alone leaves the doubt "maybe the prior
-   behavior was actually correct".
-2. **Is it written as problem→solution or current→fix pairs?** For new features,
-   purpose/motivation is acceptable. A one-way "what I did" explanation is insufficient.
-3. **Is the scope of change clear?** Is it clear what changed and what did not?
-4. **Is the implementer's own understanding visible?** Not just AI-generated text
-   pasted in — does it convey what the implementer was thinking?
-
-### Step 3: Coherence between the explanation and the implementation
-
-The goal is a **doc–code read-through**: verifying that the explanations in the
-description/comments match the actual code.
-
-#### Important: pick up only the implementer's statements
-
-For a PR review, match the PR description author and each comment's author, and treat
-**only the implementer's own statements** as the implementation explanation. Cheering
-comments, hopeful comments, and questions written by others are not implementation
-explanations. Confusing these with the explanation leads to wrong coherence judgments.
-
-For a non-PR review, there are no separate comment authors to match.
-Use the supplied review brief / change description as the change explanation to check against the implementation, while following Step 2's instruction not to infer whether the implementer wrote or approved it.
-
-#### Checks
-
-1. Does the description / review brief match the actual diff?
-2. Do the implementer's explanations in inline review comments match the code?
-   (PR review only — a non-PR review has no inline review comments; skip this check
-   without treating its absence as a failure.)
-3. Does the implementer's explanation in the PR review body (top-level review comment)
-   match the implementation? (PR review only — same as above.)
-4. Does the conversation context match the implementation (if present)?
-
-Record any discrepancy concretely.
-
-Neither the description / review brief, the comments, nor the conversation context is
-an authority on what the code does.
-Each claim they make is something to verify against the code, not something to review
-the code against.
-
-### Step 4: Naming and design-pattern consistency
-
-The goal is a **read of the codebase**: verifying the implementation matches the
-existing codebase's conventions. Understanding the codebase before hunting bugs/vulns
-raises the precision of the later investigation.
-
-#### Checks
-
-1. **Naming consistency**
-   - Do file/function/variable/class names match existing naming patterns?
-   - Is any abbreviated name introduced that drops part of a feature's proper name?
-2. **Design-pattern consistency**
-   - Do structure / module split / responsibility boundaries match existing similar
-     features?
-   - Does it reuse existing abstractions, or create duplicated implementations?
-
-Record any discrepancy concretely.
-
-#### Long-term naming/design risk
-
-Consistency with existing code is a factual judgment.
-Separately from it, if the naming or design looks likely to become a liability as the
-codebase grows — a name that will collide with a concept the codebase is heading
-toward, a responsibility split that will be awkward to extend — record the risk and why
-you see it.
-Weigh the case against your own concern as well: why the current naming or design may
-be fine as it stands, and whether the change you are picturing is actually coming.
-A risk recorded without that counter-argument is a one-sided prediction.
-This is your own view, offered as material for discussion, so write it as normal prose;
-you need not force a conclusion, and leaving it on hold is a valid outcome.
-If nothing concerns you, write "None".
-
-### Step 5: Correctness, regression, and security investigation
-
-Investigate the code yourself.
-This is the main reviewer's own work, not something the review delegates.
-
-Cover at least:
-
-1. **Correctness**: does the code actually do what the description and the implementer's
-   explanation claim? Check the edge cases, the error paths, and the conditions under
-   which the changed code runs.
-2. **Regressions**: what existing behavior does this diff touch? Check existing callers,
-   tests, and data — look at what the change removed, renamed, or narrowed, not only at
-   what it added.
-3. **Security and vulnerabilities**: untrusted input, injection, path and file handling,
-   secrets, permissions, and any existing check the diff weakens or bypasses.
-
-Read the code, not just the diff: a diff hides the context the changed lines run in.
-Record each finding with the evidence for it — where it is, and why it is wrong.
-Where tests cover the changed area, check whether they would actually catch the failure
-you are describing.
-
-Runtime verification is optional and must obey the same revision binding as static inspection.
-Run tests, builds, format checks, generators, or any other command that may write files only in a separate disposable clone or exported tree outside the source checkout, materialized from the exact Reviewed head; verify its `HEAD` or exported commit before running the command.
-Do not use `git worktree add` for this purpose because it writes metadata into the source repository.
-Do not copy the current worktree into it, and never use a descendant or unrelated worktree's result as evidence for the Reviewed head.
-Discard changes made inside the disposable runtime clone or exported tree rather than carrying them back to the repository under review.
-
-If an exact isolated checkout cannot be prepared, either use existing CI evidence that is explicitly tied to the exact Reviewed head or limit the review to static inspection.
-State the missing runtime coverage in "Problems encountered during review"; do not silently substitute results from another revision.
-
-### Step 6: Re-read the conversation context — omission check
-
-Skip this step if there is no conversation context.
-
-**Code review is not a double-check of the work result. Review the process, not the
-result.**
-
-Do not accept statements in the conversation context as correct premises; verify them against the code and other available information.
-What was done is visible in the code. What was *considered and not done* is the
-information design review needs. Verify whether the "process" written in the
-conversation context — design decisions, rejection reasons, intentional non-actions —
-is correct.
-
-Re-read the conversation context closely and verify:
-
-#### 6-1. Grounds for design decisions
-
-Do the reasons for the design decisions in the conversation context match the reality
-of the code?
-
-#### 6-2. Re-evaluate rejected alternatives
-
-From the "rejected alternatives" section, pull each alternative one by one and
-re-evaluate:
-
-- Is the rejection reason sound? Was the comparison really fair?
-- Any overlooked advantage, or overstated disadvantage?
-- Were the premises used to compare the chosen and rejected options correct?
-
-#### 6-3. Process verification of failed attempts
-
-For things recorded as "tried but didn't work", doubt not only the result but the
-**way it was tried**:
-
-- Were the premises correct?
-- Was anything missed in the execution steps?
-- Was the criterion (the basis for judging it "didn't work") sound?
-- Could a different condition change the result?
-
-#### 6-4. Validity of intentional non-actions
-
-For things decided as "won't do":
-
-- Is the "won't do" reason still sound given the actual implementation?
-- Did the implementation change the premise so it should now be "should do"?
-
-#### 6-5. Accuracy of stated facts
-
-Verify, by reading the code, that the "facts" written in the conversation context are
-actually correct.
-
-### Optional: an independent review
-
-The numbered steps are the whole review: the main reviewer can complete every one of
-them alone.
-An independent reviewer is an addition to that review, never a condition for it.
-
-Use one only when you judge that a second search path over the same material would
-reach something your own pass could not: an area you could not get comfortable with, a
-change whose blast radius is wider than what you could read, a suspicion you cannot
-settle from the code alone.
-If the user asked for one outright, that settles it — run one without weighing it up.
-Choosing not to use one is not a gap in the review, and does not belong in "Problems
-encountered during review".
-
-To run one, call `subagent-consultation` via the Skill tool.
-Request an independent review with the review scope and operation limits stated above.
-Pass through any user requirements on rounds or consultant selection; otherwise let `subagent-consultation` select the consultant and decide whether unresolved points need follow-up.
-
-#### What the independent reviewer gets
-
-The point is an independent path through the same material, not a reviewer working in
-the dark.
-Give it everything it needs to review the target on its own:
-
-- the exact Reviewed head and Comparison basis
-- the description / review brief, and — for a PR review — its comments and review
-  bodies
-- the conversation context and the ADRs it links to
-- the diff, the code, and how the tests are run
-- the repository's own instructions
-
-Withhold your side of the review:
-
-- your findings and your draft report
-- the lines you suspect are buggy or vulnerable
-- your severity judgments and your remediation ideas
-- your conclusions
-
-Handing those over turns an independent read into a confirmation of your own.
-
-#### Handling what comes back
-
-Everything the independent reviewer reports is a candidate, not a finding.
-Verify each one against the primary evidence yourself before it enters the report, and
-drop the ones that do not survive that check.
-Its view holds no authority over yours: when the two diverge, record both sides'
-reasons rather than deferring.
-Look as well for what it did not cover — a second pass that missed something is not
-evidence that there is nothing there.
-
-#### When an independent review is absent
-
-If the consultation fails, or no consultant is available, the review you already have
-stands: finish it and write the report.
-An unavailable consultant is not a review failure, and not a reason to doubt the
-execution environment.
-
-What to record depends on why the independent review is absent:
-
-1. **You judged it would add nothing.** Record nothing. A main-only review is a normal,
-   complete review, not a degraded one.
-2. **You judged it worth running, and it could not be run.** The review is still
-   complete, but the extra search path you had judged you needed never arrived. Record
-   that in "Problems encountered during review" as a coverage limitation: what you
-   wanted a second path for, and which area therefore rests on your reading alone.
-3. **The user asked for an independent review, and it could not be run.** Present your
-   own results as usual, and state plainly that the requested review mode could not be
-   met. Do not let it pass as though the request had been fulfilled.
-
-### Step 7: Write the review report
-
-Read [TEMPLATE.md](TEMPLATE.md) in the same directory as this SKILL.md and write the
-report in that structure.
-
-**Output the report to the conversation** (do not save to a file). The reviewer copies
-and pastes it to GitHub themselves.
-
-The template headings are in Japanese; write the report in the user's working language.
-
-#### Report-writing guidelines
-
-- **Report header**: for a PR review, fill in the PR title, PR number, and branch name
-  as before. For a non-PR review there is no PR number or branch name — leave those
-  fields out rather than filling them with a placeholder, and use a short description of
-  the review target (drawn from the review brief) in place of the PR title.
-- **Description / review brief > Summary**: for a PR review, quote/excerpt the implementer's explanation; for a non-PR review, quote/excerpt the supplied review brief without inferring its author.
-  Organize it before-after, do not fill gaps with imagination, and say plainly if the explanation is insufficient.
-- **Description / review brief > Quality assessment**: fill in the step-2 checklist results as OK/NG/N-A.
-  When the non-PR brief's relationship to the implementer is not established, record "Is the implementer's own understanding visible?" as N/A and explain why; for NG, state concretely what is missing.
-- **Independent review section**: include it only if one actually returned a usable
-  result, recording its candidates and what your own verification made of each. Leave
-  the section out otherwise; an attempt that returned nothing goes in "Problems
-  encountered during review" instead.
-- **Problems encountered during review section**: record what actually got in the way —
-  a tool that failed, scope you could not verify, context you could not obtain. If a
-  step was skipped, distinguish whether it was an external cause (a tool was
-  unavailable, etc.) or the agent's judgment. Deciding an independent review would add
-  nothing is not a problem; do not record it as one. An independent review you judged
-  worth running but could not run does belong here, as a coverage limitation. If there
-  were no problems, write "None".
-- **Conclusion section**: state the overall judgment and recommended action.
-- Throughout, focus on giving the reviewer the material to judge "is this change valid".
-
-## Related skills
-
-- **subagent-consultation**: arrange the optional independent review using an available consultant, including Codex, while respecting the user's requirements.
-- **conversation-context-import**: load the conversation context. Background for step 1.
-- **conversation-context-export**: write out the conversation context. Background on the
-  conversation-context format.
-- **domain-modeling**: owns the record tier (`CONTEXT.md` and the ADRs). Background on the
-  ADR format and superseding rules for the ADRs step 1 follows.
+# Sanity review
+
+Use the change explanation and available implementation context to find unsupported premises, missed consequences, and defects in the actual change.
+An exported context can expose rejected alternatives, failed attempts, and intentional non-actions that the diff does not show.
+Treat these records as claims to investigate, not authority on what the code does or proof that a decision was sound.
+Do not infer the implementer's understanding or authorship from the quality or apparent AI origin of prose.
+
+An explicit invocation applies to dependency updates too.
+Ordinary dependency-update reviews do not automatically require this skill or a particular built-in review command.
+
+## Target and operation boundary
+
+- Honor an explicitly named PR first.
+  For an explicit non-PR range, require a review brief/change description, Reviewed head, and Comparison basis; resolve only missing inputs with the user before reviewing code.
+  Do not replace an incomplete range request with the current branch's unrelated PR.
+  With neither target specified, a PR associated with the current branch may supply the target; if none can be identified, ask for the target.
+- **Reviewed head** is the exact commit whose code is reviewed.
+  **Comparison basis** is the exact commit used as the start of the diff actually inspected.
+  Resolve refs once and record both SHAs before inspecting code.
+  For a PR, capture its head and base SHAs; determine the diff basis separately, usually their merge base, rather than assuming the base branch tip is the basis.
+  If shallow history prevents this, use verified SHA-pinned comparison metadata or an isolated repository.
+- Keep the source checkout and remote read-only: no fixes, formatting, generated files, index updates, branch switches, ref/history changes, fetching into source Git metadata, or external posts.
+  Report recommended fixes in the conversation; saving or posting a report requires the user's instruction or existing authorization.
+  Read-only source Git metadata does not itself require a clone.
+
+## Evidence at the reviewed revision
+
+The report's Reviewed head, diff head, reviewed repository files, and any runtime environment's source commit must agree.
+A descendant containing that commit is a different revision.
+Use guarded, revision-addressed source Git reads for static inspection when the required objects are available, even if the worktree is dirty or checked out elsewhere.
+Use worktree files only after verifying its HEAD equals Reviewed head and there are no tracked or untracked changes.
+Avoid optional index refresh during status checks, for example with `git --no-optional-locks status` on supporting builds.
+Label older code as comparison evidence, not Reviewed-head code.
+If revision identity cannot be established, report that blocker; do not present the work as a completed review of that commit.
+
+Apply these guards before reading source Git objects (see the [Git options](https://git-scm.com/docs/git) and [partial-clone documentation](https://git-scm.com/docs/partial-clone)):
+
+- Disable implicit lazy fetch on every source object/history read with `git --no-lazy-fetch`, including resolution, `show`, `diff`, `log`, and `merge-base`.
+  A successful commit-object check does not establish that its trees/blobs or ancestry are present.
+  Check `git --no-lazy-fetch rev-parse --is-shallow-repository` before relying on history; successful `log` output can still be incomplete.
+- If the build rejects `--no-lazy-fetch`, do not retry unguarded until `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'` establishes that no promisor/partial-clone configuration is present.
+  Distinguish the no-match exit status from an actual query failure.
+  Otherwise use the fallback below.
+  Do not substitute `GIT_NO_LAZY_FETCH=1` without verifying build support: unsupported builds may silently ignore it.
+- For patches from `diff`, `show <commit>`, or `log -p`, select Reviewed-head attributes and disable external diff drivers and textconv.
+  For example, on a supporting Git build:
+
+  ```bash
+  git --no-lazy-fetch --attr-source=<head-SHA> diff --no-ext-diff --no-textconv <basis-SHA> <head-SHA>
+  git --no-lazy-fetch show <head-SHA>:<path>
+  ```
+
+  These are examples, not commands guaranteed on every build.
+  If attribute selection is unsupported, use a SHA-pinned API or isolated repository instead of allowing another worktree's attributes to change the diff.
+- Missing objects/history call for SHA-pinned API evidence or a separate disposable Git repository, fetching only what is needed there.
+  For GitHub, a compare request using captured base/head SHAs can supply `merge_base_commit`; full files can be requested with a captured head SHA as `ref`.
+  Verify response identity and that the comparison starts at the recorded basis; a three-dot API comparison may use a merge base instead of an explicitly supplied range basis.
+  Paginate where supported and check coverage: changed-file lists have limits, and patches may be absent or truncated (see [GitHub comparison limits](https://docs.github.com/en/rest/commits/commits#compare-two-commits)).
+  Do not treat missing API data as absent code or use a moving `gh pr diff` after pinning the head.
+  If evidence remains incomplete, state what cannot be reviewed.
+  The disposable repository may borrow source objects read-only through alternates, but all fetched objects and metadata writes must stay outside the source.
+
+Runtime verification is optional.
+Run potentially writing tests, builds, formatters, or generators only in a separate disposable clone or exported tree materialized from exact Reviewed head; verify that revision before execution.
+Do not copy the current worktree, use a descendant's results, or use `git worktree add`, which writes source Git metadata.
+Discard generated changes there.
+If isolation is unavailable, use CI evidence explicitly tied to Reviewed head or static inspection and disclose the runtime coverage limit.
+
+## Select conversation evidence
+
+Use context explicitly supplied for this review first, including a named file; report an unavailable specified source without silently substituting another.
+Otherwise inspect relevant PR conversation-context comments and the conventional local `.dev/contexts/{sanitized target branch}.md` if available.
+Sanitization replaces each of `/ \ : * ? " < > |` with `-`.
+For a non-PR range, discover a local file only when a branch is actually associated with that target, not merely because the current checkout has a branch.
+
+Check candidates' heading, PR/repository, Branch, Source commit, update time, and stated scope before selecting:
+
+- A discovered context should identify this target (PR if recorded, and branch) and have a resolvable source commit at or before Reviewed head in its ancestry.
+  Export placeholders `PR not created at export time`, `PR not checked at export time`, and `PR unverified at export time` can be accepted with matching branch and source provenance; the latter two do not prove PR absence.
+  Missing/mismatching metadata needs clarification before automatic use.
+- Source commit dates the evidence; it need not equal Reviewed head.
+  Earlier context may omit later decisions, and `.dev/contexts/` is uncommitted handoff evidence, not code at that revision.
+  Context explicitly assigned by the user may also provide supplemental or retrospective evidence; label its role and timing without claiming it records that head's implementation process.
+- Multiple comments and local files can differ.
+  Compare provenance, target, time, and content; neither the newest comment nor a newer local timestamp alone establishes which is authoritative.
+  A local-only export does not update a previously shared comment.
+  State which sources you used and any relevant staleness or conflicts; ask only if an unresolved choice materially affects the review.
+
+If no usable context is available, normally continue and state that prior deliberations could not be verified.
+Ask when the user made that context a prerequisite or a material source ambiguity cannot be resolved; honor an existing instruction to continue without it.
+Do not invent missing deliberations, regenerate context, or require sharing to proceed.
+
+## Investigate the claims and change
+
+Read the PR explanation and relevant discussion (including review comments and review bodies), or the supplied non-PR brief, alongside the diff and surrounding code.
+Keep attribution clear: another reviewer's suggestion is not an implementer's claim, and a supplied brief does not establish its author's identity or approval.
+Follow linked ADRs or history when they bear on a decision under review; do not read every ADR or reopen every past choice by default.
+Read repository documents at Reviewed head, labeling other revisions separately.
+
+For decisions relevant to the change, test whether the stated premises hold in the code, whether rejected options were compared fairly, whether a failed attempt's setup supports its conclusion, and whether intentional non-actions still make sense.
+Check the resulting behavior, regressions, and relevant security consequences yourself; process review does not replace code investigation.
+Keep exploration proportional to the requested change and evidence of impact.
+
+Check established code conventions where the change interacts with them.
+When documents conflict with existing code, do not declare the implementation wrong merely because the document uses imperative language.
+Distinguish stale guidance from requested requirements and evidence of current specifications or intentional constraints; follow applicable repository instructions and report material discrepancies.
+Raise naming/design concerns when grounded in the actual change and plausible consequences, considering counterevidence; no mandatory long-term speculation or checklist grading is needed.
+A missing explanation is an evidence gap, not proof of a code defect or the implementer's lack of understanding.
+
+## Consultation and report
+
+A second agent is not required.
+When requested or useful within the authorized review scope, use [subagent-consultation](../subagent-consultation/SKILL.md).
+For an independent review, provide target materials and operation limits, withhold your hypotheses and draft findings, and check the host's actual conversation inheritance; use fresh context when available.
+Critique of a supplied proposal is a different mode and needs that proposal.
+Verify returned candidates yourself; disclose an unmet requested review mode or material missing coverage without treating an unavailable consultant as invalidating your own evidence.
+
+Report in the user's working language, normally in the conversation:
+
+- Identify the target, exact Reviewed head and Comparison basis, and context sources/roles used.
+- Lead with actionable findings: location, observed behavior or supported contradiction, conditions and consequences, and evidence.
+  Distinguish verified defects from open questions and missing evidence.
+- State verification performed and material limits, including unavailable context or runtime checks, then the resulting judgment and recommended action.
+  If there are no findings, say so without implying exhaustive correctness.
+
+Scale the format to the findings and user request.
+Do not repeat the PR summary, print every check, or fill empty sections merely to show completion.
