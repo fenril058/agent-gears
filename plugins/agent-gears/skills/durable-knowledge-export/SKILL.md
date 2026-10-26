@@ -1,227 +1,96 @@
 ---
 name: durable-knowledge-export
 description: >-
-  Export durable knowledge to a persistent home outside the repo — the GitHub wiki, or a
-  dedicated knowledge repo. Use when a finding is worth keeping beyond the current
-  branch/PR: a measurement, a tool evaluation, a convention, or a cross-cutting gotcha
-  about the system itself. First judge durable vs ephemeral; ephemeral per-branch context
-  goes to conversation-context-export instead, and an architectural decision about this
-  codebase goes to domain-modeling. Triggers: "save this as durable knowledge", "write
-  this to the wiki", "this should outlive the branch".
-compatibility: Requires git and the gh CLI (GitHub CLI, authenticated) on PATH; gh is used to read repo state and write to the GitHub wiki. The knowledge-repo sink additionally requires the AGENT_KNOWLEDGE_REPO environment variable pointing at a local git repo; without it that sink is unavailable and the skill stops rather than inventing a location.
+  Save or update knowledge that should outlive a branch in a GitHub wiki or a dedicated knowledge repository.
+  Use when saving is requested or entrusted by the task, such as "save this as durable knowledge" or "update this wiki".
+  Merely discovering a useful fact does not call for an export.
+compatibility: >-
+  Requires git on PATH for Git-based destinations.
+  GitHub repository discovery can use the authenticated gh CLI (https://cli.github.com).
+  A local knowledge repository needs neither gh nor GitHub access; its path may be supplied explicitly or through AGENT_KNOWLEDGE_REPO.
 ---
 
-# Durable knowledge export procedure
+# Durable knowledge export
 
-Write durable knowledge — knowledge that stays useful after the originating branch is
-gone — to a persistent home **outside the repo**, and keep that home's index in sync.
+Save knowledge for future work beyond the originating branch, using a topic page that can be updated as the facts change.
+The local policy is to keep these pages outside the project repository by default, separate from branch handoff notes and records versioned with the code.
+This is a storage policy, not a claim that in-repo documentation cannot last.
+Honor an explicit destination; for an in-repo document, follow that project's documentation workflow rather than moving it elsewhere.
 
-Outside the repo is the point. Durable knowledge that lands inside the working tree gets
-entangled with the branch it came from and competes with the repo's own records; this
-skill deliberately writes elsewhere.
+## Scope and authorization
 
-This is the **durable tier**. It has two siblings:
+Use the request, conversation, and project instructions to establish what saving is entrusted to you.
+Finding useful knowledge alone does not authorize writing it somewhere.
+Branch handoff notes belong with `conversation-context-export`; this project's agreed vocabulary and architectural decision records belong with `domain-modeling`.
+Referring or splitting material between skills does not authorize additional files, commits, or publication.
+Use those skills only for the recording already within scope.
 
-- `conversation-context-export` — the **ephemeral tier** (per-branch/PR context in
-  `.dev/contexts/`, with a PR comment when sharing is requested or authorized).
-- `domain-modeling` — the **record tier** (this codebase's glossary and architectural
-  decision records, committed alongside the code).
+A request to update a specified wiki includes the commit and push needed to publish that update unless the user limits it to a draft or local edit.
+Reuse existing authorization; do not require the user to say "push without asking".
+Saving to a local knowledge repository authorizes the file update; commit and push there follow the request and existing authorization.
+A configured remote alone authorizes neither operation, and a general saving request alone does not authorize publication to a service selected by this skill.
+Where publication or commit scope is missing, prepare the page and navigation changes for review before asking about that action.
 
-Route each finding with the judgment in section 1.
+## Choose the destination
 
-The durable home is chosen by **sink resolution** (section 2): a reachable GitHub wiki for
-repo-scoped knowledge, a dedicated knowledge repo for knowledge that spans repos. The
-judgment in section 1 never changes — only the sink adapts to the environment.
+Honor a specified wiki, repository, or established preference without selecting it again.
+A wiki may hold cross-repo knowledge when that is the requested home; being attached to one repository is not a content restriction.
 
-## 1. Judge: durable or ephemeral
+When no destination is specified:
 
-Treat a finding as **durable** only when **all three** hold:
+- For knowledge about the current project, prefer its GitHub wiki if confirmed available.
+  Use the configured knowledge repository when the project has no wiki, including a confirmed disabled or uninitialized wiki.
+- For knowledge spanning projects, use the configured knowledge repository.
+- `AGENT_KNOWLEDGE_REPO` names an existing local Git repository outside the projects it describes.
+  Verify that a supplied path is that repository's root before writing.
+  If no destination can be established, retain the draft for the user and ask for the missing destination.
+  Do not create a repository, enable a wiki, change authentication, or invent a `docs/knowledge/` fallback.
 
-1. It is about the **project / system / tooling itself**, not about one specific change.
-2. It stays useful **after the originating branch is merged or abandoned**.
-3. A future session on an **unrelated branch** would benefit from it, or would otherwise
-   re-discover it.
+When GitHub discovery is needed, identify the intended repository from the request and Git remotes, resolving ambiguous forks or multiple remotes before choosing.
+For example, `gh repo view "{host}/{owner}/{repo}" --json url,hasWikiEnabled` checks the repository's wiki setting; it does not establish that the wiki has pages or that Git access works.
+Check access using the wiki's clone URL, for example with `git ls-remote "{wiki clone URL}"`.
+Authentication, network, or retrieval failures leave availability unknown; empty output alone does not establish the cause either.
+Retry through an allowed execution route when appropriate, then report unresolved access without silently switching destinations.
+An explicitly selected wiki stays selected even when it is unavailable; ask about an alternative only if needed.
+Do not probe GitHub when an explicitly selected local destination suffices.
 
-Sharp tests:
+## Destination conventions
 
-- **Branch-delete test**: "If this branch vanished in six months, would I still want
-  this?" Yes → durable.
-- **Title test**: the natural title is a **topic/concept** (durable) vs a
-  **branch/PR/change** (ephemeral).
-- **Kind test**: measurements, tool evaluations, conventions/policies, cross-cutting
-  system gotchas → durable. Per-change rationale, rejected alternatives for *this* PR,
-  remaining work on *this* branch, one-off debugging notes → ephemeral.
+For a **GitHub wiki**, use its provided clone URL and the user's existing Git access method, then edit the wiki checkout.
+GitHub's [documented workflow](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages) starts with an initial page created on GitHub before cloning.
+Follow that guidance when initialization is confirmed necessary; a clone failure does not by itself diagnose an uninitialized wiki.
+Publish to the wiki's verified default branch, rather than hard-coding a branch name.
+If a fresh checkout lacks a Git identity, reuse an established identity from the project with per-command `git -c user.name=… -c user.email=… commit`; do not invent one or change global configuration.
 
-Routing:
+For a **knowledge repository**, first follow its existing page layout and navigation.
+The default layout, where none is established, mirrors repository identity:
 
-- **Ephemeral** → do not use this skill. Use `conversation-context-export`.
-- **An architectural decision about this codebase** → do not use this skill. Use
-  `domain-modeling`. An ADR is immutable and versioned with the code it explains; the
-  pages here are living documents that always show the current state, so a decision
-  stored here would lose the record of what was decided and later reversed. The same
-  goes for this project's vocabulary — that is `CONTEXT.md`, also `domain-modeling`.
-- **Mixed** → split: the durable fact goes to the durable home here; the change rationale
-  goes to `conversation-context-export`; the decision goes to `domain-modeling`.
-- **Unsure** → present the finding and the judgment to the user and ask which tier.
-
-## 2. Resolve the sink
-
-Resolve the sink explicitly — do not assume. Two questions decide it: **what the
-knowledge is scoped to**, then **what is reachable**.
-
-### 2-1. Scope
-
-- **Repo-scoped** — the knowledge is about *this* repo (its build, its quirks, a
-  measurement taken here). Continue to 2-2.
-- **Cross-repo** — the knowledge spans repos (an evaluation of a tool used everywhere, an
-  environment quirk of this machine, a convention applied across projects). A wiki belongs
-  to one repo and cannot hold this. The sink is the **knowledge repo** → section 3B. If no
-  knowledge repo is configured, go to 2-3.
-
-### 2-2. Reachability (repo-scoped knowledge)
-
-```
-gh repo view --json url,hasWikiEnabled -q '.url, .hasWikiEnabled'
+```text
+{knowledge repo}/README.md
+{knowledge repo}/{host}/{owner}/{repo}/README.md
+{knowledge repo}/{host}/{owner}/{repo}/{Topic}.md
+{knowledge repo}/_cross/README.md
+{knowledge repo}/_cross/{Topic}.md
 ```
 
-(If `gh` fails or the repo has no GitHub remote, treat it as "no wiki".)
+Derive the described repository's identity from the intended remote, not its checkout directory name.
+For a project without a usable remote identity, resolve the scope with the user rather than inventing an owner or host.
+Use `_cross/` for knowledge spanning projects.
+In this default layout, link a new page from its scope's `README.md`, and add the scope to the top-level index only when new.
+In an existing wiki or knowledge layout, update navigation when a new or renamed page needs a link; do not force a page list into `Home.md` or rewrite an index for a content-only update.
 
-1. **GitHub wiki (preferred)** — let `{repo-url}` be the URL. Check reachability:
-   ```
-   git ls-remote {repo-url}.wiki.git
-   ```
-   If it lists refs, the sink is the **wiki** → section 3A.
-2. **No reachable wiki, knowledge repo configured** → the sink is the **knowledge repo**
-   → section 3B.
-   - One-line note to the user: if they would rather use the wiki, enable Wikis and create
-     the first page once via the web UI, then re-run. (You cannot bootstrap a
-     never-initialized wiki by push; enabling `has_wiki` alone does not create the first
-     page.)
-3. **Neither** → go to 2-3.
+## Update and save
 
-### 2-3. No sink available
+Read an existing topic page before editing; extend or correct it using verified evidence, preserving unrelated contributions.
+Follow the destination's style instead of requiring a fixed template or classification.
+Include enough context to stand alone; for measurements or evaluations, include the date, conditions, sources, and limits needed to judge staleness.
+Do not copy secrets or conversation/local-history material that is not intended for the destination into pages or indexes.
+Summarize the necessary evidence without exposing private identifiers.
 
-**Do not invent one.** Writing durable knowledge into the working tree is what this skill
-exists to avoid, and a scratch directory would lose it.
-
-Stop, tell the user which checks failed, and offer the two ways forward:
-
-- **Enable the wiki** — Wikis on, first page created once via the web UI. Best when the
-  knowledge should reach teammates.
-- **Set up a knowledge repo** — create a git repo and point `AGENT_KNOWLEDGE_REPO` at it
-  (section 3B describes the layout). Best for personal or cross-repo knowledge.
-
-Report the finding in full in your reply so it is not lost while they decide.
-
-State which sink you chose and why before writing.
-
-## 3A. Sink: GitHub wiki
-
-The wiki is a separate git repo with no content REST API, so clone → edit → push.
-
-1. Clone into the session scratch directory (not inside the main repo working tree):
-   ```
-   git clone {repo-url}.wiki.git {scratch}/repo.wiki
-   ```
-   Match the protocol the user's git uses (`gh auth status` shows ssh vs https); if ssh,
-   use `git@github.com:owner/repo.wiki.git`.
-2. **Page**: a topic-named file matching house style (e.g. `SKILL-token-ja-en.md`). New →
-   create; existing → read first, then apply the update rules in section 4.
-3. **Index**: in `Home.md`, under the page-list heading, add `- [[{PageName}]] — {hook}`
-   if absent.
-4. **Confirm, then push** (writing to the wiki is an outward-facing publish — see
-   section 5):
-   ```
-   git add {PageName}.md Home.md && git commit -m "{message}" && git push
-   ```
-   The commit needs a git identity. If global `user.name`/`user.email` are unset (common
-   in fresh clones), the commit fails — pass the repo's identity inline:
-   `git -c user.name='...' -c user.email='...' commit -m "{message}"` (reuse the values
-   from the main repo's `git config user.name`/`user.email`).
-5. Page web URL to report: `{repo-url}/wiki/{PageName}`.
-
-## 3B. Sink: knowledge repo
-
-A git repo dedicated to durable knowledge, living outside every project it describes.
-`AGENT_KNOWLEDGE_REPO` holds its local path. It is the only sink that can hold knowledge
-spanning several repos, and the fallback when a repo has no wiki.
-
-### Layout
-
-Pages are filed under the path of the repo they describe, mirroring the ghq layout so the
-location is computable rather than remembered:
-
-```
-{AGENT_KNOWLEDGE_REPO}/
-  README.md                       ← top-level index
-  github.com/{owner}/{repo}/
-    README.md                     ← per-repo index
-    {Topic}.md
-  _cross/
-    README.md
-    {Topic}.md                    ← knowledge spanning repos
-```
-
-Derive `{owner}/{repo}` from the target repo's remote, not from its directory name — a
-fork whose origin was repointed keeps the upstream owner's directory, so the two disagree.
-
-### Procedure
-
-1. **Locate**: read `AGENT_KNOWLEDGE_REPO`. If it is unset or the path is not a git repo,
-   you are in section 2-3 — stop, do not create it silently.
-2. **Page**: `{scope-path}/{Topic}.md`, topic-named, where `{scope-path}` is
-   `github.com/{owner}/{repo}` for repo-scoped knowledge or `_cross` for cross-repo. New →
-   create; existing → read first, then apply the update rules in section 4.
-3. **Index**: maintain the `README.md` in the same directory, and add the directory to the
-   top-level `README.md` if it is new. Under the page-list heading add
-   `- [{Topic}]({Topic}.md) — {hook}` if absent; create the index with that heading if it
-   does not exist.
-4. **Confirm, then commit** in the knowledge repo (not the project repo):
-   ```
-   git -C {AGENT_KNOWLEDGE_REPO} add {scope-path} README.md && git -C {AGENT_KNOWLEDGE_REPO} commit -m "{message}"
-   ```
-   Same git-identity caveat as 3A step 4 if the repo has no configured identity.
-5. **Push only if it has an upstream.** `git -C {AGENT_KNOWLEDGE_REPO} remote` — if a
-   remote exists, pushing publishes, so confirm first (section 5). If there is no remote,
-   committing locally is the whole job; say so rather than reporting a URL.
-
-## 4. Page content and update rules
-
-Read [TEMPLATE.md](TEMPLATE.md) in this skill's directory and follow it for both sinks.
-Key points:
-
-- Make the page **self-contained**: the originating branch will be gone, so include
-  enough context to stand alone.
-- For measurements/evaluations, record the **date and the source command/commit** so
-  staleness is visible later.
-- Apply the same "emphasize / keep thin" discipline as `conversation-context-export`:
-  durable facts and their grounds — not war stories or things obvious from the code.
-
-Updating an existing page (either sink is cross-session, the wiki possibly cross-author):
-
-- Keep existing items as a rule; append new information.
-- **Correct or delete only what you actually re-verified and disproved.** Don't delete on
-  inference alone.
-- The page always represents the currently correct state. Leave history to git (no
-  strikethroughs / changelog inside the page).
-
-## 5. Confirm and report
-
-- **Wiki sink**: before pushing, show the user the drafted page and the `Home.md` change
-  and confirm — use the AskUserQuestion tool unless the user already said to push without
-  asking. After push, report the page web URL.
-- **Knowledge-repo sink**: show the drafted page and the index change before committing.
-  If the repo has a remote, pushing publishes — confirm that separately, same as the wiki.
-  Report the file paths, and the commit.
-- If you split a finding, also report what went to `conversation-context-export` and
-  `domain-modeling`.
-
-## Related skills
-
-- **conversation-context-export**: the ephemeral tier — per-branch/PR context to
-  `.dev/contexts/`, with a PR comment when sharing is requested or authorized.
-  Route ephemeral findings there.
-- **conversation-context-import**: load saved ephemeral context.
-- **domain-modeling**: the record tier — this codebase's glossary (`CONTEXT.md`) and its
-  architectural decision records, committed with the code. Route decisions and vocabulary
-  there; they are immutable records, not living pages.
+Before editing, inspect the destination checkout's working tree and staged changes so existing work can be distinguished from this export.
+Stage only the intended files or hunks and review the staged diff; a commit must exclude pre-existing unrelated work, including staged work.
+If that cannot be done without disturbing it, leave the draft changes and resolve the conflict with the user.
+Before an authorized push, verify the push URL, destination branch, and commits it would publish, excluding unrelated pending commits.
+A remote's existence is not an upstream configuration; even an upstream can differ from Git's configured push destination (see [git-push](https://git-scm.com/docs/git-push)).
+If the destination is ambiguous, ask rather than guessing a remote or configuring tracking.
+Report the saved path or confirmed published URL, and distinguish local edits, commits, and successful publication from pending or failed actions.

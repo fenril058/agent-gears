@@ -162,5 +162,5 @@ Distinguish local-only completion, confirmed PR absence, and failed or unverifie
 
 - **conversation-context-import**: load saved context to continue development or review.
 - **sanity-review**: use conversation context and linked ADRs to review implementation intent.
-- **durable-knowledge-export**: findings about the system itself that should outlive the branch; use that skill's routing criteria.
+- **durable-knowledge-export**: save or update knowledge beyond the branch when that recording is entrusted; routing does not add permission for another destination or publication.
 - **domain-modeling**: this codebase's glossary and architectural decisions, committed with the code; link to its ADRs from this ephemeral record.

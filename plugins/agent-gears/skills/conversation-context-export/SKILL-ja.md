@@ -165,7 +165,7 @@ gh api repos/{owner}/{repo}/issues/comments/{コメントID} --method PATCH -F "
 
 - **conversation-context-import**: 保存された文脈を読み込み、開発やレビューを続ける。
 - **sanity-review**: 対話コンテキストとリンクされたADRから、実装意図を含めてレビューする。
-- **durable-knowledge-export**: ブランチを越えて残すべきシステム自体の発見を扱う。
-  振り分けはそちらの基準に従う。
+- **durable-knowledge-export**: 記録を任された場合に、ブランチを越えて使う知見を保存、更新する。
+  振り分けだけでは、別の保存先への書き込みや公開の許可は増えない。
 - **domain-modeling**: コードとともにコミットする、このコードベースの用語集とアーキテクチャ判断を扱う。
   この揮発する記録からADRへリンクする。
