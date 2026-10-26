@@ -43,14 +43,17 @@ When no destination is specified:
 - For knowledge spanning projects, use the configured knowledge repository.
 - `AGENT_KNOWLEDGE_REPO` names an existing local Git repository outside the projects it describes.
   Verify that a supplied path is that repository's root before writing.
-  If no destination can be established, retain the draft for the user and ask for the missing destination.
-  Do not create a repository, enable a wiki, change authentication, or invent a `docs/knowledge/` fallback.
+
+If no destination can be established, present the draft to the user and ask for the missing destination.
+Do not create a repository, enable a wiki, change authentication, or invent a `docs/knowledge/` fallback.
 
 When GitHub discovery is needed, identify the intended repository from the request and Git remotes, resolving ambiguous forks or multiple remotes before choosing.
 For example, `gh repo view "{host}/{owner}/{repo}" --json url,hasWikiEnabled` checks the repository's wiki setting; it does not establish that the wiki has pages or that Git access works.
 Check access using the wiki's clone URL, for example with `git ls-remote "{wiki clone URL}"`.
 Authentication, network, or retrieval failures leave availability unknown; empty output alone does not establish the cause either.
 Retry through an allowed execution route when appropriate, then report unresolved access without silently switching destinations.
+Here, "confirmed uninitialized" means the user has checked that no initial wiki page has been created.
+If choosing a fallback depends on that status, ask the user to check it; do not infer it from `Repository not found`, even when the parent repository is accessible.
 An explicitly selected wiki stays selected even when it is unavailable; ask about an alternative only if needed.
 Do not probe GitHub when an explicitly selected local destination suffices.
 
