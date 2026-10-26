@@ -89,4 +89,4 @@ State the resolved directory before writing the first ADR.
 
 - **grilling**: an interview that may delegate recording of agreed items within its task scope.
 - **conversation-context-export**: saves ephemeral context when called for by the task, keeping a summary and link to recorded ADRs rather than duplicating their reasoning.
-- **durable-knowledge-export**: owns cross-cutting knowledge about the system outside the repo.
+- **durable-knowledge-export**: save or update living knowledge pages when that recording is entrusted; follow its destination rules within the existing authorization scope.
