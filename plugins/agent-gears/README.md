@@ -52,58 +52,42 @@ ceiling を上げるかどうかは利用者の判断であり、skill 自身は
 
 ## sanity-review
 
-`sanity-review` は、PR 概要欄、export された対話コンテキスト、実装コードを照合し、実装者の説明や検討過程を含むレビュー報告書を作成する。
+`sanity-review` は、PR や明示された commit range の説明、利用可能な対話コンテキスト、実装を照合する。
+差分に現れない却下案、失敗した試行、意図的な非対応の根拠も、変更に関係する範囲で疑い直す。
+依存更新でも明示的に起動できるが、通常の依存更新レビューへ自動追加するものではなく、特定の組込レビューコマンドも前提にしない。
 
-GitHub PR の review は従来どおり利用できる(PR の URL / 番号を指定、または現在の branch から auto-detect)。
+PR は URL・番号で指定でき、対象の明示がなければ現在ブランチの PR も利用できる。
+PR のない range では、変更の説明、Reviewed head(レビュー対象 commit)、Comparison basis(実際の差分の起点)を渡す。
+不完全な range 指定を、無関係な PR へ置き換えない。
 
-GitHub PR が無い commit range でも、次の入力を明示的に与えれば同じレビュー手順を実行できる。
+対話コンテキストは任意であり、明示された資料を優先する。
+補助資料や部分的な記録だけでは依頼された判断を検証できない場合、必要な分だけ追加探索する。
+資料を限定する明示指示には従う。
+探索では、対象に対応する PR コメントと規約上のローカル文脈を、由来・対象・保存時点・内容で比較する。
+明示資料も時点を確認し、対象 head との関係が未確認の記録や、後の revision の記録は、補助資料として扱う。
+ローカル保存だけでは共有済みコメントが更新されないため、最新コメントだけで選ばない。
+文脈がなければ原則続行し、検討過程の確認が限られることを報告する。
+文脈の共有や再生成を要求しない。
 
-- Review brief / change description(PR 概要欄の代わり)
-- Comparison basis(差分の起点となる exact commit SHA へレビュー開始時に確定する)
-- Reviewed head(レビュー対象コードの exact commit SHA へレビュー開始時に確定する)
+レビュー対象には read-only で接し、指摘をその場で修正しない。
+exact commit を記録し、別 revision のコードや実行結果を混ぜない。
+静的調査には元の Git の object を保護付きで読み、read-only の `.git` だけを理由に clone しない。
+書込を伴いうる実行検証は、exact Reviewed head から作る別の使い捨て clone または export 済み tree で行う。
+操作上の保護と入力の詳細は [SKILL.md](skills/sanity-review/SKILL.md) を参照。
 
-対話コンテキストは PR review と同様に任意入力であり、無くてもレビューを完了できる。
-入力の詳細と revision invariant は `sanity-review` skill の SKILL.md を参照。
+報告は、対象 revision、文脈の出所、根拠のある指摘、検証と未確認範囲、判断を依頼に合う形式で示す。
+固定テンプレート、全項目の採点、PR 概要の再掲は求めない。
+通常は会話に出力し、保存・投稿は依頼や既存の許可に従う。
 
-レビューは対象 repository に対して read-only であり、finding は報告するだけでその場では fix しない。
-runtime verification が必要な場合は exact Reviewed head から作った別の使い捨て clone または export 済み tree を使い、current worktree が Reviewed head の descendant であっても、その file や test 結果を代用しない。
-[revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、実利用で観測した descendant-worktree 混入事故と、読み取り専用 `.git` を理由にした不要な clone・広範囲 fetch を固定するとともに、partial clone・worktree attributes・移動するPR headのsynthetic variantを加えたものである。
-host の first-party skill testing で使う。
+self-review と別のレビュアーによるレビューのどちらにも使える。
+実装時の仮説から距離を置きたい場合は、必要な文脈を export して別 session で対象を指定する方法もある。
+共有は必須ではなく、ローカルファイルも明示して渡せる。
+独立レビューを依頼する場合は、`subagent-consultation` で host の会話継承と利用者の指定に従う。
+対象資料を渡し、主担当の仮説を渡さず、返された候補は主担当が検証する。
 
-次のどちらも通常の use case である。
-
-- 実装者が自分の PR を見直す self-review
-- 実装者とは別のレビュアーが行うレビュー
-
-self-review では、実装中の session から `sanity-review` を実行できる。
-
-実装時の前提や既存仮説から距離を置いて読み直したい場合は、次の利用方法を推奨する。
-
-1. 実装 session で、必要な対話コンテキストを export する。
-2. 同じリポジトリを扱える別 session を開く。
-3. PR の URL または番号を指定して `sanity-review` を実行する。
-
-別 session を使うと、実装時の対話に含まれる暗黙の前提や既存仮説をそのまま引き継がず、PR 概要欄、対話コンテキスト、コードを読み直しやすい。
-これはレビューの独立性を高めたい場合の任意の運用であり、`sanity-review` の定義や必須条件ではない。
-
-### 独立レビューの境界
-
-レビュー本体は main reviewer 単独で完了する。
-命名・設計の一貫性、正確性、回帰、セキュリティの調査は main reviewer 自身の作業であり、外部へ委譲しない。
-
-独立レビューは、同じ資料をもう一度別の経路で探索する価値があると判断した場合の任意の追加であり、必須ではない。
-ただし user が明示的に要求した場合は、この追加価値の判断を挟まず実施する。
-実施する場合、レビュー対象の一次資料(exact revision、PR 概要欄、コメント、対話コンテキスト、ADR、差分、コード、テストの情報)は渡す。
-一方、main reviewer 側の findings、報告書のドラフト、疑っている箇所、深刻度の判断、修正方針、結論は渡さない。
-隠すのはこちらの仮説であって、レビュー対象そのものではない。
-
-返ってきた指摘は candidate として扱い、main reviewer が一次証拠で検証したものだけを報告書の finding にする。
-
-独立レビューが無いこと自体は、どの場合もレビューの失敗ではない。報告書に何を残すかだけが分かれる。
-
-- 追加価値がないと判断して実施しなかった: 通常の main-only review。記録しない。
-- 価値があると判断して試みたが、相談先が利用できず usable result を得られなかった: レビュー自体は完全。ただし必要と判断した独立探索経路を得られなかった coverage limitation として報告書に記録する。
-- user が独立レビューを明示的に要求していたが実行できなかった: main review の結果は提示してよいが、要求されたレビュー形態を満たせなかったことを明示する。
+[revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、実際の別 revision 混入事故と、read-only な `.git` による不要な clone・広い fetch の記録を保つ。
+partial clone、attributes、移動する PR head、shallow history、API 取得漏れは synthetic variant として区別する。
+host の first-party skill testing での点検用であり、この文書の存在自体は行動改善の証明ではない。
 
 ## codepatrol
 

@@ -1,420 +1,170 @@
 ---
 name: sanity-review
 description: >-
-  PR、またはGitHub PRが存在しない場合はreview brief・Reviewed head・Comparison basisを与えた明示的なcommit
-  rangeのレビュー報告書を作成する。bugや脆弱性の調査だけでなく、exportされた対話コンテキスト・概要欄・実装されたコードの整合性を確認し、実装者の正気を疑う。
-  ユーザーが「PRのレビュー報告書を書いて」「対話コンテキストと共にコードレビューして」「このPRの正気を疑って」、またはPRの無いcommit
-  rangeへの同種のレビューを求めた時に使用する。
+  PRまたは明示されたcommit rangeについて、説明、利用可能な対話コンテキスト、判断や非対応の根拠を実装と照合してレビューする。
+  sanity-review、PRのレビュー報告書、対話コンテキストや過去の判断と実装を照合するレビューを依頼されたときに使う。
 argument-hint: "[PR-URL-or-number | review brief + Reviewed head + Comparison basis]"
-compatibility: git が PATH に必要。GitHub PR review では加えて gh CLI(GitHub CLI・認証済み)が PATH に必要。gh は PR・差分・コメントの取得に使う。gh の入手は https://cli.github.com
+compatibility: >-
+  ローカル調査にはgitが必要。
+  Gitのオプションはbuildにより異なる(本文参照)。
+  GitHub PRのレビューには利用可能なツールまたはgh CLI(https://cli.github.com)による認証済みのGitHub読取アクセスが必要。
 ---
 
-# PRレビュー報告書の作成手順書
-
-feature/bugfix/refactoringの変更(GitHub PR、またはPRの無いcommit range)をレビューし、レビュー報告書を作成する。
-PRの場合、報告書はレビュアーがGitHubに貼ってレビュー完了を示し、必要な修正があれば説明するためのものである。
-
-レビュー対象のsource checkoutとremote repositoryに対して、このreviewはread-onlyである。
-source checkoutのworking-tree file・index・checkout中のbranch・ref・history、およびremote repositoryの状態を変更しない。
-明白なfixであってもfindingをその場で適用しない。
-findingと推奨するfixは報告するだけにする。
-source repositoryへのread-only queryは許されるが、fileまたはGit metadataを書きうるcommandは、後述する別の使い捨てcloneまたはexport済みtree内だけで実行する。
-
-exact revisionのevidenceが揃っている場合、静的調査にはsource Git repositoryを優先して使用する。
-sourceの `.git` が読み取り専用であることだけを理由に、静的queryのための使い捨てcloneを作らない。
-暗黙のlazy fetchを含めsourceのGit metadataを変更しない。手順0のfetch抑止とrevision固定のfallbackに従う。
-書き込みが生じうるruntime commandは、手順5のとおり隔離環境でだけ実行する。
-
-## 対象外
-
-- 通常の依存関係更新レビューは、エージェント標準のレビュー手順で行う。
-  対話コンテキストと実装の整合性のレビューをユーザーが依頼した場合に限り、依存関係更新にもこのskillを適用する。
-
-## 手順
-
-### 手順0: レビュー対象の確定とrevisionの結びつけ
-
-このskillには2つの入力モードがある。何よりも先に、次の優先順位でどちらが該当するかを判定する。
-必須の3入力が既にすべて揃っているかではなく、**intent**で判定する。不完全なnon-PR requestも、依然としてnon-PR requestである:
-
-1. **引数でPR番号またはURLが明示されている、または依頼が別の形で特定のGitHub PRを指している** → そのPRのGitHub PR review。これは以下すべてに優先する。
-2. **依頼がnon-PR revision-range intentを示している**(3入力すべてがまだ揃っていなくても、commit rangeに対するReviewed head・Comparison basis・review brief / change descriptionのいずれかを与えている、またはそれらを使うよう求めている)場合で、かつ(1)が該当しないとき → Non-PR revision-range review。直ちに下記のnon-PR pathへ入り、そこで3つの必須入力のうち欠けているものを確認する。完全性が揃うまで判定を待たず、1項目欠けているという理由でauto-detectionや停止にfall backしない。現在のbranchに無関係なPRが開いていても、こちらを使う。current-branch auto-detectionが見つける無関係なPRは、明示されたnon-PR targetを上書きする理由にならない。
-3. **上記いずれにも該当しない**(PRの指定もnon-PR intentの表明も無い)**が、現在のbranchに紐づくPRがある** → その自動検出されたPRのGitHub PR review。
-4. **上記のいずれにも該当しない**(PRの指定も自動検出もなく、non-PR intentの表明も無い)場合は、従来どおりユーザーに報告して終了する。
-
-#### GitHub PR review
-
-引数でPR番号またはURLが指定されている場合はそのPRを対象とする。
-指定がない場合は、PRの指定もnon-PR intentの表明も無いとき(上記の優先順位3)に限り、現在のブランチに紐づくPRを自動検出する。
-
-いずれの場合も、以下のコマンドでPR情報を取得する:
-
-```
-gh pr view {PR番号またはURL} --json number,title,body,url,author,comments,headRefName,headRefOid,baseRefOid
-```
-
-自動検出の場合は `{PR番号またはURL}` を省略する。
-
-PRが見つからず、non-PR intentの表明も無い場合はユーザーに報告して終了する。
-
-PRタイトル、PR番号、ブランチ名は報告書のヘッダーに使用する。Reviewed atには現在の日時(YYYY-MM-DD HH:mm:ss)を、Reviewerには自分のAgent名を記入する。
-
-以下の情報を取得する:
-
-1. PR本文(概要欄)
-2. PRコメント: `gh pr view` の comments
-3. インラインレビューコメント: `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
-4. PRレビュー: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate`
-5. Reviewed headとComparison basisとして記録するexact commit間の差分
-
-Reviewed headはPRの `headRefOid` である。
-`baseRefOid` はComparison basisを特定するための入力であり、そのままComparison basisとはしない。
-Comparison basisは、後述するfetch抑止付きのGit query、または履歴が不足している場合はSHA固定のcompare metadataから別途確定する(例: three-dot PR diffのmerge base)。base branchの現在の先端を差分の起点だと仮定しない。
-
-#### Non-PR revision-range review
-
-必須の入力。手順0は3つすべてが揃う前にここへ到達しうる。欠けているものはユーザーに確認し、推測や既定値での代替はしない。3つすべてが揃うまでコードを読み進めない:
-
-1. **Review brief / change description**: 変更内容を説明する文章。依頼に直接書かれていても、読めるfile/noteでもよい。特定のschema、front matter、保存場所は要求しない。与えられたものを、以降の手順でPR概要欄の代わりとして読む。
-2. **Reviewed head**: レビュー対象のコードを指すrefまたはcommit-ish。
-3. **Comparison basis**: 差分の起点を指すrefまたはcommit-ish。
-
-コードを読む前に、両方のrefをexact commit SHAへ確定する:
-
-```
-git --no-lazy-fetch rev-parse <Reviewed headのref>^{commit}
-git --no-lazy-fetch rev-parse <Comparison basisのref>^{commit}
-```
-
-確定した結果はref名ではなくSHAとしてReviewed headとComparison basisに記録する。
-後述する「source Gitの静的調査とobject不足時のfallback」のガードを付けて、その2commit間で直接差分を計算する:
-
-```
-git --no-lazy-fetch --attr-source=<Reviewed headのSHA> diff --no-ext-diff --no-textconv <Comparison basisのSHA> <Reviewed headのSHA>
-```
-
-Reviewed headのコードは、refを現在のworktreeへcheckoutするのではなく `git --no-lazy-fetch show <Reviewed headのSHA>:<path>` (または同等のガード付きread-only plumbing)で読む。
-これによりworktreeの未コミット変更をレビューへ混入させずに済み、別のworkspaceも不要である。
-
-このpathにはPR本文・PRコメント・インラインレビューコメント・PRレビューが存在しない。それらが無いことはこのpathでは想定どおりであり失敗ではない。それらに依存する後続手順はskipする。
-
-このpathでは報告書ヘッダーにPR番号とブランチ名が無い(手順7参照)。どちらもplaceholderで埋めない。
-
-#### すべてのreview evidenceをexact revisionへ結びつける
-
-コードを読む前に、Reviewed headのexact commit SHAと、差分の起点として実際に使うComparison basisのexact commit SHAを確定する。
-branch名や移動しうるbranchの先端ではなく、commit SHAを記録する。
-
-レビュー中は、次のinvariantを維持する:
-
-```text
-報告書のReviewed head = 差分のhead = review対象codeとして扱うすべてのrepository fileのrevision
-runtime cloneのHEADまたはexport済みtreeのsource commit = 報告書のReviewed head(runtime verificationを行う場合)
-Comparison basis = 実際にレビューした差分の起点となるexact commit
-```
-
-commitのancestor関係はcommitの同一性ではない。
-Reviewed headを含んでいても、current worktreeがdescendantまたはunrelated commitにあるならReviewed headではなく、そのcode・test・configuration・documentation・runtime resultをreviewに使わない。
-
-worktreeからレビュー対象repositoryのfileを読む前に、その `HEAD` がexact Reviewed headと等しく、tracked/untracked changeがないことを確認する。
-いずれかを満たさない場合、`git --no-lazy-fetch show <Reviewed headのSHA>:<path>` や後述するattributes固定のdiffのように、ガード付きでrevisionを指定するread-only commandで対象fileを調べる。
-Reviewed headがcurrent worktreeのancestorであることだけを理由に、そのfileをreview evidenceとして扱わない。
-比較を理解するために古い版を読む場合は、Comparison basisのSHAを指定し、Reviewed headのcodeではなく比較用のevidenceとして区別する。
-実際に読んだコードとReviewed headの一致を確認できない場合は、そのcommitを対象としたレビューとして完了せず、問題をユーザーに報告して終了する。
-
-#### source Gitの静的調査とobject不足時のfallback
-
-必要なGit objectが存在する場合、revisionを明示した静的queryにはsource repositoryを使用する。
-fetchを検討する前に、既知のexact commitを `git --no-lazy-fetch cat-file -e '<SHA>^{commit}'` で確認する。
-これはcommit objectの存在確認に過ぎない。partial cloneではtree/blobが欠け、shallow cloneでは `merge-base` に必要な履歴が不足しうる。
-sourceへの **すべての** Git読み取りでは、`git --no-lazy-fetch` を使って暗黙のobject取得を抑止する。`git show`・`git diff`・`git log`・`git merge-base` も例外ではない。
-`GIT_NO_LAZY_FETCH=1` よりこのoptionを優先する。optionを持たないGitはそれを目に見える形で拒否するが、環境変数が効くかはbuildによる(Git 2.45、2.39.4・2.43.4・2.44.1などのmaintenance release、その修正をbackportしたdistribution buildは解釈し、それより古いbuildは黙って無視する)。
-Gitが `--no-lazy-fetch` を拒否した場合、確認せずにoptionを外して再実行しない。lazy fetchにはpromisor remoteが必要なので、まず `git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'` を実行する。
-何も出力されなければ、ガードなしでrevisionを指定して読んでもobjectは取得されない。出力があれば後述のfallbackを使う。
-実際に読むobjectの存在をその都度確認し、不足や履歴の欠落はfallbackを使う理由とする。コードや変更が存在しない証拠とは扱わない。
-`git log` や `git merge-base` の履歴を信頼する前に、`git --no-lazy-fetch rev-parse --is-shallow-repository` を確認する。shallow repositoryでは `git log` がerrorなしで出力を切り詰めることがある。
-revisionを明示してGit objectを読む場合、checkout中の `HEAD` がReviewed headと異なっていてもよい。ただしworktree fileをevidenceに使う条件は変えない。
-patchを出力するcommand(`git diff`・`git show <commit>`・`git log -p`)では、attributesをReviewed headに固定し、外部diff driverとtextconvを無効にする。例: `git --no-lazy-fetch --attr-source=<Reviewed head SHA> diff --no-ext-diff --no-textconv <Comparison basis SHA> <Reviewed head SHA>`。
-これにより、無関係なworktreeや未コミットの `.gitattributes` がdiffを変えることを防ぐ。Gitがattribute sourceの指定に対応しない場合、影響を受けたdiffを使わずSHA固定のAPI結果または隔離repositoryを使う。
-
-GitHub PRでobjectが不足する場合、SHAを指定したAPIだけを使う。例: 比較には `gh api 'repos/{owner}/{repo}/compare/{basis SHA}...{head SHA}'`、ファイル全体には `gh api 'repos/{owner}/{repo}/contents/{path}?ref={head SHA}'` (必要に応じpathをURL encodeする)。
-merge baseが手元で求められない場合も、取得済みの `baseRefOid` と `headRefOid` のSHAを指定してcompare APIを呼び、`merge_base_commit` を確認する。
-APIのrevisionが記録したSHAと一致すること、レビューに必要なevidenceが揃うことを確認する。patchは省略・切り詰められる場合があり、diffだけではコード全体の確認に代えられない。
-Reviewed headを確定した後、移動するPR headを参照する `gh pr diff` などの結果で代用しない。
-SHA固定のAPIで十分なevidenceを得られない場合だけ、必要なref/objectを **別の使い捨てGit repository** に取得する。source Git metadataにはfetchも含めて書き込まない。
-再ダウンロードを避けるため、使い捨てrepositoryは `objects/info/alternates` でsourceのobjectを読み取り専用に参照してよい。ただし取得したobjectを含むすべての書き込みは、使い捨てrepository側だけに行う。
-source checkoutとremoteは終始read-onlyのままとする。
-
-### 手順1: 対話コンテキストの読み込み
-
-手順0が選んだmodeに応じて対話コンテキストを探す。いずれの場合も、最後に下記「対話コンテキストがリンクする ADR を辿る」を行う。
-
-#### GitHub PR review
-
-このskillがnon-PR reviewに対応する前と同じ、以下の順序で探す:
-
-1. PRコメントの中に「対話コンテキスト」というタイトルを含むコメントがないか確認する。見つかった場合はその内容をcontext candidateとして扱い、下記のprovenance確認を行う。
-2. 見つからなければ、ブランチ名をサニタイズ(`/ \ : * ? " < > |` を `-` に置換)し、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。
-3. どちらも見つからなければ、AskUserQuestionツールで以下を確認する:
-   - **対話コンテキストなしで続行**: 手順6(考慮漏れの確認)はスキップする
-   - **中断**: ユーザーに対話コンテキストの準備を依頼する
-
-#### Non-PR revision-range review
-
-ここにはPRが無いため、確認すべきPRコメントも無い。代わりに以下の順序で探す:
-
-1. 依頼自体が対話コンテキストを与えている場合(本文への貼り付け、または読めるfile/note)は、それを使用する。ここではこれが第一の情報源である。non-PRのReviewed headは特定のbranchに紐づくとは限らないため、下記2でそれに無関係なcontextへ静かにすり替えない。
-2. そうでない場合、レビュー対象に実際にbranch名が紐づいている場合(例: self-reviewでの現在のcheckout済みbranch)に限り、そのbranch名をサニタイズし、current workspaceのscratch areaにある `.dev/contexts/{サニタイズ済みブランチ名}.md` を探す。見つかった場合はcontext candidateとして扱い、下記のprovenance確認を行う。Reviewed headが素のcommit-ishでbranch名が紐づかない場合は、この情報源をskipし、それを失敗として扱わない。別のbranch上、またはbranchを持たないReviewed headに対して、現在checkout中のbranchのcontext fileを代用しない。それは別のコードのcontextである。
-3. どちらも見つからなければ、上と同じ2択でAskUserQuestionツールを使う。
-
-#### 発見したcontextのprovenanceを確認する
-
-`.dev/contexts/` はcommitされないworking-tree scratch areaであり、どのGit revisionにも属さない。
-conversation contextは実装processに関するhandoff evidenceであってReviewed headのcodeではないため、file自体にcodeのrevision invariantを適用しない。
-
-PR commentまたは `.dev/contexts/` から発見したcontextについて、`PR`・`Branch`・`Source commit` metadataを読む。
-`Source commit` をexact commitへ解決し、Reviewed headと同一またはそのancestorである場合だけ自動的に使用する。ここでancestor関係が示すのはprovenance上の時系列であり、codeの同一性ではない。
-PR reviewでは記録されたbranchが対象PRに一致することを要求し、記録されたPRは対象PRと一致するか、exportのplaceholder `PR not created at export time`、`PR not checked at export time`、`PR unverified at export time` のいずれかであることを要求する。
-これらのplaceholderはbranchが一致し、上記のsource commit確認も通る場合だけ許容し、それ以外のPR不一致は拒否する。
-後二者はexport時点でのPR不在を示さないため、コードのrevision不一致とは扱わず、PRが未確認だったことを報告する。
-紐づくbranchがあるnon-PR reviewでは、記録されたbranchが一致することを要求する。
-sourceが以前のancestorである場合、そのcontextはexport後の判断を含まない可能性があると記録する。
-
-metadataが欠けるか解決できない、別の対象を指す、またはsource commitがReviewed headのdescendantかunrelatedであるcontextは自動的に使用しない。
-意図したcontextの提示または確認、contextなしでの続行、中断のいずれかをユーザーに確認し、current branchのcontextを暗黙に代用しない。
-ユーザーがこのreview用として明示的に与えたcontextはそのまま使用できるが、取得元を記録し、metadataまたはユーザーが裏付けた範囲を超えてcodeを説明するものとは推測しない。
-metadataがdescendantまたはunrelated sourceを示す場合、ユーザーがsupplementalな役割を明示したときだけその役割で使用し、Reviewed headのimplementation contextとして扱わない。
-
-#### 対話コンテキストがリンクする ADR を辿る
-
-ADR に記録された決定について、対話コンテキストは要約しか持たない。根拠は ADR 側にある(`conversation-context-export` 参照)。
-コンテキストがリンクする ADR はすべて読む。
-読まなければ要約を相手にレビューすることになり、意図して記録された決定を、説明のない場当たりな選択として読んでしまう。
-repository内のADRはReviewed headのrevisionを読み、別のworktree revisionにある版で代用しない。
-
-diff が ADR ディレクトリまたは `CONTEXT.md` に触れている場合は、その変更もここで読む。
-決定や定義を変える変更は、自分の diff についてではなくコードベース全体について主張しているからである。
-
-### 手順2: 概要欄の品質評価
-
-**この手順はコードを読む前に行う。** コードの整合性確認に引っ張られて概要欄の構造的問題を見落とすことを防ぐため。
-
-PR reviewではPR概要欄、non-PR reviewでは手順0のreview brief / change descriptionが対象である。いずれも同じ下記チェックリストを使う。non-PR用に別のrubricは定義しない。
-
-non-PR reviewでは、review brief / change descriptionを手順2と手順3における変更の説明として使用し、その主張をdiffとcodeに照らして検証する。
-依頼または利用可能なcontextからその関係を確認できない限り、実装者がreview briefを執筆または承認したと推測しない。
-その関係を確認できない場合も、briefの他の品質項目と実装との整合性は評価するが、「実装者自身の理解が見えるか」はN/Aとして、その理由を記載する。
-
-概要欄は、十分に理解されないまま書かれたり、AIが生成した文章をそのまま貼り付けたものかもしれない。
-この手順では概要欄だけを読み、レビュアーがこの概要欄を読んで「変更の妥当性を判断できるか」を評価する。
-
-#### 概要欄チェックリスト
-
-以下の4項目を **必ず全て** 評価し、結果をメモする。全項目を評価してから次の手順に進む:
-
-1. **変更前の動作・問題が説明されているか**: レビュアーは変更の妥当性を判断するために、変更前の状態を知る必要がある。「何をやったか」だけでは「もしかしたら変更前の動作の方が正しかったのでは?」という疑問が残る
-2. **「問題→解決」や「現状→修正」のペアで書かれているか**: 新機能の場合は目的・動機でも可。ただし「やったこと」だけの一方通行な説明は不十分
-3. **変更の範囲が明確か**: 何を変えて、何を変えていないのかがわかるか
-4. **実装者自身の理解が見えるか**: AIが生成した文章をそのまま貼っただけでなく、実装者が何を考えてこの変更をしたのかが伝わるか
-
-### 手順3: 説明と実装の整合性確認
-
-この手順の目的は、概要欄やコメントでの説明と実際のコードが一致しているかを確認する、**ドキュメントとコードの読み合わせ** である。
-
-#### 重要: 実装者の発言のみを拾う
-
-PR reviewでは、PR概要欄の author と、各コメントの author を照合し、**実装者本人の発言のみ**を実装の説明として扱う。
-他の人が書いた応援コメント、機能に対する期待を込めたコメント、質問等は、実装の説明ではない。
-これらを実装の説明と混同すると、整合性の判断を誤る。
-
-non-PR reviewでは照合すべき別のコメントauthorが存在しない。
-与えられたreview brief / change descriptionを実装と照合する変更の説明として使用し、実装者が執筆または承認したと推測しないという手順2の指示に従う。
-
-#### 確認事項
-
-1. 概要欄 / review briefの説明と、実際の差分が一致しているか
-2. インラインレビューコメントでの実装者の説明と、実際のコードが一致しているか(PR reviewのみ。non-PR reviewにはインラインレビューコメントが存在しないため、この確認は行わず、無いこと自体を失敗として扱わない)
-3. PRレビューの本文(top-level review comment)での実装者の説明と、実装が一致しているか(PR reviewのみ。上と同様)
-4. 対話コンテキストの内容と、実装が一致しているか(対話コンテキストがある場合)
-
-齟齬を発見した場合は具体的に記録する。
-
-概要欄 / review brief・コメント・対話コンテキストのいずれも、コードが何をしているかについての権威ではない。
-そこに書かれた主張は、コードに照らして検証する対象であり、コードを検証するための基準ではない。
-
-### 手順4: 命名・設計パターンの一貫性
-
-この手順の目的は、実装が既存のコードベースの慣習と一致しているかを確認する、**コードベースの読み解き** である。
-バグ・脆弱性を調べる前にコードベースを理解することで、後続の調査の精度が上がる。
-
-#### 確認事項
-
-1. **命名規則の一致**
-   - ファイル名・関数名・変数名・クラス名が、既存コードの命名パターンと揃っているか
-   - 機能の正式名称を歯抜けに省略した名前が導入されていないか
-
-2. **設計パターンの一致**
-   - 構造・module分割・責務の切り方が、既存の類似機能と揃っているか
-   - 既存の抽象化を活用しているか、重複した実装を作っていないか
-
-齟齬を発見した場合は具体的に記録する。
-
-#### 長期視点で命名・設計のリスクを記録する
-
-既存コードとの一致は事実判定である。
-それとは別に、コードベースが育ったときに現在の命名・設計が禍根となりうると見たなら、そのリスクと、そう見る理由を記録する。
-たとえば、コードベースが向かっている概念と衝突しそうな名前や、拡張しにくい責務の切り方である。
-あわせて、その懸念への反証も検討する。今の命名・設計のままで問題ない理由は何か、想定している変化は本当に来るのか。
-反証を経ていないリスクは、一方的な将来予測にすぎない。
-これはAgent自身の見解であり、議論のタネを提供するものなので、通常の段落として記載する。
-無理に結論を出さなくてよく、保留のままでもよい。
-気になる点がなければ「特になし」と記載する。
-
-### 手順5: 正確性・回帰・セキュリティの調査
-
-コードは自分で調査する。
-これはmain reviewer自身の作業であり、レビューが外部へ委譲する部分ではない。
-
-少なくとも以下を対象とする:
-
-1. **正確性**: 概要欄や実装者の説明が主張するとおりに動くか。エッジケース、エラー経路、変更されたコードが実行される条件を確認する
-2. **回帰**: この差分が触れた既存の振る舞いは何か。既存の呼び出し元・テスト・データを確認し、追加されたものだけでなく、削除・改名・条件を狭めた箇所を見る
-3. **セキュリティ・脆弱性**: 信頼できない入力、injection、pathとファイルの扱い、secret、権限、差分が弱体化または迂回した既存のチェック
-
-差分だけでなくコードを読む。差分は、変更された行が動く文脈を隠すからである。
-発見した問題は、その根拠(どこにあり、なぜ誤りか)と共に記録する。
-変更箇所をテストが覆っている場合は、そのテストが、いま指摘している失敗を実際に捕まえるかを確認する。
-
-runtime verificationは任意であり、static inspectionと同じrevision bindingを守る。
-test・build・format check・generatorなどfileを書きうるcommandは、source checkoutの外にexact Reviewed headから作った別の使い捨てcloneまたはexport済みtree内だけで実行し、実行前にその `HEAD` またはexport元commitを確認する。
-`git worktree add` はsource repositoryへmetadataを書き込むため、この用途には使わない。
-current worktreeをそこへcopyせず、descendantまたはunrelated worktreeの結果をReviewed headのevidenceとして扱わない。
-使い捨てruntime cloneまたはexport済みtree内で生じた変更は、レビュー対象repositoryへ持ち帰らず破棄する。
-
-exactな隔離checkoutを用意できない場合は、exact Reviewed headに明示的に紐づく既存CI evidenceを使うか、static inspectionだけに限定する。
-runtime coverageがないことは「レビュー作業において発生した問題」に明記し、別revisionの結果で暗黙に代用しない。
-
-### 手順6: 対話コンテキストの再読み・考慮漏れ確認
-
-対話コンテキストがない場合はこの手順をスキップする。
-
-**コードレビューは作業結果のダブルチェックではない。結果ではなくプロセスをレビューする。**
-
-対話コンテキストに書かれた主張を、そのまま正しい前提として扱わず、コードと利用可能な他の情報に照らして検証する。
-やった事はコードを読めばわかる。検討した上でやらなかった事こそ、設計のレビューに必要な情報である。
-対話コンテキストに書かれた設計判断・却下理由・意図的な非対応の「プロセス」が正しいかを検証する。
-
-対話コンテキストを改めて精読し、以下を検証する:
-
-#### 6-1. 設計判断の根拠
-
-対話コンテキストに書かれた設計判断の理由が、コードの実態と一致しているか。
-
-#### 6-2. 却下した代替案の再評価
-
-対話コンテキストの「却下した代替案」セクションから、各代替案を1つずつ抜き出して再評価する:
-
-- 不採用の理由は妥当か。本当に公平に比較したか
-- 見落とした利点や、過大評価したデメリットはないか
-- 採用案と却下案の比較に使われた前提条件は正しいか
-
-#### 6-3. 失敗した試行のプロセス検証
-
-「試したがダメだった」と記載されているものについて、結果だけでなく**試し方自体**を疑う:
-
-- 前提条件は正しかったか
-- 実行手順に見落としはなかったか
-- 判断基準(「ダメ」と判定した根拠)は妥当だったか
-- 別の条件で試せば結果が変わる可能性はないか
-
-#### 6-4. 意図的に対応しない事項の妥当性
-
-「やらない」と決めたものについて:
-
-- 「やらない」理由は、今の実装を踏まえても妥当か
-- 実装の結果、前提が変わって「やるべき」に変わっていないか
-
-#### 6-5. 記載されている事実の正確性
-
-対話コンテキストに書かれた「事実」が本当に正しいか、コードを読んで検証する。
-
-### 任意: 独立レビュー
-
-番号付きの手順がレビューの全体であり、main reviewer はそのすべてを単独で完了できる。
-独立レビューはそこへの追加であって、レビュー成立の条件ではない。
-
-同じ資料をもう一度別の経路で探索することで、自分の調査では届かないものに届くと判断した場合に限り利用する。
-たとえば、どうしても腑に落ちない箇所、自分が読める範囲より影響範囲が広い変更、コードだけでは決着しない疑いがある場合である。
-userが明示的に要求した場合は、この判断を挟まず実施する。
-利用しないと判断したこと自体はレビューの欠落ではなく、「レビュー作業において発生した問題」に書く事柄でもない。
-
-実施する場合は、Skill toolで `subagent-consultation` を呼び出す。
-上記のレビュー範囲と操作制限を示して独立レビューを依頼する。
-ユーザーが指定した回数や相談先の条件を引き継ぐ。
-それ以外の相談先の選定と、未解決点に対する追加相談の判断は `subagent-consultation` に任せる。
-
-#### 独立レビューに渡すもの
-
-目的は、同じ資料に対する独立した探索経路であって、何も見えない状態のレビュアーを作ることではない。
-対象を自力でレビューするために必要なものは渡す:
-
-- Reviewed head と Comparison basis の exact commit
-- 概要欄 / review brief。PR reviewの場合はさらにコメントとPRレビュー本文
-- 対話コンテキストと、それがリンクするADR
-- 差分、コード、テストの実行方法
-- リポジトリ自身の指示
-
-一方、こちら側のレビュー内容は渡さない:
-
-- 自分のfindingsと報告書のドラフト
-- バグや脆弱性を疑っている箇所
-- 深刻度の判断と修正方針
-- 自分の結論
-
-これらを渡すと、独立した読みが、自分の見解の追認に変わる。
-
-#### 返ってきたものの扱い
-
-独立レビューが挙げたものはすべてcandidateであり、findingではない。
-報告書に入れる前に、一つずつ一次証拠に照らして自分で検証し、検証に耐えないものは落とす。
-独立レビューの見解が自分の見解に優先することはない。食い違った場合は、両方の理由を記録する。
-独立レビューが扱わなかった領域も探す。2回目の探索が見落としたことは、そこに何も無いことの証拠にはならない。
-
-#### 独立レビューが得られなかった場合
-
-相談が失敗した場合や、利用できる相談先が無い場合も、すでに手元にあるレビューはそのまま成立する。最後まで仕上げて報告書にする。
-相談先が利用できないことはレビューの失敗ではなく、実行環境を疑う理由にもならない。
-
-何を記録するかは、独立レビューが無い理由によって分かれる:
-
-1. **追加価値がないと判断して実施しなかった場合**: 何も記録しない。main reviewer 単独のレビューは、劣ったレビューではなく通常の完全なレビューである
-2. **価値があると判断して試みたが、実行できなかった場合**: レビュー自体は完全なままだが、必要と判断した追加の探索経路は得られていない。これを coverage limitation として「レビュー作業において発生した問題」に記録する。何のために2本目の経路が欲しかったのか、その結果どの領域が自分の読みだけに依っているのかを書く
-3. **userが独立レビューを明示的に要求していたが、実行できなかった場合**: 自分のレビュー結果は通常どおり提示してよい。そのうえで、要求されたレビュー形態を満たせなかったことを明示する。要求が満たされたかのように流さない
-
-### 手順7: レビュー報告書の作成
-
-このSKILL.mdと同じディレクトリにある [TEMPLATE.md](TEMPLATE.md) を読み込み、その形式に従って報告書を作成する。
-
-報告書は**会話に出力する**(ファイルに保存しない)。
-レビュアーが自分でGitHubにコピー＆ペーストする。
-
-#### 報告書作成のガイドライン
-
-- **報告書ヘッダー**: PR reviewでは従来どおりPRタイトル・PR番号・ブランチ名を記入する。non-PR reviewにはPR番号もブランチ名も無いので、その行は埋めずに省略し、PRタイトルの代わりにレビュー対象を示す短い説明(review briefから取る)を記入する
-- **概要欄 / review brief > サマリー**: PR reviewでは実装者の説明を引用・抜粋し、non-PR reviewでは執筆者を推測せず、与えられたreview briefを引用・抜粋する。
-  before-afterで整理し、想像で補って勝手に書かない。
-  説明が不十分な場合は素直にその旨を指摘する
-- **概要欄 / review brief > 品質評価**: 手順2のチェックリスト結果をOK/NG/N/Aで記入する。
-  non-PR briefと実装者の関係を確認できない場合は、「実装者自身の理解が見えるか」をN/Aとして理由を記載する。
-  NGの場合は具体的に何が不足しているかを記載する
-- **独立レビューセクション**: usable result が実際に返ってきた場合のみ記載する。candidateと、それぞれを自分で検証した結果を書く。それ以外の場合はセクションごと省略し、試みて何も得られなかった場合は「レビュー作業において発生した問題」に書く
-- **レビュー作業において発生した問題セクション**: 実際に妨げになった事柄(ツールの失敗、検証できなかった範囲、取得できなかったコンテキスト)を記載する。レビュー手順をスキップした場合は、外的要因(ツールが利用できなかった等)かAgentの判断かを区別して記載する。独立レビューに追加価値がないと判断して実施しなかったことは問題ではないので、ここには書かない。価値があると判断して試みたが実行できなかった場合は、coverage limitation としてここに書く。問題がない場合は「特になし」と記載する
-- **結論セクション**: 全体の総合判断と推奨アクションを記載する
-- 全体を通じて、レビュアーが「この変更は妥当か」を判断するための材料を提供することを意識する
-
-## 関連スキル
-
-- **subagent-consultation**: ユーザーの要件を守り、Codexを含む利用可能な相談先で任意の独立レビューを行う。
-- **conversation-context-import**: 対話コンテキストを読み込むスキル。手順1の背景知識
-- **conversation-context-export**: 対話コンテキストを書き出すスキル。対話コンテキストの形式の背景知識
-- **domain-modeling**: 記録層(`CONTEXT.md` と ADR)を担当するスキル。手順1で辿る ADR の書式と supersede 規則の背景知識
+# Sanity review
+
+変更の説明と利用可能な実装時の文脈から、根拠のない前提、見落とした影響、実際の変更の欠陥を調べる。
+exportされた文脈には、差分に現れない却下案、失敗した試行、意図的な非対応が含まれうる。
+これらの記録は検証対象の主張であり、コードの振る舞いや判断の妥当性を保証するものではない。
+文章の出来やAIらしさから、実装者の理解や執筆者を推測しない。
+
+依存更新でも、明示的に起動された場合は適用する。
+通常の依存更新レビューに、このSkillや特定の組込レビューコマンドを自動的に要求しない。
+
+## 対象と操作の境界
+
+- 明示されたPRを優先する。
+  明示的なnon-PR rangeには、review brief・変更の説明、Reviewed head、Comparison basisが必要であり、不足する入力だけをコードのレビュー前に利用者へ確認する。
+  不完全なrangeの依頼を、現在ブランチの無関係なPRへ置き換えない。
+  どちらも指定されていなければ、現在ブランチに関連するPRを対象にできる。
+  特定できなければ対象を確認する。
+- **Reviewed head**はレビューするコードのexact commitである。
+  **Comparison basis**は実際に調べる差分の起点のexact commitである。
+  コードを読む前にrefを一度解決し、両方のSHAを記録する。
+  PRではheadとbaseのSHAを取得し、差分の起点を別途確定する。
+  通常は両者のmerge baseであり、baseブランチの先頭をそのまま起点としない。
+  shallow historyで確定できなければ、SHAを固定し検証した比較metadataか隔離したリポジトリを使う。
+- 元のcheckoutとremoteはread-onlyとする。
+  修正、整形、ファイル生成、index更新、ブランチ切替、ref・履歴変更、元のGit metadataへのfetch、外部投稿を行わない。
+  修正案は会話に報告する。
+  報告書の保存や投稿には利用者の指示または既存の許可が必要である。
+  元のGit metadataがread-onlyであることだけを理由にcloneしない。
+
+## レビュー対象revisionの証拠
+
+報告書のReviewed head、差分のhead、レビューするリポジトリ内ファイル、実行検証環境の元commitを一致させる。
+そのcommitを含むdescendantも別のrevisionである。
+必要なobjectがあれば、worktreeがdirtyでも別revisionでも、元のGitに対する保護付きのrevision指定読取を静的調査に使う。
+worktreeのファイルを使うのは、HEADがReviewed headと一致し、tracked・untrackedの変更がないと確認できた場合だけとする。
+status確認時も、対応buildの`git --no-optional-locks status`などで任意のindex更新を避ける。
+古いコードは比較用の証拠と示し、Reviewed headのコードとして扱わない。
+revisionの一致を確立できなければ、その阻害要因を報告し、そのcommitのレビューを完了したとは述べない。
+
+元のGit objectを読む前に次の保護を適用する([Gitのオプション](https://git-scm.com/docs/git)、[partial cloneの説明](https://git-scm.com/docs/partial-clone)を参照)。
+
+- refの解決、`show`、`diff`、`log`、`merge-base`を含むすべてのobject・履歴読取で、`git --no-lazy-fetch`により暗黙のlazy fetchを止める。
+  commit objectの確認成功だけでは、tree・blobや祖先の履歴が揃っているとはいえない。
+  履歴を根拠にする前に`git --no-lazy-fetch rev-parse --is-shallow-repository`を確認する。
+  `log`が成功しても履歴が欠けていることがある。
+- buildが`--no-lazy-fetch`を拒否した場合、`git config --get-regexp '^(remote\..*\.promisor|extensions\.partialclone)$'`でpromisor・partial clone設定の不在を確立するまで、保護なしで再実行しない。
+  該当設定なしの終了状態と、問合せ自体の失敗を区別する。
+  それ以外は下記の代替経路を使う。
+  buildの対応を確認せず`GIT_NO_LAZY_FETCH=1`へ置き換えない。
+  未対応buildは黙って無視しうる。
+- `diff`、`show <commit>`、`log -p`でpatchを出すときは、Reviewed headのattributesを選び、外部diff driverとtextconvを無効にする。
+  対応するGit buildでの例:
+
+  ```bash
+  git --no-lazy-fetch --attr-source=<head-SHA> diff --no-ext-diff --no-textconv <basis-SHA> <head-SHA>
+  git --no-lazy-fetch show <head-SHA>:<path>
+  ```
+
+  これは例であり、どのbuildでも実行できる保証はない。
+  attributesの選択に未対応なら、別worktreeのattributesで差分を変えず、SHAを固定したAPIか隔離したリポジトリを使う。
+- object・履歴の不足には、SHAを固定したAPIの証拠か、別の使い捨てGitリポジトリを使い、必要なものだけをそちらへfetchする。
+  GitHubでは、取得済みbase・head SHAによるcompareリクエストから`merge_base_commit`を得られる。
+  ファイル全体は取得済みhead SHAを`ref`に指定して要求できる。
+  応答のrevisionと、比較の起点が記録したbasisと一致することを確認する。
+  three-dot API比較は、明示されたrangeのbasisとは別のmerge baseを使う場合がある。
+  対応するAPIはpaginationを行い、取得範囲を確認する。
+  変更ファイル一覧には上限があり、patchは省略・切詰めされうる([GitHubの比較APIの制限](https://docs.github.com/en/rest/commits/commits#compare-two-commits)を参照)。
+  APIの欠落をコードの不在と扱わず、headを固定した後に移動しうる`gh pr diff`を使わない。
+  証拠が足りなければ、レビューできない範囲を示す。
+  使い捨てリポジトリはalternatesで元のobjectをread-onlyに参照してよいが、取得objectとmetadataへの書込はすべて元のリポジトリの外に置く。
+
+実行検証は任意である。
+書込を伴いうるテスト、build、formatter、generatorは、exact Reviewed headから作った別の使い捨てcloneまたはexport済みtreeでのみ実行し、実行前にrevisionを確認する。
+現在のworktreeのコピー、descendantの結果、元のGit metadataへ書き込む`git worktree add`は使わない。
+生成された変更はそちらで破棄する。
+隔離できなければ、Reviewed headに明示的に紐づくCI証拠または静的調査を使い、実行検証の限界を報告する。
+
+## 対話の証拠の選択
+
+ファイル指定を含め、今回のレビュー用に明示された文脈を優先する。
+指定された資料を取得できなければ、別の文脈へ黙って置き換えず報告する。
+明示資料が補助資料や部分的な記録なら、依頼された判断の検証に必要な分だけ文脈を追加で探す。
+作成報告を渡したことだけで、exportされた文脈を対象外としない。
+資料を限定する明示指示には従い、網羅したと述べるためだけに全資料を探さない。
+文脈が明示されていない場合は、文脈がないと結論する前に、該当するPRの対話コンテキストコメントと、利用可能な規約上のローカルファイル`.dev/contexts/{sanitized target branch}.md`を調べる。
+必要に応じた追加探索にも、同じ探索先を使う。
+[conversation-context-export](../conversation-context-export/SKILL.md)で共有したコメントは、先頭見出しが`# {branch name} 対話コンテキスト`となる。
+これを探索の手がかりにし、由来を検証する。
+sanitizeは`/ \ : * ? " < > |`の各文字を`-`に置換する。
+non-PR rangeでローカル探索するのは、対象に実際に関連するブランチがある場合だけである。
+現在のcheckoutにブランチがあるだけでは使わない。
+
+明示資料と探索で見つけた候補のどちらも、利用可能な見出し、PR・repository、Branch、Source commit、更新時点、記載対象を確認する。
+明示されたメモにexportの書式を要求しないが、優先することは由来の証明にはならない。
+
+- 探索で見つけた文脈は、この対象(PRの記録があればそのPRと、ブランチ)を示し、Source commitが解決可能で、Reviewed head自身かその祖先であることを確認する。
+  exportのplaceholderである`PR not created at export time`、`PR not checked at export time`、`PR unverified at export time`は、ブランチとsourceの由来が一致すれば受け入れられる。
+  後二者はPRの不在を証明しない。
+  metadataが不足・不一致なら自動採用の前に確認する。
+- Source commitは証拠の時点を示し、Reviewed headと同一である必要はない。
+  古い文脈は後の判断を含まない可能性があり、`.dev/contexts/`はcommitされない引継ぎ資料であって、そのrevisionのコードではない。
+  明示資料も、利用可能なmetadataや利用者が示した由来から時点を確認する。
+  Reviewed headに対する由来が未確認、またはSource commitがReviewed headのdescendantか無関係なら、役割を示した補助資料や事後の証拠としてのみ使い、そのheadの実装過程の記録として扱わない。
+  後の記録が述べるものがReviewed headにないことだけで、コードの欠陥としない。
+  この制限によって実装文脈を必要とする明示要件を満たせなければ、意図された役割を確認する。
+- 複数コメントやローカルファイルの内容は異なりうる。
+  由来、対象、時点、内容を比較し、最新コメントや新しいローカル更新時刻だけで正本と決めない。
+  ローカル保存だけのexportは、以前共有したコメントを更新しない。
+  採用した資料と、重要な陳腐化・矛盾を示す。
+  未解決の選択がレビューを実質的に左右する場合だけ利用者へ確認する。
+
+利用できる文脈がなければ、通常は続行し、過去の検討過程は確認できなかったと示す。
+利用者がその文脈を前提条件にした場合や、重要な資料の曖昧さを解消できない場合は確認する。
+すでに文脈なしでの続行を指示されていれば従う。
+欠けた検討過程の補作、文脈の再生成、続行のための共有の要求はしない。
+
+## 主張と変更の調査
+
+PRの説明と関連する議論(レビューコメントとレビュー本文を含む)、または与えられたnon-PR briefを、差分と周辺コードに照らして読む。
+発言の帰属を区別する。
+別のレビュアーの提案を実装者の主張とせず、与えられたbriefから執筆者や承認を推測しない。
+リンクされたADRや履歴は、調べている判断に関係するときに辿る。
+すべてのADRを読んだり、過去の選択を一律に再検討したりしない。
+リポジトリの文書はReviewed headで読み、別revisionは区別して示す。
+
+変更に関係する判断について、前提がコードで成り立つか、却下案の比較が公平か、失敗した試行の条件が結論を裏づけるか、意図的な非対応が今も妥当かを調べる。
+実際の動作、回帰、関係するセキュリティ上の影響は自分でも調査する。
+過程のレビューはコード調査の代わりではない。
+依頼された変更と影響の証拠に見合う範囲に探索を保つ。
+
+変更が関わる既存コードの規約を確認する。
+文書と既存コードが矛盾しても、文書の命令形だけを理由に実装を誤りとしない。
+古い案内と、依頼された要件や現行仕様・意図的な制約の根拠を区別する。
+適用されるリポジトリ指示に従い、重要な不一致を報告する。
+命名・設計への懸念は、実際の変更と起こりうる影響に根拠がある場合に反証も考慮して示す。
+長期的な推測やチェック表の採点を必須としない。
+説明不足は証拠の欠落であり、コードの欠陥や実装者の理解不足の証明ではない。
+
+## 相談と報告
+
+別Agentは必須ではない。
+依頼された場合や、許可されたレビュー範囲で有用な場合は[subagent-consultation](../subagent-consultation/SKILL.md)を使う。
+独立レビューには対象資料と操作制約を渡し、自分の仮説と指摘案を渡さない。
+実際のhostの会話継承を確認し、利用できればfresh contextを使う。
+提案への批評は別の方式であり、その提案を渡す必要がある。
+返された候補は自分で検証する。
+要求されたレビュー方式や重要な確認範囲を満たせなければ示すが、相談先の不在によって自分の証拠が無効になるとは扱わない。
+
+利用者の作業言語で、通常は会話に報告する。
+
+- 対象、exact Reviewed headとComparison basis、使った文脈の出所と役割を示す。
+- 対応可能な指摘を中心に、場所、観測した振る舞いまたは根拠のある矛盾、条件と影響、証拠を示す。
+  検証済みの欠陥と、未解決の疑問・証拠不足を区別する。
+- 実施した検証と、取得できなかった文脈や実行検証を含む重要な限界を示し、それを踏まえた判断と推奨対応を述べる。
+  指摘がなければその旨を述べ、網羅的な正しさを暗示しない。
+
+形式は指摘と依頼に合わせる。
+PR概要の再掲、全チェック結果の出力、完了を示すためだけの空欄埋めを行わない。
