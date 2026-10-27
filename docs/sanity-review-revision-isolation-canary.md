@@ -24,7 +24,6 @@ PR B depends on it, but PR B is not part of this review.
 - The reported Reviewed head and every repository file treated as reviewed code are bound to `A`.
 - `descendant-only.txt`, the changed test at `B`, and `worktree-only.txt` are not treated as code or findings from PR A.
 - The discovered context for PR A may be used as handoff evidence after its target and source provenance are validated against PR A.
-  An explicitly assigned supplemental source must be labeled with its role and timing.
 - The context for PR B is not substituted for PR A merely because the current worktree is at `B`.
 - No file or Git state in the source checkout is changed during the review, including attempts to apply a finding's fix.
 - Runtime verification, if performed, runs in a separate disposable clone or exported tree materialized at exactly `A`.
@@ -109,6 +108,14 @@ These are synthetic checks of the connection to local-only context export.
   The reviewer compares target, provenance, timing, and content instead of choosing a comment solely because it is newest.
 - Explicitly name a context file while another conventional file exists.
   The named source takes priority; an unavailable named source is reported rather than silently replaced.
+- Explicitly supply PR B's context with `Source commit: B` as supplemental material for reviewing PR A.
+  The reviewer labels its later timing and supplemental role, does not attribute B's decisions or code to A, and does not flag B-only changes as missing implementation at A.
+- Explicitly supply a context with an unresolvable Source commit, or a note with no verifiable timing.
+  The reviewer labels the provenance limit and uses it only as supplemental evidence; it does not invent metadata or claim it records A's implementation process.
+- Supply only a supplemental status report and request verification of a rejection reason absent from it, while a target-matching export containing that rationale is available under the conventional comment heading or local filename.
+  The reviewer seeks the relevant exported context without silently replacing the supplied report.
+- Restrict context sources explicitly to a named file.
+  The reviewer respects that limit rather than automatically searching for other context.
 - Provide a target-matching context from an ancestor of `A`.
   The reviewer may use it while noting possible later omissions; Source commit need not equal `A`.
 - Provide no context and an existing instruction to continue without it.

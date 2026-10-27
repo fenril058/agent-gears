@@ -52,39 +52,42 @@ ceiling を上げるかどうかは利用者の判断であり、skill 自身は
 
 ## sanity-review
 
-`sanity-review` は、PRや明示されたcommit rangeの説明、利用可能な対話コンテキスト、実装を照合する。
+`sanity-review` は、PR や明示された commit range の説明、利用可能な対話コンテキスト、実装を照合する。
 差分に現れない却下案、失敗した試行、意図的な非対応の根拠も、変更に関係する範囲で疑い直す。
 依存更新でも明示的に起動できるが、通常の依存更新レビューへ自動追加するものではなく、特定の組込レビューコマンドも前提にしない。
 
-PRはURL・番号で指定でき、対象の明示がなければ現在ブランチのPRも利用できる。
-PRのないrangeでは、変更の説明、Reviewed head(レビュー対象commit)、Comparison basis(実際の差分の起点)を渡す。
-不完全なrange指定を、無関係なPRへ置き換えない。
+PR は URL・番号で指定でき、対象の明示がなければ現在ブランチの PR も利用できる。
+PR のない range では、変更の説明、Reviewed head(レビュー対象 commit)、Comparison basis(実際の差分の起点)を渡す。
+不完全な range 指定を、無関係な PR へ置き換えない。
 
 対話コンテキストは任意であり、明示された資料を優先する。
-指定がなければ、対象に対応するPRコメントと規約上のローカル文脈を、由来・対象・保存時点・内容で比較する。
+補助資料や部分的な記録だけでは依頼された判断を検証できない場合、必要な分だけ追加探索する。
+資料を限定する明示指示には従う。
+探索では、対象に対応する PR コメントと規約上のローカル文脈を、由来・対象・保存時点・内容で比較する。
+明示資料も時点を確認し、対象 head との関係が未確認の記録や、後の revision の記録は、補助資料として扱う。
 ローカル保存だけでは共有済みコメントが更新されないため、最新コメントだけで選ばない。
 文脈がなければ原則続行し、検討過程の確認が限られることを報告する。
 文脈の共有や再生成を要求しない。
 
-レビュー対象にはread-onlyで接し、指摘をその場で修正しない。
-exact commitを記録し、別revisionのコードや実行結果を混ぜない。
-静的調査には元のGitのobjectを保護付きで読み、read-onlyの`.git`だけを理由にcloneしない。
-書込を伴いうる実行検証は、exact Reviewed headから作る別の使い捨てcloneまたはexport済みtreeで行う。
-操作上の保護と入力の詳細は[SKILL.md](skills/sanity-review/SKILL.md)を参照。
+レビュー対象には read-only で接し、指摘をその場で修正しない。
+exact commit を記録し、別 revision のコードや実行結果を混ぜない。
+静的調査には元の Git の object を保護付きで読み、read-only の `.git` だけを理由に clone しない。
+書込を伴いうる実行検証は、exact Reviewed head から作る別の使い捨て clone または export 済み tree で行う。
+操作上の保護と入力の詳細は [SKILL.md](skills/sanity-review/SKILL.md) を参照。
 
-報告は、対象revision、文脈の出所、根拠のある指摘、検証と未確認範囲、判断を依頼に合う形式で示す。
-固定テンプレート、全項目の採点、PR概要の再掲は求めない。
+報告は、対象 revision、文脈の出所、根拠のある指摘、検証と未確認範囲、判断を依頼に合う形式で示す。
+固定テンプレート、全項目の採点、PR 概要の再掲は求めない。
 通常は会話に出力し、保存・投稿は依頼や既存の許可に従う。
 
-self-reviewと別のレビュアーによるレビューのどちらにも使える。
-実装時の仮説から距離を置きたい場合は、必要な文脈をexportして別sessionで対象を指定する方法もある。
+self-review と別のレビュアーによるレビューのどちらにも使える。
+実装時の仮説から距離を置きたい場合は、必要な文脈を export して別 session で対象を指定する方法もある。
 共有は必須ではなく、ローカルファイルも明示して渡せる。
-独立レビューを依頼する場合は、`subagent-consultation`でhostの会話継承と利用者の指定に従う。
+独立レビューを依頼する場合は、`subagent-consultation` で host の会話継承と利用者の指定に従う。
 対象資料を渡し、主担当の仮説を渡さず、返された候補は主担当が検証する。
 
-[revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md)は、実際の別revision混入事故と、read-onlyな`.git`による不要なclone・広いfetchの記録を保つ。
-partial clone、attributes、移動するPR head、shallow history、API取得漏れはsynthetic variantとして区別する。
-hostのfirst-party skill testingでの点検用であり、この文書の存在自体は行動改善の証明ではない。
+[revision-isolation canary](https://github.com/fenril058/agent-gears/blob/main/docs/sanity-review-revision-isolation-canary.md) は、実際の別 revision 混入事故と、read-only な `.git` による不要な clone・広い fetch の記録を保つ。
+partial clone、attributes、移動する PR head、shallow history、API 取得漏れは synthetic variant として区別する。
+host の first-party skill testing での点検用であり、この文書の存在自体は行動改善の証明ではない。
 
 ## codepatrol
 

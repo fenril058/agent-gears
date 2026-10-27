@@ -55,7 +55,6 @@ skill は `SKILL.md` の `description` が作業に合致したときに読み�
 | [subagent-consultation](plugins/agent-gears/skills/subagent-consultation/SKILL.md) | | |
 
 `codex-consultation`、`sanity-review`、`codepatrol` の利用上の補足は [plugin README](plugins/agent-gears/README.md) に置く。
-`sanity-review` は対象revisionと文脈の出所を確かめて説明・判断の根拠を実装と照合し、報告形式は依頼に合わせる。
 
 ## 配布方法
 

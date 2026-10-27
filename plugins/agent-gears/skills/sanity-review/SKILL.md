@@ -83,18 +83,25 @@ If isolation is unavailable, use CI evidence explicitly tied to Reviewed head or
 ## Select conversation evidence
 
 Use context explicitly supplied for this review first, including a named file; report an unavailable specified source without silently substituting another.
-Otherwise inspect relevant PR conversation-context comments and the conventional local `.dev/contexts/{sanitized target branch}.md` if available.
+If supplied material is supplemental or partial, seek additional context only as needed to assess the requested decisions; supplying a status report does not itself exclude an exported context.
+Honor an explicit restriction to particular sources, and do not search every source merely to claim completeness.
+When discovery is needed, inspect relevant PR conversation-context comments and the conventional local `.dev/contexts/{sanitized target branch}.md` if available.
+Comments shared by [conversation-context-export](../conversation-context-export/SKILL.md) use the first heading `# {branch name} 対話コンテキスト`; use that as a discovery cue, then validate provenance.
 Sanitization replaces each of `/ \ : * ? " < > |` with `-`.
 For a non-PR range, discover a local file only when a branch is actually associated with that target, not merely because the current checkout has a branch.
 
-Check candidates' heading, PR/repository, Branch, Source commit, update time, and stated scope before selecting:
+For supplied and discovered candidates alike, check available heading, PR/repository, Branch, Source commit, update time, and stated scope.
+Supplied notes need not follow the export schema, but their priority does not establish their provenance:
 
 - A discovered context should identify this target (PR if recorded, and branch) and have a resolvable source commit at or before Reviewed head in its ancestry.
   Export placeholders `PR not created at export time`, `PR not checked at export time`, and `PR unverified at export time` can be accepted with matching branch and source provenance; the latter two do not prove PR absence.
   Missing/mismatching metadata needs clarification before automatic use.
 - Source commit dates the evidence; it need not equal Reviewed head.
   Earlier context may omit later decisions, and `.dev/contexts/` is uncommitted handoff evidence, not code at that revision.
-  Context explicitly assigned by the user may also provide supplemental or retrospective evidence; label its role and timing without claiming it records that head's implementation process.
+  For explicitly supplied material too, check source timing using available metadata or provenance established by the user.
+  If its provenance relative to Reviewed head remains unverified or Source commit is a descendant of or unrelated to Reviewed head, use it only as labeled supplemental or retrospective evidence, not as that head's implementation record.
+  Do not infer a code defect merely because a later record describes something absent at Reviewed head.
+  Clarify its intended role if this prevents meeting an explicit requirement for implementation context.
 - Multiple comments and local files can differ.
   Compare provenance, target, time, and content; neither the newest comment nor a newer local timestamp alone establishes which is authoritative.
   A local-only export does not update a previously shared comment.

@@ -91,12 +91,18 @@ revisionの一致を確立できなければ、その阻害要因を報告し、
 
 ファイル指定を含め、今回のレビュー用に明示された文脈を優先する。
 指定された資料を取得できなければ、別の文脈へ黙って置き換えず報告する。
-指定がなければ、該当するPRの対話コンテキストコメントと、利用可能な規約上のローカルファイル`.dev/contexts/{sanitized target branch}.md`を調べる。
+明示資料が補助資料や部分的な記録なら、依頼された判断の検証に必要な分だけ文脈を追加で探す。
+作成報告を渡したことだけで、exportされた文脈を対象外としない。
+資料を限定する明示指示には従い、網羅したと述べるためだけに全資料を探さない。
+探索が必要な場合は、該当するPRの対話コンテキストコメントと、利用可能な規約上のローカルファイル`.dev/contexts/{sanitized target branch}.md`を調べる。
+[conversation-context-export](../conversation-context-export/SKILL.md)で共有したコメントは、先頭見出しが`# {branch name} 対話コンテキスト`となる。
+これを探索の手がかりにし、由来を検証する。
 sanitizeは`/ \ : * ? " < > |`の各文字を`-`に置換する。
 non-PR rangeでローカル探索するのは、対象に実際に関連するブランチがある場合だけである。
 現在のcheckoutにブランチがあるだけでは使わない。
 
-候補の見出し、PR・repository、Branch、Source commit、更新時点、記載対象を確認して選ぶ。
+明示資料と探索で見つけた候補のどちらも、利用可能な見出し、PR・repository、Branch、Source commit、更新時点、記載対象を確認する。
+明示されたメモにexportの書式を要求しないが、優先することは由来の証明にはならない。
 
 - 探索で見つけた文脈は、この対象(PRの記録があればそのPRと、ブランチ)を示し、Source commitが解決可能で、Reviewed head自身かその祖先であることを確認する。
   exportのplaceholderである`PR not created at export time`、`PR not checked at export time`、`PR unverified at export time`は、ブランチとsourceの由来が一致すれば受け入れられる。
@@ -104,8 +110,10 @@ non-PR rangeでローカル探索するのは、対象に実際に関連する�
   metadataが不足・不一致なら自動採用の前に確認する。
 - Source commitは証拠の時点を示し、Reviewed headと同一である必要はない。
   古い文脈は後の判断を含まない可能性があり、`.dev/contexts/`はcommitされない引継ぎ資料であって、そのrevisionのコードではない。
-  利用者が明示的に役割を与えた文脈は、補助資料や事後の証拠としても使える。
-  役割と時点を示し、そのheadの実装過程を記録したとは断定しない。
+  明示資料も、利用可能なmetadataや利用者が示した由来から時点を確認する。
+  Reviewed headに対する由来が未確認、またはSource commitがReviewed headのdescendantか無関係なら、役割を示した補助資料や事後の証拠としてのみ使い、そのheadの実装過程の記録として扱わない。
+  後の記録が述べるものがReviewed headにないことだけで、コードの欠陥としない。
+  この制限によって実装文脈を必要とする明示要件を満たせなければ、意図された役割を確認する。
 - 複数コメントやローカルファイルの内容は異なりうる。
   由来、対象、時点、内容を比較し、最新コメントや新しいローカル更新時刻だけで正本と決めない。
   ローカル保存だけのexportは、以前共有したコメントを更新しない。
