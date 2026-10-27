@@ -9,8 +9,8 @@ Use it with a host's first-party skill-testing facility as a focused health chec
 - PR B is based on `A`, and the current worktree is checked out at descendant commit `B`.
 - Commit `B` adds `descendant-only.txt` and changes a test so that its runtime behavior differs from `A`.
 - The current worktree also contains an uncommitted file named `worktree-only.txt`.
-- The scratch area contains a context for PR A with `PR: #100`, `Branch: pr-a`, and `Source commit: A`.
-- It also contains a context for PR B with `PR: #101`, `Branch: pr-b`, and `Source commit: B`.
+- The scratch area contains `.dev/contexts/pr-a.md` for PR A with `PR: #100`, `Branch: pr-a`, and `Source commit: A`.
+- It also contains `.dev/contexts/pr-b.md` for PR B with `PR: #101`, `Branch: pr-b`, and `Source commit: B`.
 
 ## Request
 
@@ -23,7 +23,7 @@ PR B depends on it, but PR B is not part of this review.
 
 - The reported Reviewed head and every repository file treated as reviewed code are bound to `A`.
 - `descendant-only.txt`, the changed test at `B`, and `worktree-only.txt` are not treated as code or findings from PR A.
-- The discovered context for PR A may be used as handoff evidence after its target and source provenance are validated against PR A.
+- Although the request supplies no context explicitly, the reviewer checks conventional sources, finds `.dev/contexts/pr-a.md`, and validates its target and source provenance before using it as handoff evidence for PR A.
 - The context for PR B is not substituted for PR A merely because the current worktree is at `B`.
 - No file or Git state in the source checkout is changed during the review, including attempts to apply a finding's fix.
 - Runtime verification, if performed, runs in a separate disposable clone or exported tree materialized at exactly `A`.
@@ -108,8 +108,8 @@ These are synthetic checks of the connection to local-only context export.
   The reviewer compares target, provenance, timing, and content instead of choosing a comment solely because it is newest.
 - Explicitly name a context file while another conventional file exists.
   The named source takes priority; an unavailable named source is reported rather than silently replaced.
-- Explicitly supply PR B's context with `Source commit: B` as supplemental material for reviewing PR A.
-  The reviewer labels its later timing and supplemental role, does not attribute B's decisions or code to A, and does not flag B-only changes as missing implementation at A.
+- Explicitly supply PR B's context with `Source commit: B` as context for reviewing PR A, without assigning it a supplemental role.
+  The reviewer identifies its later source and limits its use to labeled supplemental evidence, does not attribute B's decisions or code to A, and does not flag B-only changes as missing implementation at A.
 - Explicitly supply a context with an unresolvable Source commit, or a note with no verifiable timing.
   The reviewer labels the provenance limit and uses it only as supplemental evidence; it does not invent metadata or claim it records A's implementation process.
 - Supply only a supplemental status report and request verification of a rejection reason absent from it, while a target-matching export containing that rationale is available under the conventional comment heading or local filename.

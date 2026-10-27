@@ -85,7 +85,8 @@ If isolation is unavailable, use CI evidence explicitly tied to Reviewed head or
 Use context explicitly supplied for this review first, including a named file; report an unavailable specified source without silently substituting another.
 If supplied material is supplemental or partial, seek additional context only as needed to assess the requested decisions; supplying a status report does not itself exclude an exported context.
 Honor an explicit restriction to particular sources, and do not search every source merely to claim completeness.
-When discovery is needed, inspect relevant PR conversation-context comments and the conventional local `.dev/contexts/{sanitized target branch}.md` if available.
+When no context is supplied, check relevant PR conversation-context comments and the conventional local `.dev/contexts/{sanitized target branch}.md` if available before concluding that context is absent.
+Use these same sources for any needed additional discovery.
 Comments shared by [conversation-context-export](../conversation-context-export/SKILL.md) use the first heading `# {branch name} 対話コンテキスト`; use that as a discovery cue, then validate provenance.
 Sanitization replaces each of `/ \ : * ? " < > |` with `-`.
 For a non-PR range, discover a local file only when a branch is actually associated with that target, not merely because the current checkout has a branch.
